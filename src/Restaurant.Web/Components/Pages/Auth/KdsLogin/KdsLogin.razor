@@ -1,0 +1,45 @@
+@page "/kds/login"
+@rendermode InteractiveServer
+
+<div class="dark min-h-screen flex items-center justify-center bg-background p-4 text-on-background">
+    <div class="bg-surface-low rounded-[24px] shadow-lg border border-outline p-10 max-w-md w-full flex flex-col items-center">
+        <div class="mb-6 flex flex-col items-center">
+            <h2 class="font-headline-md text-headline-md font-bold text-inverse-primary m-0">🔥 KITCHEN DISPLAY</h2>
+            <p class="text-outline mt-2 font-label-bold uppercase tracking-widest text-sm">Nhập mã PIN đầu bếp</p>
+        </div>
+        
+        <!-- Display dots for PIN length -->
+        <div class="flex gap-4 mb-8 h-8 @(IsError ? "animate-pulse" : "")">
+            @for (int i = 0; i < 6; i++)
+            {
+                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all @(i < Request.AccessCode.Length ? "border-inverse-primary bg-inverse-primary" : "border-outline bg-transparent") @(IsError ? "border-error-container bg-error-container" : "")">
+                </div>
+            }
+        </div>
+        
+        <!-- Numpad Grid -->
+        <div class="grid grid-cols-3 gap-6 w-full place-items-center">
+            @for (int i = 1; i <= 9; i++)
+            {
+                int num = i; // local capture
+                <button class="w-20 h-20 rounded-full bg-surface-container-high text-on-surface font-display-lg text-display-lg hover:bg-surface-dim active:scale-95 transition-transform shadow-sm focus:outline-none" @onclick='() => KeyPress(num.ToString())'>@num</button>
+            }
+            
+            <!-- Bottom Row: CLEAR, 0, CONFIRM -->
+            <button class="w-20 h-20 rounded-full bg-error-container/20 text-error-container font-label-bold text-lg hover:bg-error-container/40 active:scale-95 transition-transform shadow-sm focus:outline-none" @onclick="ClearPin">
+                Xóa
+            </button>
+            <button class="w-20 h-20 rounded-full bg-surface-container-high text-on-surface font-display-lg text-display-lg hover:bg-surface-dim active:scale-95 transition-transform shadow-sm focus:outline-none" @onclick='() => KeyPress("0")'>0</button>
+            <button class="w-20 h-20 rounded-full bg-inverse-primary text-on-primary-fixed font-label-bold text-lg hover:bg-primary-fixed active:scale-95 transition-transform shadow-sm focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" @onclick="ConfirmPin" disabled="@(Request.AccessCode.Length == 0 || IsLoading)">
+                @if (IsLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <span>Vào Bếp</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>

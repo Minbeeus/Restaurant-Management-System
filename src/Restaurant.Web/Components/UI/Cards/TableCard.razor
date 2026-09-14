@@ -1,0 +1,43 @@
+@code {
+    [Parameter] public string TableName { get; set; } = "Table";
+    [Parameter] public int Capacity { get; set; }
+    [Parameter] public string Status { get; set; } = "Available"; // Available, Occupied, NewOrder, Billing
+    [Parameter] public decimal TotalAmount { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    
+    private string BorderClass => Status.ToLower() switch
+    {
+        "available" => "border-success-bg",
+        "occupied" => "border-error-container",
+        "neworder" => "border-warning-bg",
+        "billing" => "border-secondary-container",
+        _ => "border-outline-variant"
+    };
+    
+    private string BadgeType => Status.ToLower() switch
+    {
+        "available" => "Success",
+        "occupied" => "Danger",
+        "neworder" => "Warning",
+        "billing" => "Info",
+        _ => "Info"
+    };
+}
+
+<div class="bg-surface rounded-xl shadow-sm border-2 p-4 cursor-pointer hover:shadow-md transition-all active:scale-95 flex flex-col items-center @BorderClass" @onclick="OnClick">
+    <h4 class="font-headline-sm text-headline-sm text-on-surface mb-1">@TableName</h4>
+    
+    <div class="flex items-center gap-1 text-on-surface-variant text-sm mb-3">
+        <span class="material-symbols-outlined text-[16px]" data-icon="group">group</span>
+        <span>@Capacity</span>
+    </div>
+    
+    <Restaurant.Web.Components.UI.Badges.StatusBadge Type="@BadgeType" Text="@Status" />
+    
+    @if (TotalAmount > 0)
+    {
+        <div class="mt-4 font-bold text-primary text-body-lg">
+            @TotalAmount.ToString("N0") đ
+        </div>
+    }
+</div>

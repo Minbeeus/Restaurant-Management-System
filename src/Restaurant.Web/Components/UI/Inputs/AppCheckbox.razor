@@ -1,0 +1,31 @@
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+    [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public string ErrorMessage { get; set; } = "";
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        if (e.Value is bool boolVal)
+        {
+            await ValueChanged.InvokeAsync(boolVal);
+        }
+    }
+}
+
+<div class="form-check mb-3">
+    <input class="form-check-input @(!string.IsNullOrEmpty(ErrorMessage) ? "is-invalid" : "")" 
+           type="checkbox" 
+           checked="@Value" 
+           @onchange="OnChange" 
+           disabled="@IsDisabled" 
+           style="border-color: var(--color-border-main);" />
+    <label class="form-check-label" style="font-family: var(--font-body); color: var(--color-text-main);">
+        @Label
+    </label>
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="invalid-feedback">@ErrorMessage</div>
+    }
+</div>

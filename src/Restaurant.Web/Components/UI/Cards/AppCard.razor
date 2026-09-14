@@ -1,0 +1,45 @@
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public RenderFragment? HeaderExtra { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private bool HasHeader => !string.IsNullOrEmpty(Title) || HeaderExtra != null;
+}
+
+<div class="card shadow-sm border-0 app-card" style="border-radius: 8px; background-color: var(--color-surface); cursor: @(OnClick.HasDelegate ? "pointer" : "default")" @onclick="OnClick">
+    @if (HasHeader)
+    {
+        <div class="card-header bg-transparent border-bottom-0 d-flex justify-content-between align-items-center pt-3 pb-0">
+            @if (!string.IsNullOrEmpty(Title))
+            {
+                <h5 class="mb-0" style="font-family: var(--font-heading); color: var(--color-secondary); font-weight: 600;">@Title</h5>
+            }
+            @if (HeaderExtra != null)
+            {
+                <div>@HeaderExtra</div>
+            }
+        </div>
+    }
+    <div class="card-body">
+        @ChildContent
+    </div>
+    @if (Footer != null)
+    {
+        <div class="card-footer bg-transparent border-top-0 pb-3 pt-0">
+            @Footer
+        </div>
+    }
+</div>
+
+<style>
+    .app-card {
+        transition: all 0.2s ease;
+        border: 1px solid transparent !important;
+    }
+    .app-card:hover {
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 4px 12px rgba(72, 101, 0, 0.1) !important;
+    }
+</style>

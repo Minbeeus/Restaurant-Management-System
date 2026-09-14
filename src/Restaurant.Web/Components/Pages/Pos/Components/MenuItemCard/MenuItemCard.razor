@@ -1,0 +1,29 @@
+@using Restaurant.Application.DTOs
+
+<div class="pos-menu-item @(Item.IsSoldOut ? "pos-menu-item--sold-out" : "")" @onclick="HandleClick">
+    @if (ShowImage)
+    {
+        <div class="pos-menu-item__img-wrapper">
+            @if (!string.IsNullOrEmpty(Item.ImageUrl))
+            {
+                <img src="@Item.ImageUrl" alt="@Item.Name" class="pos-menu-item__img" />
+            }
+            else
+            {
+                <div class="pos-menu-item__img-placeholder">🍕</div>
+            }
+            
+            @if (Item.IsSoldOut)
+            {
+                <div class="pos-menu-item__overlay">
+                    <span class="pos-menu-item__sold-out-badge">@L["Pos_Msg_SoldOut"]</span>
+                </div>
+            }
+        </div>
+    }
+    
+    <div class="pos-menu-item__content">
+        <h3 class="pos-menu-item__name">@Item.Name</h3>
+        <p class="pos-menu-item__price">@Item.Price.ToString("N0")đ</p>
+    </div>
+</div>

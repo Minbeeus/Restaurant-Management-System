@@ -1,0 +1,200 @@
+.pos-cart {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--color-surface);
+    border-right: 1px solid var(--color-border-light);
+}
+
+.pos-cart__header {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--color-border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pos-cart__title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-on-surface);
+    font-size: 1.125rem;
+}
+
+.pos-cart__code {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: var(--color-secondary);
+}
+
+.pos-cart__user {
+    font-size: 0.875rem;
+    color: var(--color-on-surface);
+    opacity: 0.8;
+}
+
+.pos-cart__items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    background-color: var(--color-canvas); /* Slight contrast from surface */
+}
+
+/* Scrollbar for cart */
+.pos-cart__items::-webkit-scrollbar {
+    width: 4px;
+}
+.pos-cart__items::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-light);
+    border-radius: 4px;
+}
+
+.pos-cart__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-secondary);
+    font-family: var(--font-body);
+}
+
+/* Cart Item */
+.pos-cart-item {
+    background-color: var(--color-surface);
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    border: 1px solid var(--color-border-light);
+}
+
+.pos-cart-item__main {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.pos-cart-item__name {
+    font-family: var(--font-body);
+    font-weight: 600;
+    color: var(--color-on-surface);
+    flex: 1;
+}
+
+.pos-cart-item__price {
+    font-family: var(--font-body);
+    font-weight: 600;
+    color: var(--color-on-surface);
+    margin-left: 1rem;
+}
+
+.pos-cart-item__actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.pos-cart-item__qty-control {
+    display: flex;
+    align-items: center;
+    background-color: var(--color-surface-container-low);
+    border-radius: 4px;
+    border: 1px solid var(--color-border-light);
+}
+
+.pos-cart-item__qty-btn {
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--color-on-surface);
+}
+
+.pos-cart-item__qty-btn:hover {
+    background-color: var(--color-surface-container);
+}
+
+.pos-cart-item__qty-val {
+    min-width: 32px;
+    text-align: center;
+    font-weight: 600;
+    font-family: var(--font-body);
+}
+
+/* Summary */
+.pos-cart__summary {
+    padding: 1rem 1.5rem;
+    background-color: var(--color-surface-container-low);
+    border-top: 1px dashed var(--color-border-light);
+}
+
+.pos-cart__summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    color: var(--color-on-surface);
+}
+
+.pos-cart__summary-row--discount {
+    color: var(--color-tertiary);
+}
+
+.pos-cart__summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border-light);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--color-primary); /* Basil Green */
+}
+
+/* Actions */
+.pos-cart__actions {
+    padding: 1rem 1.5rem;
+    background-color: var(--color-surface);
+}
+
+.pos-cart__actions-top {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+.pos-cart__actions-top ::deep .btn {
+    flex: 1;
+}
+
+.pos-cart__pay-btn {
+    width: 100%;
+    padding: 1rem;
+    background-color: var(--color-primary);
+    color: var(--color-on-primary);
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.pos-cart__pay-btn:hover:not(:disabled) {
+    background-color: var(--color-primary-container);
+}
+
+.pos-cart__pay-btn:disabled {
+    background-color: var(--color-border-light);
+    color: var(--color-secondary);
+    cursor: not-allowed;
+}

@@ -1,0 +1,39 @@
+.pos-main {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+.pos-main__left {
+    width: 35%;
+    min-width: 320px;
+    height: 100%;
+    z-index: 2; /* To sit above the right side if shadow is added */
+}
+
+.pos-main__right {
+    width: 65%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--color-surface-container-low);
+}
+
+@media (max-width: 768px) {
+    /* Responsive adjustment for small tablets/phones */
+    .pos-main {
+        flex-direction: column;
+    }
+    
+    .pos-main__left {
+        width: 100%;
+        height: 50%;
+    }
+    
+    .pos-main__right {
+        width: 100%;
+        height: 50%;
+    }
+}

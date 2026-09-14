@@ -1,0 +1,75 @@
+@typeparam TItem
+
+@code {
+    [Parameter] public IEnumerable<TItem> Items { get; set; } = Array.Empty<TItem>();
+    [Parameter] public RenderFragment? Columns { get; set; }
+    [Parameter] public RenderFragment<TItem>? RowTemplate { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+}
+
+<div class="table-responsive rounded-3 border" style="border-color: var(--color-border-light) !important;">
+    <table class="table table-hover mb-0" style="background-color: var(--color-surface);">
+        <thead style="background-color: var(--color-bg-canvas);">
+            <tr>
+                @if (Columns != null)
+                {
+                    @Columns
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (IsLoading)
+            {
+                <tr>
+                    <td colspan="100%" class="text-center py-4">
+                        <span class="spinner-border spinner-border-sm" style="color: var(--color-primary);" role="status"></span>
+                        <span class="ms-2">@L["Đang tải dữ liệu..."]</span>
+                    </td>
+                </tr>
+            }
+            else if (!Items.Any())
+            {
+                <tr>
+                    <td colspan="100%" class="text-center py-4 text-muted">
+                        @L["Không có dữ liệu"]
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Items)
+                {
+                    <tr class="align-middle">
+                        @if (RowTemplate != null)
+                        {
+                            @RowTemplate(item)
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .table-hover tbody tr:hover {
+        background-color: var(--color-surface-low);
+    }
+    .table thead th {
+        font-family: var(--font-body);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-text-body);
+        border-bottom: 2px solid var(--color-border-light);
+    }
+    .table tbody td {
+        border-bottom: 1px solid var(--color-border-light);
+        font-family: var(--font-body);
+        color: var(--color-text-main);
+    }
+    .table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+</style>

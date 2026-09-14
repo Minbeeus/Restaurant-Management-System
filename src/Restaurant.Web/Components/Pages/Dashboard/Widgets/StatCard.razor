@@ -1,0 +1,47 @@
+<div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-surface-low flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
+    @if (!string.IsNullOrEmpty(StatusColor))
+    {
+        <div class="absolute top-0 right-0 w-2 h-full @StatusColor"></div>
+    }
+    
+    <div class="flex justify-between items-start mb-4">
+        <div class="p-2 @IconBgColor @IconColor rounded-lg">
+            <span class="material-symbols-outlined @(IsFilledIcon ? "filled" : "")" data-icon="@IconName">@IconName</span>
+        </div>
+        
+        @if (!string.IsNullOrEmpty(TrendText))
+        {
+            <div class="flex items-center gap-1 @TrendColor text-sm font-label-bold">
+                <span class="material-symbols-outlined text-[16px]">@TrendIcon</span>
+                @TrendText
+            </div>
+        }
+    </div>
+    
+    <div>
+        <p class="text-on-surface-variant font-body-md mb-1">@Title</p>
+        <h3 class="font-headline-md text-headline-md text-on-background">@Value</h3>
+        @if (!string.IsNullOrEmpty(SubText))
+        {
+            <p class="text-xs @SubTextColor font-label-bold mt-1">@SubText</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string SubText { get; set; } = "";
+    [Parameter] public string SubTextColor { get; set; } = "text-on-surface-variant";
+    
+    [Parameter] public string IconName { get; set; } = "";
+    [Parameter] public bool IsFilledIcon { get; set; } = true;
+    [Parameter] public string IconBgColor { get; set; } = "bg-surface-container";
+    [Parameter] public string IconColor { get; set; } = "text-primary";
+    
+    [Parameter] public string StatusColor { get; set; } = "";
+    
+    [Parameter] public string TrendText { get; set; } = "";
+    [Parameter] public string TrendIcon { get; set; } = "trending_up";
+    [Parameter] public string TrendColor { get; set; } = "text-success-green";
+}

@@ -1,0 +1,132 @@
+@page "/qr"
+@layout Restaurant.Web.Components.Layout.EmptyLayout
+@using Restaurant.Web.Components.Pages.Qr.Components
+
+<div class="h-screen bg-surface-low overflow-hidden flex flex-col relative font-body-md text-on-background">
+    <!-- Header -->
+    <header class="bg-surface shadow-sm sticky top-0 z-10 px-4 py-3">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="font-bold text-lg text-primary">Bàn: @TableName</h1>
+                <p class="text-sm text-on-surface-variant">Xin chào quý khách!</p>
+            </div>
+            <div class="w-10 h-10 bg-primary-container text-primary rounded-full flex items-center justify-center font-bold">
+                M&B
+            </div>
+        </div>
+        
+        <!-- Search bar -->
+        <div class="mt-3 relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+            <input type="text" placeholder="Tìm kiếm món ăn..." class="w-full bg-surface-low border border-outline-variant rounded-full py-2 pl-10 pr-4 focus:outline-none focus:border-primary text-sm" />
+        </div>
+    </header>
+
+    <!-- Categories Tabs (Horizontal scroll) -->
+    <div class="bg-surface border-b border-outline-variant sticky top-[108px] z-10 px-4 py-2 flex overflow-x-auto custom-scrollbar gap-4 hide-scrollbar">
+        @foreach (var cat in MockCategories)
+        {
+            <button class="whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold @(ActiveCategory == cat ? "bg-primary text-white" : "bg-surface-low text-on-surface-variant")" @onclick="() => ActiveCategory = cat">
+                @cat
+            </button>
+        }
+    </div>
+
+    <!-- Menu List -->
+    <main class="flex-1 overflow-y-auto p-4 pb-24">
+        <h2 class="font-bold text-xl mb-4">@ActiveCategory</h2>
+        <div class="flex flex-col gap-4">
+            @foreach (var item in MockItems)
+            {
+                <div class="bg-surface rounded-xl p-3 flex gap-3 shadow-sm border border-outline-variant/30 active:scale-[0.98] transition-transform" @onclick="() => OpenItem(item)">
+                    <img src="@item.ImageUrl" class="w-24 h-24 rounded-lg object-cover bg-surface-low shrink-0" />
+                    <div class="flex-1 flex flex-col justify-between py-1">
+                        <div>
+                            <h3 class="font-bold text-on-surface leading-tight">@item.Name</h3>
+                            <p class="text-xs text-on-surface-variant mt-1 line-clamp-2">@item.Description</p>
+                        </div>
+                        <div class="flex justify-between items-end mt-2">
+                            <span class="font-bold text-primary">@item.Price.ToString("N0")đ</span>
+                            <button class="w-8 h-8 rounded-full bg-primary-container text-primary flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[20px]">add</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </main>
+
+    <!-- Sticky Bottom Cart -->
+    @if (CartItems.Any())
+    {
+        <div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-20">
+            <div class="flex items-center justify-between">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold text-on-surface-variant">Tổng cộng (@CartItems.Sum(x => x.Quantity) món)</span>
+                    <span class="text-xl font-bold text-primary">@CartItems.Sum(x => x.Price * x.Quantity).ToString("N0")đ</span>
+                </div>
+                <button class="bg-primary text-white px-6 py-3 rounded-full font-bold shadow-md flex items-center gap-2 active:scale-95 transition-transform">
+                    <span class="material-symbols-outlined">shopping_cart_checkout</span>
+                    Gửi đơn
+                </button>
+            </div>
+        </div>
+    }
+
+    <QrBottomDrawer @bind-IsOpen="IsDrawerOpen" Item="SelectedItem" OnAddToCart="HandleAddToCart" />
+</div>
+
+<style>
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom, 1rem);
+    }
+</style>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string TableId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string Token { get; set; }
+
+    private string TableName = "Bàn 12"; // Mock
+    private string ActiveCategory = "Phổ biến";
+    private bool IsDrawerOpen = false;
+    private QrBottomDrawer.MenuItem SelectedItem;
+    private List<QrBottomDrawer.CartItem> CartItems = new();
+
+    private List<string> MockCategories = new() { "Phổ biến", "Pizza", "Mì Ý", "Salad", "Đồ uống" };
+    private List<QrBottomDrawer.MenuItem> MockItems = new()
+    {
+        new QrBottomDrawer.MenuItem { Id = Guid.NewGuid(), Name = "Pizza Hải sản nhiệt đới", Price = 189000, ImageUrl = "/images/pizza1.jpg", Description = "Tôm, mực, dứa, phô mai Mozzarella" },
+        new QrBottomDrawer.MenuItem { Id = Guid.NewGuid(), Name = "Mì Ý Sốt Bò Băm", Price = 125000, ImageUrl = "/images/pasta1.jpg", Description = "Mì Ý, sốt bò băm cà chua, phô mai Parmesan" }
+    };
+
+    private void OpenItem(QrBottomDrawer.MenuItem item)
+    {
+        SelectedItem = item;
+        IsDrawerOpen = true;
+    }
+
+    private void HandleAddToCart(QrBottomDrawer.CartItem item)
+    {
+        var existing = CartItems.FirstOrDefault(x => x.MenuItemId == item.MenuItemId);
+        if (existing != null)
+        {
+            existing.Quantity += item.Quantity;
+        }
+        else
+        {
+            CartItems.Add(item);
+        }
+        StateHasChanged();
+    }
+}

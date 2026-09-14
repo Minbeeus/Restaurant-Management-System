@@ -1,0 +1,21 @@
+@code {
+    [Parameter] public string Type { get; set; } = "Info"; // Success, Alert, Danger, Warning, Pending, Info
+    [Parameter] public string Text { get; set; } = "";
+    [Parameter] public string? Icon { get; set; }
+
+    private string TailwindClass => Type.ToLower() switch
+    {
+        "success" => "bg-success-bg text-success-green",
+        "alert" or "danger" => "bg-error-container text-error",
+        "warning" or "pending" => "bg-warning-bg text-warning-amber",
+        _ => "bg-surface-container text-on-surface"
+    };
+}
+
+<span class="inline-flex items-center px-3 py-1 rounded-full text-label-bold font-label-bold @TailwindClass">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <span class="material-symbols-outlined text-[14px] mr-1" data-icon="@Icon">@Icon</span>
+    }
+    @Text
+</span>

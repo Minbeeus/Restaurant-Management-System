@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="INVALID_QR_TOKEN" xml:space="preserve">
+    <value>Invalid Table ID or QR Token.</value>
+  </data>
+  <data name="TABLE_IS_BILLING" xml:space="preserve">
+    <value>Table is currently billing. Menu viewing and ordering are disabled.</value>
+  </data>
+  <data name="ITEM_SOLD_OUT" xml:space="preserve">
+    <value>Item '{0}' is currently sold out.</value>
+  </data>
+  <data name="ITEM_NOT_FOUND" xml:space="preserve">
+    <value>Item (ID: {0}) does not exist or is inactive.</value>
+  </data>
+  <data name="CART_EMPTY" xml:space="preserve">
+    <value>Shopping cart is empty.</value>
+  </data>
+  <data name="INVALID_QUANTITY" xml:space="preserve">
+    <value>Order quantity must be greater than 0.</value>
+  </data>
+  <data name="MODIFIER_INVALID" xml:space="preserve">
+    <value>Option '{0}' does not belong to a valid modifier group for item '{1}'.</value>
+  </data>
+  <data name="MODIFIER_MIN_LIMIT" xml:space="preserve">
+    <value>Please select at least {0} option(s) for '{1}' in item '{2}'.</value>
+  </data>
+  <data name="MODIFIER_MAX_LIMIT" xml:space="preserve">
+    <value>You can select at most {0} option(s) for '{1}' in item '{2}'.</value>
+  </data>
+  <data name="RATE_LIMIT_WAIT" xml:space="preserve">
+    <value>Please wait {0} seconds before submitting a new order.</value>
+  </data>
+  <data name="LOGIN_FAILED" xml:space="preserve">
+    <value>Incorrect username or password.</value>
+  </data>
+  <data name="LOGOUT_SUCCESS" xml:space="preserve">
+    <value>Logged out successfully.</value>
+  </data>
+  <data name="CATEGORY_NOT_FOUND" xml:space="preserve">
+    <value>Category not found.</value>
+  </data>
+  <data name="MENUITEM_NOT_FOUND" xml:space="preserve">
+    <value>Menu item not found.</value>
+  </data>
+  <data name="TABLE_NOT_FOUND" xml:space="preserve">
+    <value>Table not found.</value>
+  </data>
+  <data name="AREA_NOT_FOUND" xml:space="preserve">
+    <value>Area not found.</value>
+  </data>
+  <data name="MODIFIER_GROUP_NOT_FOUND" xml:space="preserve">
+    <value>Modifier group not found.</value>
+  </data>
+  <data name="MODIFIER_OPTION_NOT_FOUND" xml:space="preserve">
+    <value>Modifier option not found.</value>
+  </data>
+  <data name="KITCHEN_ITEM_NOT_FOUND" xml:space="preserve">
+    <value>Kitchen queue item not found.</value>
+  </data>
+  <data name="CANCEL_ORDER_NOTE" xml:space="preserve">
+    <value>[CANCELLED]: {0}</value>
+  </data>
+  <data name="CANCELLATION_WASTE_NOTE" xml:space="preserve">
+    <value>[WASTE] Cancelled Order {0} | Origin: {1}</value>
+  </data>
+  <data name="Pos_Tab_All" xml:space="preserve">
+    <value>ALL</value>
+  </data>
+  <data name="Pos_Tab_Food" xml:space="preserve">
+    <value>FOOD</value>
+  </data>
+  <data name="Pos_Tab_Drink" xml:space="preserve">
+    <value>DRINK</value>
+  </data>
+  <data name="Pos_Btn_SendToKitchen" xml:space="preserve">
+    <value>Send to Kitchen</value>
+  </data>
+  <data name="Pos_Btn_Pay" xml:space="preserve">
+    <value>PAY</value>
+  </data>
+  <data name="Pos_Label_Total" xml:space="preserve">
+    <value>TOTAL</value>
+  </data>
+  <data name="Pos_Label_Subtotal" xml:space="preserve">
+    <value>Subtotal</value>
+  </data>
+  <data name="Pos_Label_Tax" xml:space="preserve">
+    <value>Tax</value>
+  </data>
+  <data name="Pos_Label_Discount" xml:space="preserve">
+    <value>Discount</value>
+  </data>
+  <data name="Pos_Msg_SoldOut" xml:space="preserve">
+    <value>SOLD OUT</value>
+  </data>
+</root>

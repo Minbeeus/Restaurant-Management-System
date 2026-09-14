@@ -1,0 +1,230 @@
+@page "/pos/login"
+@layout Restaurant.Web.Components.Layout.EmptyLayout
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<div class="pos-login-container" @onkeydown="HandleKeyDown" tabindex="0" @ref="containerRef">
+    <PosClockWidget />
+    
+    <div class="pos-login-card @(IsError ? "shake-animation" : "")">
+        <div class="header-section">
+            <h2 class="brand-title">🍕 Mozzarella & Basil</h2>
+            <p class="subtitle">Nhập mã PIN nhân viên để mở ca</p>
+        </div>
+        
+        <!-- Display dots for PIN length -->
+        <div class="flex items-center justify-center gap-3 my-6">
+            @for (int i = 0; i < 6; i++)
+            {
+                var isFilled = i < (pinCode?.Length ?? 0);
+                <div class="w-4 h-4 rounded-full border transition-all duration-200 @(isFilled ? "bg-primary-container border-primary-container scale-110 shadow-sm" : "bg-mozzarella-white border-outline-variant") @(IsError ? "!bg-error !border-error" : "")"></div>
+            }
+        </div>
+        
+        <div class="text-center text-red-500 font-bold mb-2">
+            DEBUG PIN CODE: "@pinCode" (Length: @(pinCode?.Length ?? 0))
+        </div>
+        
+        <!-- Safelist for Tailwind CDN (hidden) -->
+        <div class="hidden bg-primary-container border-primary-container scale-110 shadow-sm bg-mozzarella-white border-outline-variant !bg-error !border-error"></div>
+        
+        @if (IsError)
+        {
+            <div class="error-text">Mã PIN không đúng, vui lòng thử lại!</div>
+        }
+        else
+        {
+            <div class="error-placeholder"></div>
+        }
+        
+        <!-- Numpad Grid -->
+        <div class="numpad-grid">
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(1)">1</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(2)">2</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(3)">3</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(4)">4</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(5)">5</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(6)">6</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(7)">7</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(8)">8</button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(9)">9</button>
+            
+            <!-- Bottom Row: CLEAR, 0, CONFIRM -->
+            <button type="button" class="numpad-key clear-key" @onclick="ClearLast">
+                <span class="material-symbols-outlined">backspace</span>
+            </button>
+            <button type="button" class="numpad-key" @onclick="() => AppendDigit(0)">0</button>
+            <button type="button" class="numpad-key confirm-key" @onclick="ConfirmPin" disabled="@(Request.AccessCode.Length < 6 || IsLoading)">
+                @if (IsLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <span>Vào ca</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Use Montserrat if available, else fallback */
+    @@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+    .pos-login-container {
+        min-height: 100vh;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #F9F9FF;
+        outline: none; /* Hide focus ring */
+    }
+
+    .pos-login-card {
+        width: 100%;
+        max-width: 440px;
+        background-color: #FFFFFF;
+        border-radius: 16px;
+        box-shadow: 0px 10px 25px rgba(68, 99, 113, 0.1);
+        border: 1px solid #E5E7EB;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .header-section {
+        margin-bottom: 32px;
+        text-align: center;
+    }
+
+    .brand-title {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 24px;
+        color: #446371; /* Deep Sea Blue */
+        margin: 0;
+    }
+
+    .subtitle {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: #6B7280;
+        margin-top: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .pin-dots-container {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 16px;
+        height: 20px;
+        align-items: center;
+    }
+
+    .pin-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+
+    .pin-dot.empty {
+        background-color: #F9F9FF;
+        border: 2px solid #C4C9B3;
+    }
+
+    .pin-dot.entered {
+        background-color: #486500;
+        border: 2px solid #486500;
+        transform: scale(1.15);
+    }
+
+    .pin-dot.error {
+        background-color: #AD2B19 !important;
+        border: 2px solid #AD2B19 !important;
+    }
+
+    .error-text {
+        color: #AD2B19;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 24px;
+        height: 20px;
+    }
+
+    .error-placeholder {
+        height: 20px;
+        margin-bottom: 24px;
+    }
+
+    .numpad-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        width: 100%;
+        place-items: center;
+    }
+
+    .numpad-key {
+        width: 76px;
+        height: 76px;
+        border-radius: 12px;
+        background-color: #EFF3FF;
+        color: #121C2A;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+    }
+
+    .numpad-key:hover, .numpad-key:active {
+        background-color: #DEE9FD;
+        transform: scale(0.96);
+    }
+
+    .clear-key {
+        background-color: #FFDAD6;
+        color: #AD2B19;
+    }
+
+    .clear-key:hover, .clear-key:active {
+        background-color: #FFB4AB;
+    }
+
+    .confirm-key {
+        background-color: #486500;
+        color: #FFFFFF;
+        font-size: 16px;
+    }
+
+    .confirm-key:hover:not(:disabled), .confirm-key:active:not(:disabled) {
+        background-color: #3d5600;
+    }
+
+    .confirm-key:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    @@keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-6px); }
+        40%, 80% { transform: translateX(6px); }
+    }
+
+    .shake-animation {
+        animation: shake 0.4s ease-in-out;
+    }
+</style>

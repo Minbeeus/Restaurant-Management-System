@@ -1,0 +1,69 @@
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private async Task Close()
+    {
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}
+
+@if (IsOpen)
+{
+    <div class="drawer-backdrop" @onclick="Close"></div>
+}
+<div class="bottom-drawer @(IsOpen ? "open" : "")">
+    <div class="drawer-handle" @onclick="Close"></div>
+    <div class="drawer-header">
+        <h5 style="font-family: var(--font-heading); color: var(--color-secondary); font-weight: 600; margin: 0;">@Title</h5>
+        <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+    </div>
+    <div class="drawer-body">
+        @ChildContent
+    </div>
+</div>
+
+<style>
+    .drawer-backdrop {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 1040;
+    }
+    .bottom-drawer {
+        position: fixed;
+        bottom: -100%;
+        left: 0; right: 0;
+        background-color: var(--color-surface);
+        border-radius: 20px 20px 0 0;
+        z-index: 1050;
+        transition: bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
+    .bottom-drawer.open {
+        bottom: 0;
+    }
+    .drawer-handle {
+        width: 40px;
+        height: 5px;
+        background-color: var(--color-border-light);
+        border-radius: 3px;
+        margin: 10px auto;
+        cursor: pointer;
+    }
+    .drawer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px 10px 20px;
+    }
+    .drawer-body {
+        padding: 10px 20px 20px 20px;
+        overflow-y: auto;
+    }
+</style>

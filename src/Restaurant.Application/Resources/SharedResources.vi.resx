@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="INVALID_QR_TOKEN" xml:space="preserve">
+    <value>Mã bàn hoặc QR Token không hợp lệ.</value>
+  </data>
+  <data name="TABLE_IS_BILLING" xml:space="preserve">
+    <value>Bàn ăn đang trong quá trình thanh toán. Không thể xem menu hoặc đặt thêm món.</value>
+  </data>
+  <data name="ITEM_SOLD_OUT" xml:space="preserve">
+    <value>Món '{0}' hiện đã báo hết hàng (Sold Out).</value>
+  </data>
+  <data name="ITEM_NOT_FOUND" xml:space="preserve">
+    <value>Món ăn (ID: {0}) không tồn tại hoặc đã ngưng kinh doanh.</value>
+  </data>
+  <data name="CART_EMPTY" xml:space="preserve">
+    <value>Giỏ hàng đang trống.</value>
+  </data>
+  <data name="INVALID_QUANTITY" xml:space="preserve">
+    <value>Số lượng món đặt phải lớn hơn 0.</value>
+  </data>
+  <data name="MODIFIER_INVALID" xml:space="preserve">
+    <value>Tùy chọn '{0}' không thuộc nhóm tùy chọn hợp lệ của món '{1}'.</value>
+  </data>
+  <data name="MODIFIER_MIN_LIMIT" xml:space="preserve">
+    <value>Vui lòng chọn tối thiểu {0} tùy chọn cho nhóm '{1}' của món '{2}'.</value>
+  </data>
+  <data name="MODIFIER_MAX_LIMIT" xml:space="preserve">
+    <value>Bạn chỉ được chọn tối đa {0} tùy chọn cho nhóm '{1}' của món '{2}'.</value>
+  </data>
+  <data name="RATE_LIMIT_WAIT" xml:space="preserve">
+    <value>Vui lòng đợi {0} giây nữa trước khi gửi thêm đơn mới.</value>
+  </data>
+  <data name="LOGIN_FAILED" xml:space="preserve">
+    <value>Tên đăng nhập hoặc mật khẩu không chính xác.</value>
+  </data>
+  <data name="LOGOUT_SUCCESS" xml:space="preserve">
+    <value>Đăng xuất thành công.</value>
+  </data>
+  <data name="CATEGORY_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy danh mục.</value>
+  </data>
+  <data name="MENUITEM_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy món ăn.</value>
+  </data>
+  <data name="TABLE_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy bàn ăn.</value>
+  </data>
+  <data name="AREA_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy khu vực.</value>
+  </data>
+  <data name="MODIFIER_GROUP_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy nhóm tùy chọn.</value>
+  </data>
+  <data name="MODIFIER_OPTION_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy tùy chọn.</value>
+  </data>
+  <data name="KITCHEN_ITEM_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy món ăn trong hàng chờ bếp.</value>
+  </data>
+  <data name="CANCEL_ORDER_NOTE" xml:space="preserve">
+    <value>[HỦY ĐƠN]: {0}</value>
+  </data>
+  <data name="CANCELLATION_WASTE_NOTE" xml:space="preserve">
+    <value>[HAO HỤT] Do hủy đơn {0} | Gốc: {1}</value>
+  </data>
+  <data name="Pos_Tab_All" xml:space="preserve">
+    <value>TẤT CẢ</value>
+  </data>
+  <data name="Pos_Tab_Food" xml:space="preserve">
+    <value>ĐỒ ĂN</value>
+  </data>
+  <data name="Pos_Tab_Drink" xml:space="preserve">
+    <value>ĐỒ UỐNG</value>
+  </data>
+  <data name="Pos_Btn_SendToKitchen" xml:space="preserve">
+    <value>Gửi Bếp</value>
+  </data>
+  <data name="Pos_Btn_Pay" xml:space="preserve">
+    <value>THANH TOÁN</value>
+  </data>
+  <data name="Pos_Label_Total" xml:space="preserve">
+    <value>TỔNG TIỀN</value>
+  </data>
+  <data name="Pos_Label_Subtotal" xml:space="preserve">
+    <value>Tạm tính</value>
+  </data>
+  <data name="Pos_Label_Tax" xml:space="preserve">
+    <value>VAT</value>
+  </data>
+  <data name="Pos_Label_Discount" xml:space="preserve">
+    <value>Giảm giá</value>
+  </data>
+  <data name="Pos_Msg_SoldOut" xml:space="preserve">
+    <value>HẾT MÓN</value>
+  </data>
+</root>

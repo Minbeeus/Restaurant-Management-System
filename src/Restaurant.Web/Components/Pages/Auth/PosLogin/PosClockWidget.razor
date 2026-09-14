@@ -1,0 +1,80 @@
+@using System.Threading
+@implements IDisposable
+
+<div class="fixed top-6 left-6 bg-white/90 backdrop-blur-md rounded-[12px] shadow-sm border border-outline-variant p-4 min-w-[280px] z-50 flex flex-col gap-2">
+    <!-- Clock Area -->
+    <div>
+        <div class="font-display-lg text-[28px] font-bold text-secondary leading-none mb-1">
+            @currentTime.ToString("HH:mm:ss")
+        </div>
+        <div class="font-body-md text-sm text-[#374151]">
+            @currentTime.ToString("dddd, dd/MM/yyyy")
+        </div>
+    </div>
+    
+    <!-- Divider -->
+    <div class="h-px w-full bg-outline-variant/30 my-1"></div>
+    
+    <!-- Weather Area -->
+    <div class="flex items-center gap-3">
+        <span class="text-2xl">@weatherIcon</span>
+        <div class="flex flex-col">
+            <span class="font-bold text-on-surface leading-tight">@temperature</span>
+            <span class="text-xs text-on-surface-variant">@weatherDesc</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    private DateTime currentTime = DateTime.Now;
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource _cts = new();
+
+    // Mock Weather Data
+    private string weatherIcon = "⛅";
+    private string temperature = "28°C";
+    private string weatherDesc = "Hà Nội • Mát mẻ";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ = StartTimer();
+        }
+    }
+
+    private async Task StartTimer()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await _timer.WaitForNextTickAsync(_cts.Token))
+            {
+                try 
+                {
+                    currentTime = DateTime.Now;
+                    await InvokeAsync(StateHasChanged);
+                } 
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Timer iteration error: {ex.Message}");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when disposed
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Timer fatal error: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _timer?.Dispose();
+        _cts.Dispose();
+    }
+}

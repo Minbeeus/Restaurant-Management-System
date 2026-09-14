@@ -1,0 +1,129 @@
+@inherits LayoutComponentBase
+
+<div class="bg-background text-on-background font-body-md text-body-md h-screen overflow-hidden flex">
+    <!-- SideNavBar -->
+    <aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-secondary dark:bg-on-secondary-fixed-variant text-on-secondary dark:text-secondary-fixed font-body-md text-body-md flex flex-col overflow-y-auto custom-scrollbar z-20">
+        <div class="p-6">
+            <div class="flex items-center gap-4 mb-8">
+                <img src="/logo_icon.png" alt="Logo" class="w-10 h-10 rounded-full bg-mozzarella-white object-contain p-1 shadow-sm" />
+                <div>
+                    <h1 class="font-headline-sm text-headline-sm text-on-secondary m-0">Mozzarella &amp; Basil</h1>
+                    <p class="text-on-secondary/70 text-sm">BOH Administration</p>
+                </div>
+            </div>
+            
+            <nav class="flex flex-col gap-2">
+                <a class="flex items-center gap-3 py-3 px-4 border-l-4 border-primary-container bg-on-secondary-container/10 text-on-secondary cursor-pointer active:opacity-80" href="/">
+                    <span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                    Dashboard
+                </a>
+                
+                <div class="flex flex-col">
+                    <div class="flex items-center justify-between py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined" data-icon="restaurant_menu">restaurant_menu</span>
+                            Menu Management
+                        </div>
+                        <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
+                    </div>
+                    <div class="flex flex-col gap-1 pl-12 pr-4 pb-2">
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Danh mục món</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Danh sách món ăn</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Cấu hình Combo</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Tùy chọn &amp; Topping</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Công thức (BOM)</a>
+                    </div>
+                </div>
+                
+                <a class="flex items-center gap-3 py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80" href="#">
+                    <span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+                    Order History
+                </a>
+                
+                <a class="flex items-center gap-3 py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80" href="#">
+                    <span class="material-symbols-outlined" data-icon="groups">groups</span>
+                    Staff Schedules
+                </a>
+                
+                <div class="flex flex-col">
+                    <div class="flex items-center justify-between py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+                            Inventory
+                        </div>
+                        <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
+                    </div>
+                    <div class="flex flex-col gap-1 pl-12 pr-4 pb-2">
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Nguyên vật liệu</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Nhập kho</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Kiểm kê kho</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Nhà cung cấp</a>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col">
+                    <div class="flex items-center justify-between py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined" data-icon="payments">payments</span>
+                            Financial Reports
+                        </div>
+                        <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
+                    </div>
+                    <div class="flex flex-col gap-1 pl-12 pr-4 pb-2">
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Báo cáo doanh thu</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Món bán chạy</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Hao hụt kho</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        
+        <div class="mt-auto p-6">
+            <button class="w-full bg-basil-container text-white py-2 px-4 rounded font-label-bold text-label-bold hover:bg-primary-container transition-colors mb-6 shadow-sm">
+                Quick Action
+            </button>
+            <nav class="flex flex-col gap-2 border-t border-on-secondary/20 pt-4">
+                <a class="flex items-center gap-3 py-2 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer" href="#">
+                    <span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    Settings
+                </a>
+                <a class="flex items-center gap-3 py-2 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer" href="#">
+                    <span class="material-symbols-outlined" data-icon="help">help</span>
+                    Support
+                </a>
+            </nav>
+        </div>
+    </aside>
+    
+    <!-- Main Content Area Wrapper -->
+    <div class="flex-1 ml-sidebar-width flex flex-col h-screen overflow-hidden">
+        <!-- TopNavBar -->
+        <header class="flex justify-between items-center h-16 px-margin-page bg-surface dark:bg-background border-b border-outline-variant font-label-bold text-label-bold shrink-0 z-10">
+            <div class="flex items-center gap-8">
+                <span class="font-headline-sm text-headline-sm font-bold text-primary">BOH Admin</span>
+                <nav class="hidden md:flex items-center gap-6">
+                    <a class="text-primary font-bold border-b-2 border-primary pb-1 cursor-pointer active:scale-95 transition-transform" href="#">Overview</a>
+                    <a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:scale-95 transition-transform" href="#">Reports</a>
+                    <a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:scale-95 transition-transform" href="#">Analytics</a>
+                </nav>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="relative">
+                    <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary" data-icon="search">search</span>
+                </div>
+                <button class="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-low">
+                    <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-secondary-container overflow-hidden border border-border-light shadow-sm">
+                    <img alt="Admin User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAW9hI4orHXY8LKGDgJ_y94q8iNLNoY7hmgkUit4V9AQrRQTl4A8pM4Q4ezWvDfpGSSWxUGATHuo_3L620Toa3MIXpDZKAZFoRZmOrqeoRpsYkoHkeukKWgkjW9H7XqguSF4n3EisJfKoTHSBp70GZEI4FHXpTF3DATpq_tWs6TgwKKsxLjCv3w7a9EQV60khwJTg1ISthUJd0bYNgTDL0ap6CU-WrENQeg3yymiQlyVfwKFhnB5i38yreYX4SOOkVyMeq12xdxbzE"/>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Page Canvas -->
+        <main class="flex-1 overflow-y-auto p-margin-page bg-background">
+            @Body
+        </main>
+    </div>
+</div>

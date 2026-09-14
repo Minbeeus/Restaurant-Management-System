@@ -1,0 +1,53 @@
+@page "/pos"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.PosLayout
+@using Restaurant.Web.Components.UI.Cards
+@using Restaurant.Web.Components.UI.Buttons
+
+<div class="flex flex-col h-full bg-background">
+    <header class="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant shrink-0">
+        <div class="flex flex-col justify-center">
+            <h1 class="font-headline-sm text-headline-sm font-bold text-primary m-0 leading-tight">Thu Ngân (POS)</h1>
+            <span class="text-sm text-on-surface-variant leading-tight">Ca: Sáng - NV: Nguyễn Văn A</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button class="px-4 py-2 text-primary hover:bg-primary/10 rounded-lg transition-colors font-label-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+                Lịch sử đơn
+            </button>
+            <button class="px-4 py-2 bg-primary text-on-primary hover:bg-primary-container rounded-lg transition-colors font-label-bold flex items-center gap-2 shadow-sm">
+                <span class="material-symbols-outlined text-[20px]" data-icon="add_circle">add_circle</span>
+                Tạo đơn mang về
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <aside class="w-[240px] bg-surface border-r border-outline-variant p-4 flex flex-col gap-2 shrink-0 overflow-y-auto">
+            <h3 class="font-label-bold text-label-bold text-on-surface-variant mb-2 px-2 uppercase tracking-wider">Khu vực</h3>
+            <button class="text-left px-4 py-3 rounded-lg bg-secondary-container text-on-secondary-container font-bold shadow-sm transition-colors cursor-pointer">
+                Tầng 1 (Trong nhà)
+            </button>
+            <button class="text-left px-4 py-3 rounded-lg text-on-surface hover:bg-surface-high transition-colors cursor-pointer">
+                Tầng 2 (VIP)
+            </button>
+            <button class="text-left px-4 py-3 rounded-lg text-on-surface hover:bg-surface-high transition-colors cursor-pointer">
+                Sân Vườn
+            </button>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto p-6 bg-surface-low">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                @foreach (var table in MockTables)
+                {
+                    <TableCard 
+                        TableName="@table.Name" 
+                        Capacity="@table.Capacity" 
+                        Status="@table.Status" 
+                        TotalAmount="@table.TotalAmount" 
+                        OnClick="() => HandleTableClick(table.Id)" />
+                }
+            </div>
+        </main>
+    </div>
+</div>

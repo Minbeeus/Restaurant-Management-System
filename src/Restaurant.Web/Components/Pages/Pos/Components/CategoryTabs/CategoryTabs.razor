@@ -1,0 +1,34 @@
+@using Restaurant.Web.Components.UI.Inputs
+
+<div class="pos-category-tabs">
+    <div class="pos-category-tabs__list-wrapper">
+        <div class="pos-category-tabs__list">
+            <!-- "All" Tab -->
+            <button class="pos-category-tabs__btn @(ActiveCategoryId == 0 ? "pos-category-tabs__btn--active" : "")"
+                    @onclick="() => HandleTabClick(0)">
+                @L["Pos_Tab_All"]
+            </button>
+            
+            @foreach (var cat in Categories)
+            {
+                <button class="pos-category-tabs__btn @(ActiveCategoryId == cat.Id ? "pos-category-tabs__btn--active" : "")"
+                        @onclick="() => HandleTabClick(cat.Id)">
+                    @cat.Name
+                </button>
+            }
+        </div>
+    </div>
+    
+    <div class="pos-category-tabs__actions">
+        <!-- Toggle Image View -->
+        <AppToggle 
+            Label="[IMG: ON]" 
+            Value="ShowImages" 
+            ValueChanged="HandleImageToggle" />
+        
+        <!-- Search Button/Input placeholder -->
+        <button class="pos-category-tabs__search-btn" title="Search">
+            🔍
+        </button>
+    </div>
+</div>

@@ -1,0 +1,72 @@
+@page "/admin/login"
+@layout Restaurant.Web.Components.Layout.EmptyLayout
+
+<div class="bg-background min-h-screen flex items-center justify-center font-body-md text-on-surface">
+    <main class="w-full h-screen flex flex-col md:flex-row">
+        <!-- Left Side: Imagery -->
+        <div class="hidden md:flex md:w-1/2 relative bg-surface-variant overflow-hidden items-center justify-center">
+            <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA0YXnknoDfOZRb5aPh4NUZpzQA-tiZPnLsd3Vbn7H0mCXHIuuQZcvTI16HgxroIog7M1oHo4sZZi5q2c-0wcTiLeGRJg6vA2QkmlBhou5LIKk5VJQHxF1xy3JkUIW5Zv5-qmzlmz4gZbnKpcJp4N4R7tH9kFYx7k87P6_3lUidAbCtNrUbI0vCLCYTSdgzftB51JoAiTXnn9yQBSC3M7NzfUro3xsqNbzuYHXcM4XQlzPsI3VUiNw2kjL6FS8-jxhnDlOd4ni4lFE')"></div>
+            <!-- Subtle Overlay -->
+            <div class="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 to-inverse-surface/20"></div>
+            <div class="relative z-10 p-margin-page flex flex-col justify-end h-full text-on-primary">
+                <h2 class="font-display-lg text-display-lg mb-4 max-w-lg leading-tight">Mang trải nghiệm ẩm thực đỉnh cao đến khách hàng</h2>
+                <div class="h-1 w-16 bg-primary-fixed rounded-full"></div>
+            </div>
+        </div>
+        
+        <!-- Right Side: Login Form -->
+        <div class="w-full md:w-1/2 flex items-center justify-center bg-mozzarella-white p-margin-mobile md:p-margin-page">
+            <div class="w-full max-w-md bg-surface-container-lowest rounded-xl shadow-[0_8px_24px_rgba(18,28,42,0.08)] p-8 md:p-10 flex flex-col gap-6">
+                <!-- Header -->
+                <div class="flex flex-col items-center gap-4 mb-2 text-center">
+                    <img alt="Mozzarella &amp; Basil Logo" class="h-16 object-contain" src="/logo.png"/>
+                    <h1 class="font-headline-md text-headline-md text-primary">Đăng nhập hệ thống Quản trị</h1>
+                    <p class="font-body-md text-body-md text-on-surface-variant">BOH Administration Portal</p>
+                </div>
+                
+                <!-- Form -->
+                <form class="flex flex-col gap-container-gap" @onsubmit="HandleLogin">
+                    <!-- Username -->
+                    <div class="flex flex-col gap-1">
+                        <label class="font-label-bold text-label-bold text-on-surface-variant" for="username">Tên đăng nhập</label>
+                        <div class="relative focus-ring-blue rounded border border-outline bg-surface-container-lowest flex items-center">
+                            <span class="material-symbols-outlined text-outline ml-3 absolute">person</span>
+                            <input @bind="Request.Username" disabled="@IsLoading" class="w-full h-10 pl-10 pr-3 bg-transparent border-none focus:ring-0 text-on-surface font-body-md" id="username" name="username" placeholder="Nhập tên đăng nhập" type="text" autocomplete="username"/>
+                        </div>
+                    </div>
+                    
+                    <!-- Password -->
+                    <div class="flex flex-col gap-1">
+                        <label class="font-label-bold text-label-bold text-on-surface-variant" for="password">Mật khẩu</label>
+                        <div class="relative focus-ring-blue rounded border border-outline bg-surface-container-lowest flex items-center">
+                            <span class="material-symbols-outlined text-outline ml-3 absolute">lock</span>
+                            <input @bind="Request.Password" disabled="@IsLoading" class="w-full h-10 pl-10 pr-10 bg-transparent border-none focus:ring-0 text-on-surface font-body-md" id="password" name="password" placeholder="Nhập mật khẩu" type="@PasswordInputType" autocomplete="current-password"/>
+                            <button class="absolute right-3 text-outline hover:text-on-surface-variant transition-colors flex items-center justify-center" type="button" @onclick="TogglePasswordVisibility" @onclick:preventDefault>
+                                <span class="material-symbols-outlined">@PasswordIcon</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Options -->
+                    <div class="flex items-center justify-between mt-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input @bind="RememberMe" disabled="@IsLoading" class="rounded border-outline text-basil-container focus:ring-2 focus:ring-basil-container focus:ring-offset-1 w-4 h-4 cursor-pointer" type="checkbox"/>
+                            <span class="font-body-md text-body-md text-on-surface-variant">Ghi nhớ đăng nhập</span>
+                        </label>
+                        <a class="font-label-bold text-label-bold text-secondary hover:text-secondary-fixed-variant transition-colors" href="#">Quên mật khẩu?</a>
+                    </div>
+                    
+                    <!-- Submit -->
+                    <button class="w-full h-[40px] bg-primary-container text-on-primary font-label-bold text-label-bold rounded hover:bg-surface-tint transition-colors mt-4 flex items-center justify-center gap-2 shadow-sm relative overflow-hidden" type="submit" disabled="@IsLoading">
+                        <span class="relative z-10 flex items-center gap-2 @(IsLoading ? "opacity-0" : "")">
+                            ĐĂNG NHẬP
+                            <span class="material-symbols-outlined text-[18px]">login</span>
+                        </span>
+                        
+                        <div class="@(!IsLoading ? "hidden" : "") absolute z-10 animate-spin h-5 w-5 border-2 border-surface-pure border-t-transparent rounded-full"></div>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>

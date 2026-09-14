@@ -1,0 +1,201 @@
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Components.UI.Feedback
+@using Restaurant.Web.Components.UI.Buttons
+
+@if (IsOpen)
+{
+    <AppModal Title="Chọn Option Món" IsOpen="IsOpen" OnClose="CloseModal">
+        <ChildContent>
+            @if (MenuItem != null)
+            {
+                <div class="combo-builder">
+                    <h3 class="font-bold text-lg mb-2">@MenuItem.Name</h3>
+                    <p class="text-gray-600 mb-4">Giá: @MenuItem.Price.ToString("N0")đ</p>
+
+                    @if (ModifierGroups != null && ModifierGroups.Any())
+                    {
+                        @foreach (var group in ModifierGroups)
+                        {
+                            <div class="mb-4">
+                                <h4 class="font-bold">@group.Name 
+                                    @if(group.IsRequired) { <span class="text-red-500">*</span> }
+                                </h4>
+                                <p class="text-sm text-gray-500 mb-2">Chọn tối thiểu @group.MinSelections, tối đa @group.MaxSelections</p>
+                                
+                                @foreach (var opt in group.ModifierOptions)
+                                {
+                                    <div class="flex items-center justify-between py-1 border-b">
+                                        <label class="flex items-center cursor-pointer">
+                                            <input type="checkbox" 
+                                                   class="mr-2"
+                                                   checked="@IsSelected(opt.Id)"
+                                                   @onchange="(e) => ToggleOption(group, opt, (bool)e.Value!)" />
+                                            @opt.Name
+                                        </label>
+                                        <span class="text-sm">
+                                            @(opt.ExtraPrice > 0 ? $"+{opt.ExtraPrice:N0}đ" : "")
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-gray-500">Món này không có tuỳ chọn nào.</p>
+                    }
+                </div>
+            }
+        </ChildContent>
+        <FooterButtons>
+            <div class="flex justify-between w-full">
+                <div class="flex items-center gap-2">
+                    <button class="px-3 py-1 bg-gray-200 rounded" disabled="@IsProcessing" @onclick="() => Quantity = Math.Max(1, Quantity - 1)">-</button>
+                    <span class="font-bold">@Quantity</span>
+                    <button class="px-3 py-1 bg-gray-200 rounded" disabled="@IsProcessing" @onclick="() => Quantity++">+</button>
+                </div>
+                <AppButton Variant="Primary" Disabled="!IsValid() || IsProcessing" OnClick="HandleConfirm">
+                    @if (IsProcessing)
+                    {
+                        <span>Đang xử lý...</span>
+                    }
+                    else
+                    {
+                        <span>Thêm vào đơn (@CalculateTotal().ToString("N0")đ)</span>
+                    }
+                </AppButton>
+            </div>
+        </FooterButtons>
+    </AppModal>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter]
+    public MenuItemDetailDto? MenuItem { get; set; }
+
+    [Parameter]
+    public List<ModifierGroupDto>? ModifierGroups { get; set; }
+
+    [Parameter]
+    public EventCallback<(MenuItemDetailDto item, int qty, List<int> selectedMods)> OnConfirm { get; set; }
+
+    private int Quantity { get; set; } = 1;
+    private List<int> SelectedOptions { get; set; } = new();
+    private bool IsProcessing { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && MenuItem != null && SelectedOptions.Count == 0)
+        {
+            Quantity = 1;
+            SelectedOptions.Clear();
+            // Select defaults
+            if (ModifierGroups != null)
+            {
+                foreach (var group in ModifierGroups)
+                {
+                    foreach (var opt in group.ModifierOptions.Where(o => o.IsDefault))
+                    {
+                        SelectedOptions.Add(opt.Id);
+                    }
+                }
+            }
+        }
+    }
+
+    private bool IsSelected(int optId) => SelectedOptions.Contains(optId);
+
+    private void ToggleOption(ModifierGroupDto group, ModifierOptionDto opt, bool isChecked)
+    {
+        if (isChecked)
+        {
+            // check max selections
+            var selectedInGroup = SelectedOptions.Count(id => group.ModifierOptions.Any(o => o.Id == id));
+            if (group.MaxSelections > 0 && selectedInGroup >= group.MaxSelections)
+            {
+                // Uncheck the first one selected in this group if max is reached (radio behavior)
+                if (group.MaxSelections == 1)
+                {
+                    var existingOpt = group.ModifierOptions.FirstOrDefault(o => SelectedOptions.Contains(o.Id));
+                    if (existingOpt != null) SelectedOptions.Remove(existingOpt.Id);
+                    SelectedOptions.Add(opt.Id);
+                }
+                return; // or show toast
+            }
+            SelectedOptions.Add(opt.Id);
+        }
+        else
+        {
+            SelectedOptions.Remove(opt.Id);
+        }
+    }
+
+    private bool IsValid()
+    {
+        if (MenuItem == null) return false;
+        if (ModifierGroups == null) return true;
+
+        foreach (var group in ModifierGroups)
+        {
+            var selectedInGroup = SelectedOptions.Count(id => group.ModifierOptions.Any(o => o.Id == id));
+            if (group.IsRequired && selectedInGroup < group.MinSelections) return false;
+            if (group.MaxSelections > 0 && selectedInGroup > group.MaxSelections) return false;
+        }
+
+        return true;
+    }
+
+    private decimal CalculateTotal()
+    {
+        if (MenuItem == null) return 0;
+        decimal total = MenuItem.Price;
+        if (ModifierGroups != null)
+        {
+            foreach (var group in ModifierGroups)
+            {
+                foreach (var opt in group.ModifierOptions)
+                {
+                    if (SelectedOptions.Contains(opt.Id))
+                    {
+                        total += opt.ExtraPrice;
+                    }
+                }
+            }
+        }
+        return total * Quantity;
+    }
+
+    private async Task HandleConfirm()
+    {
+        if (IsProcessing) return;
+        
+        if (MenuItem != null && IsValid())
+        {
+            IsProcessing = true;
+            StateHasChanged();
+            
+            try
+            {
+                await OnConfirm.InvokeAsync((MenuItem, Quantity, SelectedOptions.ToList()));
+                await CloseModal();
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+        SelectedOptions.Clear();
+    }
+}

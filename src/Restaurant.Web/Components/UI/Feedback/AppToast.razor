@@ -1,0 +1,51 @@
+@code {
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public string Type { get; set; } = "Success"; // Success, Error, Info
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    private string BgColor => Type.ToLower() switch
+    {
+        "success" => "var(--color-success-bg)",
+        "error" => "var(--color-alert-bg)",
+        "info" => "var(--color-surface-high)",
+        _ => "var(--color-surface)"
+    };
+    
+    private string TextColor => Type.ToLower() switch
+    {
+        "success" => "var(--color-success-text)",
+        "error" => "var(--color-alert-text)",
+        "info" => "var(--color-text-main)",
+        _ => "var(--color-text-main)"
+    };
+
+    private string Icon => Type.ToLower() switch
+    {
+        "success" => "bi-check-circle-fill",
+        "error" => "bi-exclamation-triangle-fill",
+        "info" => "bi-info-circle-fill",
+        _ => "bi-bell-fill"
+    };
+
+    private async Task Close()
+    {
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+}
+
+@if (IsVisible)
+{
+    <div class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 1060;">
+        <div class="toast show align-items-center border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true" 
+             style="background-color: @BgColor; color: @TextColor; border-radius: 8px;">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center" style="font-family: var(--font-body); font-weight: 500;">
+                    <i class="bi @Icon me-2 fs-5"></i>
+                    @Message
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" aria-label="Close" @onclick="Close"></button>
+            </div>
+        </div>
+    </div>
+}

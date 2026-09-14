@@ -1,0 +1,44 @@
+@typeparam TValue
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public TValue? Value { get; set; }
+    [Parameter] public EventCallback<TValue?> ValueChanged { get; set; }
+    [Parameter] public string ErrorMessage { get; set; } = "";
+    [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        if (e.Value is string stringValue)
+        {
+            try 
+            {
+                var convertedValue = (TValue)Convert.ChangeType(stringValue, typeof(TValue));
+                await ValueChanged.InvokeAsync(convertedValue);
+            }
+            catch 
+            {
+                await ValueChanged.InvokeAsync(default);
+            }
+        }
+    }
+}
+
+<div class="mb-3">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="form-label label-bold" style="font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.05em;">@Label</label>
+    }
+    <select class="form-select @(!string.IsNullOrEmpty(ErrorMessage) ? "is-invalid" : "")" 
+            style="border-radius: 4px; border-color: var(--color-border-light); background-color: var(--color-surface);"
+            value="@Value" 
+            @onchange="OnChange"
+            disabled="@IsDisabled">
+        @ChildContent
+    </select>
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="invalid-feedback">@ErrorMessage</div>
+    }
+</div>

@@ -1,0 +1,47 @@
+@using System.Timers
+@implements IDisposable
+
+@code {
+    [Parameter] public DateTime StartTime { get; set; }
+    [Parameter] public int WarningMinutes { get; set; } = 15;
+
+    private Timer? _timer;
+    private TimeSpan _elapsed;
+    private bool _isWarning;
+
+    protected override void OnInitialized()
+    {
+        UpdateTimer();
+        _timer = new Timer(10000); // refresh every 10s
+        _timer.Elapsed += (s, e) => { UpdateTimer(); InvokeAsync(StateHasChanged); };
+        _timer.Start();
+    }
+
+    private void UpdateTimer()
+    {
+        _elapsed = DateTime.UtcNow - StartTime;
+        _isWarning = _elapsed.TotalMinutes >= WarningMinutes;
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}
+
+<span class="badge @(_isWarning ? "sla-warning" : "")" 
+      style="border-radius: 9999px; padding: 0.35em 0.8em; font-family: var(--font-body); font-weight: 600; font-size: 12px; @(_isWarning ? "background-color: var(--color-alert-bg); color: var(--color-alert-text);" : "background-color: var(--color-surface-container); color: var(--color-text-main);")">
+    <i class="bi bi-clock me-1"></i>
+    @((int)_elapsed.TotalMinutes)m
+</span>
+
+<style>
+    .sla-warning {
+        animation: pulse-red 1.5s infinite;
+    }
+    @@keyframes pulse-red {
+        0% { box-shadow: 0 0 0 0 rgba(155, 28, 28, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(155, 28, 28, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(155, 28, 28, 0); }
+    }
+</style>

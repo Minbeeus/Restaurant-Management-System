@@ -1,0 +1,88 @@
+@page "/kds"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.KdsLayout
+@using Restaurant.Web.Components.UI.Cards
+@using Restaurant.Web.Components.UI.Buttons
+
+<div class="flex flex-col h-full bg-background dark:bg-background">
+    <header class="h-16 flex items-center justify-between px-6 bg-surface dark:bg-inverse-surface border-b border-outline-variant dark:border-outline shrink-0 shadow-sm">
+        <div class="flex flex-col justify-center">
+            <h1 class="font-headline-sm text-headline-sm font-bold text-primary dark:text-inverse-primary m-0 leading-tight">Màn hình Bếp (KDS)</h1>
+            <span class="text-sm text-on-surface-variant dark:text-outline leading-tight">Hiệu suất: Bình thường</span>
+        </div>
+        <div class="flex items-center gap-8">
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-on-surface-variant dark:text-outline font-label-bold uppercase tracking-wider">Chờ làm:</span>
+                <span class="bg-warning-bg text-warning-amber px-3 py-1 rounded-full font-bold">@ActiveTickets.Count</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-on-surface-variant dark:text-outline font-label-bold uppercase tracking-wider">Quá hạn:</span>
+                <span class="bg-error-container text-error px-3 py-1 rounded-full font-bold">0</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <button class="px-4 py-2 text-on-surface dark:text-on-background hover:bg-surface-high dark:hover:bg-[#2a3441] rounded-lg transition-colors font-label-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+                Đơn đã xong
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-x-auto p-6 bg-surface-low dark:bg-[#121820]">
+        <div class="flex gap-6 h-full items-stretch">
+            @foreach (var ticket in ActiveTickets)
+            {
+                <KdsTicketCard 
+                    OrderId="@ticket.OrderCode" 
+                    TableName="@ticket.TableName" 
+                    CreatedAt="@ticket.CreatedAt">
+                    <ItemsList>
+                        <div class="flex flex-col">
+                            @foreach (var item in ticket.Items)
+                            {
+                                <div class="flex flex-col p-4 border-b border-outline-variant dark:border-outline last:border-b-0 @(item.KitchenStatus == 2 ? "opacity-50" : "")">
+                                    <div class="flex gap-4">
+                                        <div class="font-bold text-primary dark:text-inverse-primary bg-primary-container/10 dark:bg-primary-container/20 px-2 py-1 rounded h-fit shrink-0">@item.Quantity x</div>
+                                        <div class="flex flex-col flex-1">
+                                            <div class="font-bold text-on-surface dark:text-on-background text-lg">
+                                                @item.MenuItemName 
+                                                <span class="text-xs text-gray-500 ml-2">(@item.KitchenStatusName)</span>
+                                            </div>
+                                            @if (item.Modifiers != null && item.Modifiers.Any())
+                                            {
+                                                <div class="text-sm text-on-surface-variant dark:text-outline mt-1">
+                                                    @string.Join(", ", item.Modifiers)
+                                                </div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.Note))
+                                            {
+                                                <div class="text-error dark:text-error-container text-sm mt-1 flex items-start gap-1 font-medium bg-error-container/10 p-2 rounded">
+                                                    <span class="material-symbols-outlined text-[16px]" data-icon="warning">warning</span>
+                                                    @item.Note
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2 justify-end mt-3">
+                                        @if (item.KitchenStatus == 0) // Pending
+                                        {
+                                            <AppButton Variant="Outline" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatus(item.OrderItemId, 1)">Nhận món</AppButton>
+                                        }
+                                        else if (item.KitchenStatus == 1) // Processing
+                                        {
+                                            <AppButton Variant="Primary" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatus(item.OrderItemId, 2)">Xong</AppButton>
+                                        }
+                                        else if (item.KitchenStatus == 2)
+                                        {
+                                            <span class="text-success font-bold">Đã xong</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </ItemsList>
+                </KdsTicketCard>
+            }
+        </div>
+    </main>
+</div>

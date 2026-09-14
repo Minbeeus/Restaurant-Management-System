@@ -1,0 +1,23 @@
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Components.Pages.Pos.Components.MenuItemCard
+
+<div class="pos-menu-grid">
+    @if (Items == null || !Items.Any())
+    {
+        <div class="pos-menu-grid__empty">
+            <p>Không có món ăn nào trong danh mục này.</p>
+        </div>
+    }
+    else
+    {
+        <div class="pos-menu-grid__container">
+            @foreach (var item in Items)
+            {
+                <MenuItemCard 
+                    Item="item" 
+                    ShowImage="ShowImage" 
+                    OnItemClicked="HandleItemClicked" />
+            }
+        </div>
+    }
+</div>

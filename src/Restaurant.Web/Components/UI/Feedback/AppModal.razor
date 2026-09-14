@@ -1,0 +1,36 @@
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? FooterButtons { get; set; }
+
+    private async Task Close()
+    {
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}
+
+@if (IsOpen)
+{
+    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" @onclick="Close">
+        <div class="modal-dialog modal-dialog-centered" role="document" @onclick:stopPropagation="true">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 8px; background-color: var(--color-surface);">
+                <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                    <h5 class="modal-title fw-bold" style="font-family: var(--font-heading); color: var(--color-secondary);">@Title</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3">
+                    @ChildContent
+                </div>
+                @if (FooterButtons != null)
+                {
+                    <div class="modal-footer border-top-0 pt-0 pb-4 px-4">
+                        @FooterButtons
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}

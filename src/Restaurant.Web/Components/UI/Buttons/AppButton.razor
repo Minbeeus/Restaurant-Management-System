@@ -1,0 +1,43 @@
+@code {
+    [Parameter] public string Variant { get; set; } = "Primary"; // Primary, Secondary, Danger, Ghost
+    [Parameter] public string Size { get; set; } = "Md"; // Sm, Md, Lg
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass => $"btn {GetVariantClass()} {GetSizeClass()} {(Disabled || IsLoading ? "disabled" : "")}";
+
+    private string GetVariantClass() => Variant.ToLower() switch
+    {
+        "primary" => "btn-primary",
+        "secondary" => "btn-secondary",
+        "danger" => "btn-danger",
+        "ghost" => "btn-light border-0", 
+        _ => "btn-primary"
+    };
+
+    private string GetSizeClass() => Size.ToLower() switch
+    {
+        "sm" => "btn-sm",
+        "lg" => "btn-lg",
+        _ => ""
+    };
+}
+
+<button type="button" class="@CssClass" disabled="@(Disabled || IsLoading)" @onclick="OnClick">
+    @if (IsLoading)
+    {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        <span class="ms-1">@L["Loading..."]</span>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <i class="@Icon me-2"></i>
+        }
+        @ChildContent
+    }
+</button>

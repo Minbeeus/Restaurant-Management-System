@@ -1,0 +1,48 @@
+@page "/pos/order"
+@layout Restaurant.Web.Components.Layout.PosLayout
+@using Restaurant.Web.Components.Pages.Pos.Components.OrderCart
+@using Restaurant.Web.Components.Pages.Pos.Components.CategoryTabs
+@using Restaurant.Web.Components.Pages.Pos.Components.MenuGrid
+@using Restaurant.Web.Components.Pages.Pos.Components
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
+
+<div class="pos-main">
+    <div class="pos-main__left">
+        <OrderCart 
+            Items="CartItems" 
+            TableName="@CurrentTableName"
+            OrderCode="@CurrentOrderCode"
+            OnQuantityChanged="HandleCartQuantityChanged"
+            OnItemRemoved="HandleCartItemRemoved"
+            OnSendToKitchen="HandleSendToKitchen"
+            OnPay="HandlePay" />
+    </div>
+    <div class="pos-main__right">
+        @if (ShowAlert)
+        {
+            <div class="bg-warning-container text-warning px-4 py-2 mb-2 rounded font-bold shadow-sm flex items-center justify-between">
+                <span>CÓ ĐƠN HÀNG MỚI TỪ QR! BÀN @NewOrderTableName</span>
+                <button class="text-sm border border-warning px-2 py-1 rounded hover:bg-warning/10" @onclick="() => ShowAlert = false">Đóng</button>
+            </div>
+        }
+        
+        <CategoryTabs 
+            Categories="Categories"
+            ActiveCategoryId="ActiveCategoryId"
+            ShowImages="ShowImages"
+            OnCategoryChanged="HandleCategoryChanged"
+            OnImageToggleChanged="HandleImageToggle" />
+            
+        <MenuGrid 
+            Items="FilteredMenuItems"
+            ShowImage="ShowImages"
+            OnItemClicked="HandleMenuItemClicked" />
+    </div>
+</div>
+
+<ComboBuilderModal 
+    @bind-IsOpen="ShowComboModal"
+    MenuItem="SelectedItemDetail"
+    ModifierGroups="SelectedModifierGroups"
+    OnConfirm="HandleConfirmCombo" />

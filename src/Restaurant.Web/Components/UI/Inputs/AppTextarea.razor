@@ -1,0 +1,33 @@
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Placeholder { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string ErrorMessage { get; set; } = "";
+    [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public int Rows { get; set; } = 3;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(val);
+    }
+}
+
+<div class="mb-3">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="form-label label-bold" style="font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.05em;">@Label</label>
+    }
+    <textarea class="form-control @(!string.IsNullOrEmpty(ErrorMessage) ? "is-invalid" : "")" 
+              style="border-radius: 4px; border-color: var(--color-border-light); background-color: var(--color-surface);"
+              placeholder="@Placeholder"
+              value="@Value" 
+              @oninput="OnInput"
+              rows="@Rows"
+              disabled="@IsDisabled"></textarea>
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="invalid-feedback">@ErrorMessage</div>
+    }
+</div>

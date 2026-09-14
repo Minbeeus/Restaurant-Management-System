@@ -1,0 +1,12 @@
+@inherits LayoutComponentBase
+
+<div class="bg-background text-on-background font-body-md text-body-md h-screen overflow-hidden flex flex-col">
+    <main class="flex-1 overflow-hidden flex flex-col">
+        @Body
+    </main>
+    <div id="blazor-error-ui" class="hidden bg-error text-on-error fixed bottom-0 w-full px-6 py-2 shadow-sm z-50">
+        An unhandled error has occurred.
+        <a href="" class="font-bold underline ml-2">Reload</a>
+        <a class="dismiss cursor-pointer absolute right-4 top-2">🗙</a>
+    </div>
+</div>

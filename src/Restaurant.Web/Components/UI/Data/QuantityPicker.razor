@@ -1,0 +1,43 @@
+@code {
+    [Parameter] public int Value { get; set; } = 1;
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public int Min { get; set; } = 1;
+    [Parameter] public int Max { get; set; } = 99;
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private async Task Increment()
+    {
+        if (Value < Max && !IsDisabled)
+        {
+            await ValueChanged.InvokeAsync(Value + 1);
+        }
+    }
+
+    private async Task Decrement()
+    {
+        if (Value > Min && !IsDisabled)
+        {
+            await ValueChanged.InvokeAsync(Value - 1);
+        }
+    }
+}
+
+<div class="d-inline-flex align-items-center" style="border: 1px solid var(--color-border-main); border-radius: 4px; background-color: var(--color-surface);">
+    <button type="button" class="btn btn-sm btn-link text-decoration-none px-3" 
+            style="color: var(--color-secondary);" 
+            @onclick="Decrement" 
+            disabled="@(Value <= Min || IsDisabled)">
+        <i class="bi bi-dash fw-bold fs-5"></i>
+    </button>
+    
+    <span class="fw-bold px-2 text-center" style="min-width: 40px; font-family: var(--font-body); color: var(--color-text-main);">
+        @Value
+    </span>
+    
+    <button type="button" class="btn btn-sm btn-link text-decoration-none px-3" 
+            style="color: var(--color-primary);" 
+            @onclick="Increment" 
+            disabled="@(Value >= Max || IsDisabled)">
+        <i class="bi bi-plus fw-bold fs-5"></i>
+    </button>
+</div>

@@ -1,0 +1,85 @@
+@using Restaurant.Web.Components.UI.Buttons
+
+<div class="pos-cart">
+    <!-- Header -->
+    <div class="pos-cart__header">
+        <div class="pos-cart__info">
+            <h4 class="pos-cart__title">Bàn: @TableName</h4>
+            <span class="pos-cart__code">@OrderCode</span>
+        </div>
+        <div class="pos-cart__user">
+            <span>👤 Thu Ngân</span>
+        </div>
+    </div>
+    
+    <!-- Item List -->
+    <div class="pos-cart__items">
+        @if (Items == null || !Items.Any())
+        {
+            <div class="pos-cart__empty">
+                <p>Chưa có món nào được chọn</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Items)
+            {
+                <div class="pos-cart-item">
+                    <div class="pos-cart-item__main">
+                        <div class="pos-cart-item__name">@item.Name</div>
+                        <div class="pos-cart-item__price">@((item.Price * item.Quantity).ToString("N0"))đ</div>
+                    </div>
+                    
+                    <div class="pos-cart-item__actions">
+                        <div class="pos-cart-item__qty-control">
+                            <button class="pos-cart-item__qty-btn" disabled="@IsProcessing" @onclick="() => HandleUpdateQuantity(item, item.Quantity - 1)">-</button>
+                            <span class="pos-cart-item__qty-val">@item.Quantity</span>
+                            <button class="pos-cart-item__qty-btn" disabled="@IsProcessing" @onclick="() => HandleUpdateQuantity(item, item.Quantity + 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+    
+    <!-- Summary -->
+    <div class="pos-cart__summary">
+        <div class="pos-cart__summary-row">
+            <span>@L["Pos_Label_Subtotal"]:</span>
+            <span>@Subtotal.ToString("N0")đ</span>
+        </div>
+        <div class="pos-cart__summary-row pos-cart__summary-row--discount">
+            <span>@L["Pos_Label_Discount"]:</span>
+            <span>-@Discount.ToString("N0")đ</span>
+        </div>
+        <div class="pos-cart__summary-row">
+            <span>@L["Pos_Label_Tax"]:</span>
+            <span>@Tax.ToString("N0")đ</span>
+        </div>
+        
+        <div class="pos-cart__summary-total">
+            <span>@L["Pos_Label_Total"]:</span>
+            <span class="pos-cart__total-val">@Total.ToString("N0")đ</span>
+        </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="pos-cart__actions">
+        <div class="pos-cart__actions-top">
+            <AppButton Variant="Secondary" Disabled="Items == null || !Items.Any() || IsProcessing" OnClick="HandleSendToKitchen">
+                @L["Pos_Btn_SendToKitchen"]
+            </AppButton>
+            <AppButton Variant="Outline" Disabled="@IsProcessing" OnClick="() => {}">
+                Chuyển Bàn
+            </AppButton>
+            <AppButton Variant="Outline" Disabled="@IsProcessing" OnClick="() => {}">
+                Gộp Bàn
+            </AppButton>
+        </div>
+        <div class="pos-cart__actions-main">
+            <button class="pos-cart__pay-btn" disabled="@(Items == null || !Items.Any() || IsProcessing)" @onclick="HandlePay">
+                @L["Pos_Btn_Pay"]
+            </button>
+        </div>
+    </div>
+</div>
