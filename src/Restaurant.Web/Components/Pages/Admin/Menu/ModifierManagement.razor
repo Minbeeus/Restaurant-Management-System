@@ -1,0 +1,448 @@
+@page "/admin/modifiers"
+@layout Restaurant.Web.Components.Layout.AdminLayout
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Services
+@inject MenuApiClient ApiClient
+
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-headline-sm text-primary">Tùy chọn & Topping (Modifiers)</h2>
+    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors" @onclick="OpenAddModal">
+        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> Thêm Nhóm Tùy chọn
+    </button>
+</div>
+
+@if (_isLoading)
+{
+    <div class="flex justify-center p-12">
+        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    </div>
+}
+else
+{
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @if (!_modifierGroups.Any())
+        {
+            <div class="col-span-full p-8 text-center text-on-surface-variant bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30">
+                Chưa có nhóm tùy chọn nào.
+            </div>
+        }
+        @foreach (var group in _modifierGroups)
+        {
+            <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 flex flex-col overflow-hidden">
+                <div class="px-5 py-4 border-b border-outline-variant/30 flex justify-between items-start bg-surface-container-low">
+                    <div>
+                        <h3 class="font-headline-sm text-on-background m-0 text-lg">@group.Name</h3>
+                        <div class="text-xs text-on-surface-variant mt-1 space-x-2">
+                            @if (group.IsRequired)
+                            {
+                                <span class="bg-error-container/20 text-error px-1.5 py-0.5 rounded font-bold">Bắt buộc</span>
+                            }
+                            else
+                            {
+                                <span class="bg-surface-variant/30 text-on-surface-variant px-1.5 py-0.5 rounded font-bold">Tùy chọn</span>
+                            }
+                            <span>Chọn từ @group.MinSelections đến @group.MaxSelections</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <button class="text-primary hover:bg-primary-container p-1.5 rounded-full transition-colors" title="Sửa" @onclick="() => OpenEditModal(group)">
+                            <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+                        </button>
+                        <button class="text-error hover:bg-error-container p-1.5 rounded-full transition-colors" title="Xóa" @onclick="() => ConfirmDelete(group)">
+                            <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 p-0">
+                    @if (group.ModifierOptions.Any())
+                    {
+                        <ul class="divide-y divide-outline-variant/20">
+                            @foreach (var opt in group.ModifierOptions.OrderBy(o => o.SortOrder))
+                            {
+                                <li class="px-5 py-3 flex justify-between items-center hover:bg-surface-low/50 transition-colors">
+                                    <div class="flex items-center gap-2">
+                                        @if (opt.IsDefault)
+                                        {
+                                            <span class="material-symbols-outlined text-success-green text-sm" data-icon="check_circle">check_circle</span>
+                                        }
+                                        <span class="text-sm font-label-bold @(!opt.IsActive ? "text-on-surface-variant line-through" : "text-on-surface")">@opt.Name</span>
+                                    </div>
+                                    <span class="text-sm font-bold text-primary">@(opt.ExtraPrice > 0 ? "+" + opt.ExtraPrice.ToString("N0") + "đ" : "Miễn phí")</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="p-5 text-center text-sm text-on-surface-variant italic">Không có tùy chọn con nào</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- Modal Add/Edit -->
+@if (_showModal)
+{
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low shrink-0">
+                <h3 class="font-headline-sm text-on-background m-0">@(_isEditing ? "Cập nhật Nhóm Tùy chọn" : "Thêm Nhóm Tùy chọn mới")</h3>
+                <button class="text-on-surface-variant hover:text-error transition-colors" @onclick="CloseModal">
+                    <span class="material-symbols-outlined" data-icon="close">close</span>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1">
+                <EditForm Model="@_model" OnValidSubmit="SaveModifierGroup">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="bg-surface-container p-4 rounded-lg border border-outline-variant/30 mb-6 space-y-4">
+                        <h4 class="font-label-bold text-primary border-b border-outline-variant/30 pb-2 mb-4">Thông tin Nhóm (Group)</h4>
+                        
+                        <div>
+                            <label class="block text-sm font-label-bold text-on-surface mb-1">Tên nhóm (VD: Kích cỡ, Mức đường, Topping) <span class="text-error">*</span></label>
+                            <InputText @bind-Value="_model.Name" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" />
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-label-bold text-on-surface mb-2">Quy định</label>
+                                <label class="flex items-center cursor-pointer mt-2">
+                                    <InputCheckbox @bind-Value="_model.IsRequired" class="w-4 h-4 text-primary bg-surface-container border-outline rounded focus:ring-primary focus:ring-2" />
+                                    <span class="ml-2 text-sm text-on-surface font-bold">Bắt buộc phải chọn</span>
+                                </label>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-label-bold text-on-surface mb-1">Số lượng Chọn tối thiểu</label>
+                                <InputNumber @bind-Value="_model.MinSelections" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" />
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-label-bold text-on-surface mb-1">Số lượng Chọn tối đa</label>
+                                <InputNumber @bind-Value="_model.MaxSelections" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-label-bold text-on-surface mb-1">Thứ tự hiển thị</label>
+                            <InputNumber @bind-Value="_model.SortOrder" class="w-32 px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" />
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4 flex justify-between items-center">
+                        <h4 class="font-label-bold text-primary">Các lựa chọn (Options)</h4>
+                        <button type="button" class="text-xs bg-secondary text-on-secondary px-3 py-1.5 rounded font-bold hover:bg-secondary/90 transition-colors flex items-center" @onclick="AddOption">
+                            <span class="material-symbols-outlined text-xs mr-1" data-icon="add">add</span> Thêm Option
+                        </button>
+                    </div>
+
+                    @if (_model.Options.Count == 0)
+                    {
+                        <div class="p-4 border border-dashed border-outline-variant rounded bg-surface-container-lowest text-center text-sm text-on-surface-variant">
+                            Chưa có lựa chọn nào. Bấm "Thêm Option" để bắt đầu.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="space-y-3">
+                            @foreach (var opt in _model.Options)
+                            {
+                                <div class="flex items-center gap-3 p-3 bg-surface-container-lowest border border-outline-variant/50 rounded-lg group hover:border-primary/50 transition-colors">
+                                    <div class="flex-1">
+                                        <InputText @bind-Value="opt.Name" class="w-full px-2 py-1.5 border border-outline rounded focus:outline-none focus:border-primary text-sm" placeholder="Tên (VD: Size M)" />
+                                    </div>
+                                    <div class="w-32">
+                                        <InputNumber @bind-Value="opt.ExtraPrice" class="w-full px-2 py-1.5 border border-outline rounded focus:outline-none focus:border-primary text-sm text-right" placeholder="Phụ thu (VNĐ)" />
+                                    </div>
+                                    <div class="flex items-center gap-4 shrink-0 px-2">
+                                        <label class="flex items-center cursor-pointer" title="Là lựa chọn mặc định">
+                                            <InputCheckbox @bind-Value="opt.IsDefault" class="w-4 h-4 text-success-green bg-surface-container border-outline rounded" />
+                                            <span class="ml-1.5 text-xs">Mặc định</span>
+                                        </label>
+                                        @if (_isEditing)
+                                        {
+                                            <label class="flex items-center cursor-pointer" title="Trạng thái hiển thị">
+                                                <InputCheckbox @bind-Value="opt.IsActive" class="w-4 h-4 text-primary bg-surface-container border-outline rounded" />
+                                                <span class="ml-1.5 text-xs">Active</span>
+                                            </label>
+                                        }
+                                        <button type="button" class="text-on-surface-variant hover:text-error transition-colors" title="Xóa Option này" @onclick="() => RemoveOption(opt)">
+                                            <span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="mt-4 p-3 bg-error-container text-on-error-container rounded text-sm border border-error/20">
+                            @_errorMessage
+                        </div>
+                    }
+
+                    <div class="flex justify-end gap-3 mt-8">
+                        <button type="button" class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded transition-colors font-label-bold" @onclick="CloseModal">Hủy</button>
+                        <button type="submit" class="px-4 py-2 bg-primary text-on-primary rounded shadow-sm hover:bg-primary/90 transition-colors font-label-bold flex items-center" disabled="@_isSaving">
+                            @if (_isSaving)
+                            {
+                                <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
+                                <span>Đang lưu...</span>
+                            }
+                            else
+                            {
+                                <span>Lưu thay đổi</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation -->
+@if (_showDeleteConfirm)
+{
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm overflow-hidden">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-error-container text-error mx-auto flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-3xl" data-icon="warning">warning</span>
+                </div>
+                <h3 class="text-xl font-bold text-on-background mb-2">Xác nhận xóa?</h3>
+                <p class="text-on-surface-variant text-sm mb-6">Bạn có chắc chắn muốn xóa nhóm <strong>@_groupToDelete?.Name</strong> không? Xóa nhóm sẽ xóa toàn bộ các tùy chọn con bên trong.</p>
+                
+                <div class="flex justify-center gap-3">
+                    <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">Hủy</button>
+                    <button class="px-4 py-2 bg-error text-white rounded hover:bg-error/90 transition-colors font-label-bold flex-1" @onclick="ExecuteDelete">Xóa ngay</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ModifierGroupDto> _modifierGroups = new();
+    
+    private bool _isLoading = true;
+    
+    // Modal state
+    private bool _showModal = false;
+    private bool _isEditing = false;
+    private bool _isSaving = false;
+    private string? _errorMessage;
+    private int _editingId;
+
+    // Delete state
+    private bool _showDeleteConfirm = false;
+    private ModifierGroupDto? _groupToDelete;
+
+    // Form Model
+    private ModifierGroupFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            _modifierGroups = await ApiClient.GetModifierGroupsAsync();
+            _modifierGroups = _modifierGroups.OrderBy(m => m.SortOrder).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading modifiers: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenAddModal()
+    {
+        _isEditing = false;
+        _model = new ModifierGroupFormModel { 
+            SortOrder = 1, 
+            MaxSelections = 1,
+            Options = new List<ModifierOptionFormModel>()
+        };
+        _errorMessage = null;
+        _showModal = true;
+    }
+
+    private void OpenEditModal(ModifierGroupDto group)
+    {
+        _isEditing = true;
+        _editingId = group.Id;
+        _model = new ModifierGroupFormModel
+        {
+            Name = group.Name,
+            IsRequired = group.IsRequired,
+            MinSelections = group.MinSelections,
+            MaxSelections = group.MaxSelections,
+            SortOrder = group.SortOrder,
+            Options = group.ModifierOptions.OrderBy(o => o.SortOrder).Select(o => new ModifierOptionFormModel
+            {
+                Name = o.Name,
+                ExtraPrice = o.ExtraPrice,
+                IsDefault = o.IsDefault,
+                SortOrder = o.SortOrder,
+                IsActive = o.IsActive
+            }).ToList()
+        };
+        _errorMessage = null;
+        _showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+    }
+
+    private void AddOption()
+    {
+        _model.Options.Add(new ModifierOptionFormModel { SortOrder = _model.Options.Count + 1, IsActive = true });
+    }
+
+    private void RemoveOption(ModifierOptionFormModel option)
+    {
+        _model.Options.Remove(option);
+    }
+
+    private async Task SaveModifierGroup()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name))
+        {
+            _errorMessage = "Tên nhóm không được để trống.";
+            return;
+        }
+
+        if (_model.Options.Any(o => string.IsNullOrWhiteSpace(o.Name)))
+        {
+            _errorMessage = "Tên tùy chọn không được để trống.";
+            return;
+        }
+
+        if (_model.IsRequired && _model.MinSelections <= 0)
+        {
+            _errorMessage = "Nhóm bắt buộc chọn thì Số lượng tối thiểu phải > 0.";
+            return;
+        }
+
+        if (_model.MinSelections > _model.MaxSelections)
+        {
+            _errorMessage = "Số lượng chọn tối thiểu không được lớn hơn tối đa.";
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+
+        try
+        {
+            // Sync SortOrder for options based on their current array index
+            for (int i = 0; i < _model.Options.Count; i++)
+            {
+                _model.Options[i].SortOrder = i + 1;
+            }
+
+            if (_isEditing)
+            {
+                var request = new UpdateModifierGroupRequest
+                {
+                    Name = _model.Name,
+                    IsRequired = _model.IsRequired,
+                    MinSelections = _model.MinSelections,
+                    MaxSelections = _model.MaxSelections,
+                    SortOrder = _model.SortOrder,
+                    Options = _model.Options.Select(o => new CreateModifierOptionRequest
+                    {
+                        Name = o.Name,
+                        ExtraPrice = o.ExtraPrice,
+                        IsDefault = o.IsDefault,
+                        SortOrder = o.SortOrder
+                    }).ToList()
+                };
+                await ApiClient.UpdateModifierGroupAsync(_editingId, request);
+            }
+            else
+            {
+                var request = new CreateModifierGroupRequest
+                {
+                    Name = _model.Name,
+                    IsRequired = _model.IsRequired,
+                    MinSelections = _model.MinSelections,
+                    MaxSelections = _model.MaxSelections,
+                    SortOrder = _model.SortOrder,
+                    Options = _model.Options.Select(o => new CreateModifierOptionRequest
+                    {
+                        Name = o.Name,
+                        ExtraPrice = o.ExtraPrice,
+                        IsDefault = o.IsDefault,
+                        SortOrder = o.SortOrder
+                    }).ToList()
+                };
+                await ApiClient.CreateModifierGroupAsync(request);
+            }
+
+            _showModal = false;
+            await LoadData();
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = "Lỗi khi lưu dữ liệu. Vui lòng kiểm tra lại.";
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void ConfirmDelete(ModifierGroupDto group)
+    {
+        _groupToDelete = group;
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (_groupToDelete != null)
+        {
+            await ApiClient.DeleteModifierGroupAsync(_groupToDelete.Id);
+            _showDeleteConfirm = false;
+            await LoadData();
+        }
+    }
+
+    // Helper models for UI binding
+    public class ModifierGroupFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsRequired { get; set; }
+        public int MinSelections { get; set; }
+        public int MaxSelections { get; set; } = 1;
+        public int SortOrder { get; set; }
+        public List<ModifierOptionFormModel> Options { get; set; } = new();
+    }
+
+    public class ModifierOptionFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal ExtraPrice { get; set; }
+        public bool IsDefault { get; set; }
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}

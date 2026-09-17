@@ -61,7 +61,13 @@ public class TableService : ITableService
             Status = (int)TableStatus.Available,
             QrToken = _qrCodeService.GenerateSecureToken(),
             SortOrder = request.SortOrder,
-            IsActive = true
+            IsActive = true,
+            PositionX = request.PositionX,
+            PositionY = request.PositionY,
+            Width = request.Width > 0 ? request.Width : 80,
+            Height = request.Height > 0 ? request.Height : 80,
+            Shape = request.Shape,
+            Rotation = request.Rotation
         };
 
         _context.Tables.Add(table);
@@ -86,6 +92,12 @@ public class TableService : ITableService
         table.Status = request.Status;
         table.SortOrder = request.SortOrder;
         table.IsActive = request.IsActive;
+        table.PositionX = request.PositionX;
+        table.PositionY = request.PositionY;
+        table.Width = request.Width > 0 ? request.Width : 80;
+        table.Height = request.Height > 0 ? request.Height : 80;
+        table.Shape = request.Shape;
+        table.Rotation = request.Rotation;
 
         await _context.SaveChangesAsync();
         return await GetByIdAsync(id);
@@ -95,6 +107,17 @@ public class TableService : ITableService
     {
         var table = await _context.Tables.FindAsync(id);
         if (table == null) return false;
+
+        if (table.Status == (int)TableStatus.Occupied || table.Status == (int)TableStatus.Billing || table.Status == (int)TableStatus.NewOrder)
+        {
+            throw new InvalidOperationException("Không thể xóa bàn đang có khách hoặc đang phục vụ. Vui lòng thanh toán đơn hàng trước.");
+        }
+
+        var hasActiveOrders = await _context.Orders.AnyAsync(o => o.TableId == id && o.Status != (int)OrderStatus.Paid && o.Status != (int)OrderStatus.Cancelled && o.Status != (int)OrderStatus.Completed);
+        if (hasActiveOrders)
+        {
+            throw new InvalidOperationException("Không thể xóa bàn vì đang có đơn hàng chưa thanh toán.");
+        }
 
         _context.Tables.Remove(table);
         await _context.SaveChangesAsync();
@@ -110,6 +133,28 @@ public class TableService : ITableService
         return _qrCodeService.GenerateQrCodeImage(orderUrl);
     }
 
+    public async Task<bool> UpdateBatchLayoutAsync(int areaId, List<UpdateTableLayoutRequest> layout)
+    {
+        var tables = await _context.Tables.Where(t => t.AreaId == areaId).ToListAsync();
+        
+        foreach (var req in layout)
+        {
+            var table = tables.FirstOrDefault(t => t.Id == req.TableId);
+            if (table != null)
+            {
+                table.PositionX = req.PositionX;
+                table.PositionY = req.PositionY;
+                table.Width = req.Width;
+                table.Height = req.Height;
+                table.Shape = req.Shape;
+                table.Rotation = req.Rotation;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     private static TableDto MapToDto(Table t)
     {
         return new TableDto
@@ -122,7 +167,13 @@ public class TableService : ITableService
             Status = t.Status,
             QrToken = t.QrToken,
             SortOrder = t.SortOrder,
-            IsActive = t.IsActive
+            IsActive = t.IsActive,
+            PositionX = t.PositionX,
+            PositionY = t.PositionY,
+            Width = t.Width,
+            Height = t.Height,
+            Shape = t.Shape,
+            Rotation = t.Rotation
         };
     }
 }

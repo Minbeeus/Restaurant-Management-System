@@ -41,6 +41,12 @@ public class Table : FullAuditableEntity, IHasRowVersion
     public string QrToken { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+    public double PositionX { get; set; } = 0;
+    public double PositionY { get; set; } = 0;
+    public int Width { get; set; } = 80;
+    public int Height { get; set; } = 80;
+    public int Shape { get; set; } = 0; // 0: Round, 1: Square, 2: Rectangle
+    public int Rotation { get; set; } = 0; // 0, 90, 180, 270
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }
 

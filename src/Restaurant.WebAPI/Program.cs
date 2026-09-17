@@ -8,6 +8,7 @@ using Restaurant.Infrastructure.Hubs;
 using Restaurant.Infrastructure.Persistence;
 using Restaurant.Infrastructure.Persistence.Interceptors;
 using Restaurant.Infrastructure.Services;
+using Restaurant.WebAPI.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +46,7 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<ILoyaltyService, LoyaltyService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRestaurantNotificationService, RestaurantNotificationService>();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Restaurant.Infrastructure.Services.InventoryService).Assembly));
 builder.Services.AddHostedService<KitchenSlaMonitoringWorker>();
@@ -102,6 +104,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 var supportedCultures = new[] { "vi", "en" };
 var localizationOptions = new RequestLocalizationOptions()

@@ -52,7 +52,7 @@ public partial class PosLogin
         }
         else if (e.Key.Length == 1 && char.IsDigit(e.Key[0]))
         {
-            AppendDigit(int.Parse(e.Key));
+            await AppendDigit(int.Parse(e.Key));
         }
         StateHasChanged();
     }

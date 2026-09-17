@@ -352,10 +352,13 @@ public class QrOrderService : IQrOrderService
             }
             else
             {
-                var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open)
-                                 ?? await _context.Shifts.FirstOrDefaultAsync();
-                var shiftId = activeShift?.Id ?? 1;
-                var createdUserId = activeShift?.UserId ?? 1;
+                var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+                if (activeShift == null)
+                {
+                    throw new InvalidOperationException(_localizer["NO_OPEN_SHIFT"] ?? "Nhà hàng chưa mở ca làm việc. Không thể nhận đơn.");
+                }
+                var shiftId = activeShift.Id;
+                var createdUserId = activeShift.UserId;
 
                 targetOrder = new Order
                 {

@@ -35,7 +35,7 @@
     private string temperature = "28°C";
     private string weatherDesc = "Hà Nội • Mát mẻ";
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {

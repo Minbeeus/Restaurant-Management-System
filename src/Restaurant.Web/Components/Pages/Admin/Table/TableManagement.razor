@@ -1,0 +1,739 @@
+@page "/admin/tables"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.AdminLayout
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Services
+@inject TableApiClient ApiClient
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="flex flex-col h-[calc(100vh-64px-48px)]">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-4 shrink-0">
+        <h2 class="text-2xl font-headline-sm text-primary">Sơ đồ nhà hàng (Floor Plan)</h2>
+        
+        <div class="flex items-center gap-3">
+            @if (_areas.Any())
+            {
+                <select class="px-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary font-label-bold text-on-surface" @onchange="OnAreaChanged">
+                    @foreach (var area in _areas)
+                    {
+                        <option value="@area.Id" selected="@(_currentAreaId == area.Id)">@area.Name</option>
+                    }
+                </select>
+            }
+            
+            <div class="w-px h-6 bg-outline-variant/50 mx-1"></div>
+
+            <div class="flex items-center gap-1 bg-surface-container rounded-lg p-1 mr-2 border border-outline-variant/30">
+                <button class="px-3 py-1.5 rounded-md text-sm font-bold transition-colors @(_viewMode == "Canvas" ? "bg-white text-primary shadow-sm" : "text-on-surface hover:bg-surface-low")" @onclick="@(() => SwitchViewMode("Canvas"))">
+                    <span class="material-symbols-outlined align-middle text-[18px] mr-1" data-icon="dashboard">dashboard</span> Sơ đồ
+                </button>
+                <button class="px-3 py-1.5 rounded-md text-sm font-bold transition-colors @(_viewMode == "Grid" ? "bg-white text-primary shadow-sm" : "text-on-surface hover:bg-surface-low")" @onclick="@(() => SwitchViewMode("Grid"))">
+                    <span class="material-symbols-outlined align-middle text-[18px] mr-1" data-icon="list">list</span> Danh sách
+                </button>
+            </div>
+
+            @if (_viewMode == "Canvas")
+            {
+                <button class="flex items-center gap-2 px-4 py-2 rounded font-label-bold shadow-sm transition-colors @(_isEditMode ? "bg-surface-variant text-on-surface hover:bg-surface-variant/80" : "bg-primary text-on-primary hover:bg-primary/90")" @onclick="ToggleEditMode">
+                    <span class="material-symbols-outlined text-[20px]" data-icon="@(_isEditMode ? "visibility" : "edit_square")">@(_isEditMode ? "visibility" : "edit_square")</span>
+                    @(_isEditMode ? "Chế độ Xem" : "Sửa Sơ đồ")
+                </button>
+            }
+
+            @if (_isEditMode)
+            {
+                <button class="flex items-center gap-2 px-4 py-2 rounded font-label-bold shadow-sm transition-colors @(_hasCollision ? "bg-on-surface-variant/20 text-on-surface-variant cursor-not-allowed" : "bg-basil-container text-white hover:bg-basil-container/90")" @onclick="SaveLayout" disabled="@_hasCollision">
+                    <span class="material-symbols-outlined text-[20px]" data-icon="save">save</span>
+                    Lưu sơ đồ
+                </button>
+            }
+            
+            <button class="bg-surface-container-high text-on-surface px-4 py-2 rounded font-label-bold shadow-sm hover:bg-surface-container-highest transition-colors" @onclick="OpenAddModal">
+                <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> Thêm Bàn
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex-1 flex justify-center items-center">
+            <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+        </div>
+    }
+    else if (!_areas.Any())
+    {
+        <div class="p-8 text-center text-on-surface-variant bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 mt-8">
+            Chưa có khu vực nào. Vui lòng tạo Khu vực trước.
+        </div>
+    }
+    else
+    {
+        <!-- Content Container -->
+        <div class="flex-1 flex gap-4 overflow-hidden">
+            
+            @if (_viewMode == "Canvas")
+            {
+                <!-- Canvas Area -->
+            <div class="flex-1 bg-surface-container-lowest rounded-xl shadow-inner border border-outline-variant/30 overflow-hidden relative">
+                
+                @if (_isEditMode)
+                {
+                    <div class="absolute top-4 left-4 bg-surface/80 backdrop-blur px-3 py-1.5 rounded shadow-sm text-xs font-bold text-on-surface z-10 flex items-center gap-2 border border-outline-variant/30">
+                        <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                        Đang chỉnh sửa: Kéo thả bàn để thay đổi vị trí
+                        @if (_hasCollision)
+                        {
+                            <span class="text-error ml-2">- Lỗi: Các bàn không được đè lên nhau!</span>
+                        }
+                    </div>
+                }
+
+                <div id="floorplan-canvas" class="w-full h-full relative touch-none @(_isEditMode ? "edit-mode bg-grid-pattern" : "bg-grid-pattern-light")">
+                    @foreach (var table in _currentTables)
+                    {
+                        <div class="table-element absolute select-none flex flex-col items-center justify-center cursor-pointer @GetTableShapeClass(table) @GetTableStatusClass(table) @(_isEditMode ? "hover:ring-2 hover:ring-primary shadow-md active:scale-95" : "hover:shadow-lg transition-shadow")"
+                             data-id="@table.Id"
+                             style="left: 0; top: 0; transform: translate(@(table.PositionX)px, @(table.PositionY)px); width: @(table.Width)px; height: @(table.Height)px;"
+                             @onclick="() => OnTableClicked(table)">
+                            
+                            <span class="font-bold text-on-background pointer-events-none @(table.Width < 60 ? "text-xs" : "text-base")">@table.Name</span>
+                            @if (table.Width >= 60 && table.Height >= 60)
+                            {
+                                <span class="text-xs text-on-surface-variant pointer-events-none">@table.Capacity chỗ</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Side Panel (Visible when a table is clicked in Edit mode, or for QR download in View mode) -->
+            @if (_selectedTable != null)
+            {
+                <div class="w-80 bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 flex flex-col shrink-0 animate-in slide-in-from-right-4 duration-200">
+                    <div class="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
+                        <h3 class="font-bold text-on-background flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary" data-icon="table_restaurant">table_restaurant</span>
+                            @_selectedTable.Name
+                        </h3>
+                        <button class="text-on-surface-variant hover:text-error transition-colors p-1" @onclick="() => _selectedTable = null">
+                            <span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+                        </button>
+                    </div>
+
+                    <div class="p-4 flex-1 overflow-y-auto">
+                        <div class="mb-4">
+                            <div class="text-xs text-on-surface-variant mb-1 uppercase font-bold tracking-wider">Thông tin chung</div>
+                            <div class="font-label-bold">Sức chứa: @_selectedTable.Capacity chỗ</div>
+                            <div class="font-label-bold">Khu vực: @_areas.FirstOrDefault(a => a.Id == _selectedTable.AreaId)?.Name</div>
+                        </div>
+
+                        @if (_isEditMode)
+                        {
+                            <div class="mb-6 space-y-3">
+                                <div class="text-xs text-on-surface-variant mb-1 uppercase font-bold tracking-wider">Tác vụ Sơ đồ</div>
+                                
+                                <button class="w-full flex items-center justify-between px-3 py-2 bg-surface hover:bg-surface-low border border-outline rounded transition-colors" @onclick="RotateSelectedTable">
+                                    <span class="font-bold text-sm">Xoay bàn (90°)</span>
+                                    <span class="material-symbols-outlined text-sm" data-icon="rotate_right">rotate_right</span>
+                                </button>
+                                
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-sm font-bold text-on-surface">Đổi hình dạng:</span>
+                                    <div class="flex gap-2">
+                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 0 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(0)">Tròn</button>
+                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 1 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(1)">Vuông</button>
+                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 2 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(2)">C.Nhật</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-auto flex gap-2">
+                                <button class="flex-1 flex items-center justify-center gap-1 py-2 text-primary hover:bg-primary-container border border-primary/30 rounded font-label-bold transition-colors" @onclick="() => OpenEditModal(_selectedTable)">
+                                    <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span> Sửa
+                                </button>
+                                <button class="flex-1 flex items-center justify-center gap-1 py-2 text-error hover:bg-error-container border border-error/30 rounded font-label-bold transition-colors" @onclick="() => ConfirmDelete(_selectedTable)">
+                                    <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span> Xóa
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- View mode actions -->
+                            <a href="@GetQrCodeUrl(_selectedTable.Id)" target="_blank" class="w-full flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors">
+                                <span class="material-symbols-outlined" data-icon="qr_code_2">qr_code_2</span>
+                                Tải Mã QR Bàn Này
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+            
+            }
+            else
+            {
+                <!-- Grid View Area -->
+                <div class="flex-1 flex flex-col gap-4">
+                    <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-4 flex flex-col md:flex-row gap-4 shrink-0">
+                        <div class="flex-1 relative">
+                            <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[20px]" data-icon="search">search</span>
+                            <InputText @bind-Value="_searchKeyword" @bind-Value:event="oninput" class="w-full pl-10 pr-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary transition-colors" placeholder="Tìm kiếm theo Tên bàn..." />
+                        </div>
+                        <div class="w-full md:w-48 shrink-0">
+                            <select @bind="_filterStatus" class="w-full px-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary transition-colors cursor-pointer">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="0">Trống (Available)</option>
+                                <option value="1">Đang phục vụ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-bold sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-4 font-semibold text-center w-16">ID</th>
+                                    <th class="p-4 font-semibold">Tên Bàn</th>
+                                    <th class="p-4 font-semibold">Sức chứa</th>
+                                    <th class="p-4 font-semibold text-center">Trạng thái</th>
+                                    <th class="p-4 font-semibold text-center w-48">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!FilteredTables.Any())
+                                {
+                                    <tr>
+                                        <td colspan="5" class="p-8 text-center text-on-surface-variant">Không tìm thấy bàn nào phù hợp với bộ lọc.</td>
+                                    </tr>
+                                }
+                                @foreach (var table in FilteredTables)
+                                {
+                                    <tr class="border-b border-outline-variant/20 last:border-0 hover:bg-surface-low/50 transition-colors">
+                                        <td class="p-4 text-center text-on-surface-variant">#@table.Id</td>
+                                        <td class="p-4 font-label-bold text-on-background text-base">@table.Name</td>
+                                        <td class="p-4 text-on-surface-variant">@table.Capacity chỗ ngồi</td>
+                                        <td class="p-4 text-center">
+                                            @if (table.Status == 0)
+                                            {
+                                                <span class="px-2 py-1 bg-success-green/10 text-success-green rounded text-xs font-bold border border-success-green/20">Trống</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="px-2 py-1 bg-error-container/20 text-error rounded text-xs font-bold border border-error/20">Đang phục vụ</span>
+                                            }
+                                        </td>
+                                        <td class="p-4 text-center space-x-2">
+                                            <a href="@GetQrCodeUrl(table.Id)" target="_blank" class="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors inline-block" title="Xem/Tải QR">
+                                                <span class="material-symbols-outlined text-sm" data-icon="qr_code_2">qr_code_2</span>
+                                            </a>
+                                            <button class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Sửa" @onclick="() => OpenEditModal(table)">
+                                                <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+                                            </button>
+                                            <button class="text-error hover:bg-error-container p-2 rounded-full transition-colors disabled:opacity-50" title="Xóa" @onclick="() => ConfirmDelete(table)" disabled="@(table.Status == 1)">
+                                                <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Grid Pattern Styles -->
+<style>
+    .bg-grid-pattern {
+        background-image: linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    .bg-grid-pattern-light {
+        background-image: linear-gradient(to right, rgba(0,0,0,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.02) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    .table-element {
+        will-change: transform;
+        touch-action: none;
+    }
+    .table-element.dragging {
+        z-index: 50;
+        opacity: 0.9;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .table-element.collision {
+        border-color: #ef4444 !important; /* Tailwind error red */
+        background-color: #fef2f2 !important;
+        border-width: 2px;
+        border-style: dashed;
+        animation: shake 0.5s;
+    }
+</style>
+
+<!-- JS Invokable Class -->
+@code {
+    private List<TableDto> _tables = new();
+    private List<AreaDto> _areas = new();
+    private List<TableDto> _currentTables = new();
+    private int _currentAreaId;
+    
+    private bool _isLoading = true;
+    private bool _isEditMode = false;
+    private bool _hasCollision = false;
+    private string _viewMode = "Canvas"; // "Canvas" or "Grid"
+    
+    // Filter properties for Grid View
+    private string _searchKeyword = "";
+    private int? _filterStatus = null;
+    
+    private IEnumerable<TableDto> FilteredTables => _currentTables
+        .Where(t => string.IsNullOrWhiteSpace(_searchKeyword) || t.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase))
+        .Where(t => _filterStatus == null || t.Status == _filterStatus);
+    
+    private TableDto? _selectedTable;
+
+    private DotNetObjectReference<TableManagement>? _dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR OnInitialized]: {ex}");
+            _areas = new List<AreaDto>();
+            _tables = new List<TableDto>();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            var taskTables = ApiClient.GetTablesAsync();
+            var taskAreas = ApiClient.GetAreasAsync();
+            
+            await Task.WhenAll(taskTables, taskAreas);
+            
+            _areas = taskAreas.Result.Where(a => a.IsActive).OrderBy(a => a.SortOrder).ToList();
+            _tables = taskTables.Result;
+
+            if (_areas.Any() && _currentAreaId == 0)
+            {
+                _currentAreaId = _areas.First().Id;
+            }
+
+            UpdateCurrentTables();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading tables: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void UpdateCurrentTables()
+    {
+        _currentTables = _tables.Where(t => t.AreaId == _currentAreaId).ToList();
+        _selectedTable = null; // reset selection
+    }
+
+    private bool _isJsInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isLoading && _areas.Any() && _viewMode == "Canvas" && !_isJsInitialized)
+        {
+            try 
+            {
+                // Serialize necessary data for JS
+                var tablesData = _currentTables.Select(t => new { 
+                    tableId = t.Id, 
+                    positionX = t.PositionX, 
+                    positionY = t.PositionY, 
+                    width = t.Width, 
+                    height = t.Height,
+                    shape = t.Shape,
+                    rotation = t.Rotation
+                }).ToList();
+
+                await JS.InvokeVoidAsync("floorplan.init", _dotNetRef, tablesData);
+                _isJsInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[JS-ERROR] Không thể khởi tạo Floorplan: {ex.Message}");
+            }
+        }
+    }
+
+    private void OnAreaChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int areaId))
+        {
+            _currentAreaId = areaId;
+            UpdateCurrentTables();
+            _isJsInitialized = false; // Re-init JS will happen in OnAfterRenderAsync
+        }
+    }
+
+    private void ToggleEditMode()
+    {
+        _isEditMode = !_isEditMode;
+        _selectedTable = null;
+    }
+
+    private void SwitchViewMode(string mode)
+    {
+        _viewMode = mode;
+        _isEditMode = false;
+        _selectedTable = null;
+        
+        // If switching back to canvas, we need to re-init JS
+        if (mode == "Canvas")
+        {
+            _ = InvokeAsync(async () => {
+                try 
+                {
+                    await Task.Delay(100); // small delay to let DOM render canvas
+                    if (_areas.Any())
+                    {
+                        var tablesData = _currentTables.Select(t => new { 
+                            tableId = t.Id, positionX = t.PositionX, positionY = t.PositionY, 
+                            width = t.Width, height = t.Height, shape = t.Shape, rotation = t.Rotation
+                        }).ToList();
+                        await JS.InvokeVoidAsync("floorplan.init", _dotNetRef, tablesData);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[JS-ERROR] SwitchViewMode: {ex.Message}");
+                }
+            });
+        }
+    }
+
+    private void OnTableClicked(TableDto table)
+    {
+        _selectedTable = table;
+    }
+
+    // Called by JS Interop when a drag ends
+    [JSInvokable]
+    public void OnTableMoved(int tableId, double x, double y, bool hasCollision)
+    {
+        var table = _currentTables.FirstOrDefault(t => t.Id == tableId);
+        if (table != null)
+        {
+            table.PositionX = x;
+            table.PositionY = y;
+        }
+        _hasCollision = hasCollision;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RotateSelectedTable()
+    {
+        if (_selectedTable != null)
+        {
+            _selectedTable.Rotation = (_selectedTable.Rotation + 90) % 360;
+            // Swap width and height if changing from horizontal to vertical or vice versa
+            // Actually wait, rotating visually might just be CSS transform. 
+            // But if we want actual bounds change for collision:
+            var temp = _selectedTable.Width;
+            _selectedTable.Width = _selectedTable.Height;
+            _selectedTable.Height = temp;
+            
+            StateHasChanged();
+        }
+    }
+
+    private void ChangeShape(int shape)
+    {
+        if (_selectedTable != null)
+        {
+            _selectedTable.Shape = shape;
+            if (shape == 0 || shape == 1) // Round or Square -> equal sides
+            {
+                var size = Math.Max(_selectedTable.Width, _selectedTable.Height);
+                if (size < 80) size = 80;
+                _selectedTable.Width = size;
+                _selectedTable.Height = size;
+            }
+            else if (shape == 2) // Rectangle
+            {
+                _selectedTable.Width = 120;
+                _selectedTable.Height = 80;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveLayout()
+    {
+        if (_hasCollision) return;
+
+        try
+        {
+            var layoutRequest = _currentTables.Select(t => new UpdateTableLayoutRequest
+            {
+                TableId = t.Id,
+                PositionX = t.PositionX,
+                PositionY = t.PositionY,
+                Width = t.Width,
+                Height = t.Height,
+                Shape = t.Shape,
+                Rotation = t.Rotation
+            }).ToList();
+
+            await ApiClient.UpdateBatchLayoutAsync(_currentAreaId, layoutRequest);
+            // Show success toast here normally
+            _isEditMode = false;
+            _selectedTable = null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving layout: {ex.Message}");
+        }
+    }
+
+    // Modal & Add/Edit Logic (Simplified for this file size limit, similar to previous version)
+    // We will put the Modal markup at the bottom...
+    
+    // UI Helpers
+    private string GetTableShapeClass(TableDto table)
+    {
+        if (table.Shape == 0) return "rounded-full"; // Round
+        if (table.Shape == 1) return "rounded-lg"; // Square
+        return "rounded-lg"; // Rectangle
+    }
+
+    private string GetTableStatusClass(TableDto table)
+    {
+        // Mock colors based on status (0: Available, 1: Occupied)
+        if (!table.IsActive) return "bg-surface-variant text-on-surface-variant border border-outline-variant";
+        
+        return "bg-white text-on-surface border-2 border-[#C4C9B3]"; // Available (Basil theme)
+        // If Occupied: return "bg-[#EFF3FF] text-[#446371] border-2 border-[#446371]"
+    }
+
+    private string GetQrCodeUrl(int tableId)
+    {
+        return $"http://localhost:5011/api/v1/tables/{tableId}/qr-code";
+    }
+    
+    public async ValueTask DisposeAsync()
+    {
+        try 
+        {
+            await JS.InvokeVoidAsync("floorplan.destroy");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[JS-ERROR Dispose]: {ex.Message}");
+        }
+        finally
+        {
+            _dotNetRef?.Dispose();
+        }
+    }
+    
+    // -----------------------------------------------------
+    // CRUD MODAL LOGIC (Kept for completeness)
+    // -----------------------------------------------------
+    private bool _showModal = false;
+    private TableFormModel _model = new();
+    private bool _isEditing = false;
+    private int _editingId;
+
+    private void OpenAddModal()
+    {
+        _isEditing = false;
+        _model = new TableFormModel 
+        { 
+            AreaId = _currentAreaId,
+            Capacity = 4, 
+            IsActive = true, 
+            Width = 80,
+            Height = 80,
+            Shape = 1 // Square
+        };
+        _showModal = true;
+    }
+
+    private void OpenEditModal(TableDto table)
+    {
+        _isEditing = true;
+        _editingId = table.Id;
+        _model = new TableFormModel
+        {
+            AreaId = table.AreaId,
+            Name = table.Name,
+            Capacity = table.Capacity,
+            SortOrder = table.SortOrder,
+            IsActive = table.IsActive,
+            Width = table.Width,
+            Height = table.Height,
+            Shape = table.Shape
+        };
+        _showModal = true;
+    }
+
+    private void CloseModal() => _showModal = false;
+
+    private async Task SaveTable()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name)) return;
+
+        try
+        {
+            if (_isEditing)
+            {
+                var req = new UpdateTableRequest
+                {
+                    AreaId = _model.AreaId, Name = _model.Name, Capacity = _model.Capacity,
+                    SortOrder = _model.SortOrder, IsActive = _model.IsActive,
+                    Width = _model.Width, Height = _model.Height, Shape = _model.Shape,
+                    PositionX = _selectedTable?.PositionX ?? 0,
+                    PositionY = _selectedTable?.PositionY ?? 0
+                };
+                await ApiClient.UpdateTableAsync(_editingId, req);
+            }
+            else
+            {
+                var req = new CreateTableRequest
+                {
+                    AreaId = _model.AreaId, Name = _model.Name, Capacity = _model.Capacity,
+                    SortOrder = _tables.Count, Width = _model.Width, Height = _model.Height, Shape = _model.Shape,
+                    PositionX = 20, PositionY = 20 // Default spawn position
+                };
+                await ApiClient.CreateTableAsync(req);
+            }
+            _showModal = false;
+            await LoadData(); // Reload all to get DB assigned IDs
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+    }
+    
+    private TableDto? _tableToDelete;
+    private bool _showDeleteConfirm = false;
+    private bool _isDeleting = false;
+    private string? _deleteErrorMessage;
+
+    private void ConfirmDelete(TableDto table)
+    {
+        _tableToDelete = table;
+        _deleteErrorMessage = null;
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (_tableToDelete != null)
+        {
+            _isDeleting = true;
+            _deleteErrorMessage = null;
+            try
+            {
+                await ApiClient.DeleteTableAsync(_tableToDelete.Id);
+                _showDeleteConfirm = false;
+                _selectedTable = null;
+                await LoadData();
+            }
+            catch (HttpRequestException)
+            {
+                _deleteErrorMessage = "Không thể xóa bàn đang có khách hoặc đang phục vụ. Vui lòng thanh toán đơn hàng trước.";
+            }
+            finally
+            {
+                _isDeleting = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    public class TableFormModel
+    {
+        public int AreaId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Capacity { get; set; } = 4;
+        public int SortOrder { get; set; }
+        public bool IsActive { get; set; } = true;
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int Shape { get; set; }
+    }
+}
+
+<!-- Simple Modal HTML (since file is getting large) -->
+@if (_showModal)
+{
+    <div class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-200">
+            <h3 class="font-bold text-lg mb-4 text-on-background">@(_isEditing ? "Sửa bàn" : "Thêm bàn mới")</h3>
+            <EditForm Model="@_model" OnValidSubmit="SaveTable">
+                <div class="space-y-3 mb-6">
+                    <div>
+                        <label class="text-sm font-bold block mb-1 text-on-surface">Tên Bàn</label>
+                        <InputText @bind-Value="_model.Name" class="w-full border border-outline rounded p-2 bg-surface focus:border-primary focus:outline-none" placeholder="VD: Bàn 01" />
+                    </div>
+                    <div>
+                        <label class="text-sm font-bold block mb-1 text-on-surface">Sức chứa</label>
+                        <InputNumber @bind-Value="_model.Capacity" class="w-full border border-outline rounded p-2 bg-surface focus:border-primary focus:outline-none" min="1" />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low font-label-bold transition-colors" @onclick="CloseModal">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded font-label-bold hover:bg-primary/90 transition-colors">Lưu</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation -->
+@if (_showDeleteConfirm)
+{
+    <div class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-full bg-error-container text-error mx-auto flex items-center justify-center mb-4">
+                    <span class="material-symbols-outlined text-3xl" data-icon="warning">warning</span>
+                </div>
+                <h3 class="text-xl font-bold text-on-background mb-2">Xác nhận xóa?</h3>
+                <p class="text-on-surface-variant text-sm mb-6">Bạn có chắc chắn muốn xóa <strong>@_tableToDelete?.Name</strong> không? Hành động này không thể hoàn tác.</p>
+                
+                @if (!string.IsNullOrEmpty(_deleteErrorMessage))
+                {
+                    <div class="mb-6 p-3 bg-error-container text-error rounded text-sm text-left border border-error/20">
+                        @_deleteErrorMessage
+                    </div>
+                }
+
+                <div class="flex justify-center gap-3">
+                    <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">Hủy</button>
+                    <button class="px-4 py-2 bg-error text-white rounded hover:bg-error/90 transition-colors font-label-bold flex-1 flex items-center justify-center gap-2" @onclick="ExecuteDelete" disabled="@_isDeleting">
+                        @if (_isDeleting)
+                        {
+                            <span class="material-symbols-outlined animate-spin text-sm" data-icon="progress_activity">progress_activity</span>
+                        }
+                        Xóa ngay
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

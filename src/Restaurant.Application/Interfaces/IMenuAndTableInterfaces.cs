@@ -50,6 +50,7 @@ public interface ITableService
     Task<TableDto?> GetByIdAsync(int id);
     Task<TableDto> CreateAsync(CreateTableRequest request);
     Task<TableDto?> UpdateAsync(int id, UpdateTableRequest request);
+    Task<bool> UpdateBatchLayoutAsync(int areaId, List<UpdateTableLayoutRequest> layout);
     Task<bool> DeleteAsync(int id);
     Task<byte[]?> GetTableQrCodeImageAsync(int tableId, string baseUrl);
 }

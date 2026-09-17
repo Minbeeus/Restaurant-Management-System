@@ -31,6 +31,12 @@ public class TableDto
     public string QrToken { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
+    public double PositionX { get; set; }
+    public double PositionY { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int Shape { get; set; }
+    public int Rotation { get; set; }
 }
 
 public class CreateTableRequest
@@ -39,10 +45,27 @@ public class CreateTableRequest
     public string Name { get; set; } = string.Empty;
     public int Capacity { get; set; } = 4;
     public int SortOrder { get; set; }
+    public double PositionX { get; set; }
+    public double PositionY { get; set; }
+    public int Width { get; set; } = 80;
+    public int Height { get; set; } = 80;
+    public int Shape { get; set; }
+    public int Rotation { get; set; }
 }
 
 public class UpdateTableRequest : CreateTableRequest
 {
     public bool IsActive { get; set; } = true;
     public int Status { get; set; }
+}
+
+public class UpdateTableLayoutRequest
+{
+    public int TableId { get; set; }
+    public double PositionX { get; set; }
+    public double PositionY { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int Shape { get; set; }
+    public int Rotation { get; set; }
 }

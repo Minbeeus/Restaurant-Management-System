@@ -106,6 +106,12 @@ public class AreaService : IAreaService
         var area = await _context.Areas.FindAsync(id);
         if (area == null) return false;
 
+        var hasTables = await _context.Tables.AnyAsync(t => t.AreaId == id && !t.IsDeleted);
+        if (hasTables)
+        {
+            throw new InvalidOperationException("Không thể xóa khu vực đang chứa bàn. Vui lòng chuyển hoặc xóa bàn trước.");
+        }
+
         _context.Areas.Remove(area);
         await _context.SaveChangesAsync();
         return true;

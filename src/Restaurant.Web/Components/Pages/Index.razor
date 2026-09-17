@@ -1,0 +1,11 @@
+@page "/"
+@inject NavigationManager NavigationManager
+
+<PageTitle>Đang chuyển hướng...</PageTitle>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo("/admin/login");
+    }
+}

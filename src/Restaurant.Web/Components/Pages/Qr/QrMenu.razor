@@ -92,15 +92,15 @@
 
 @code {
     [SupplyParameterFromQuery]
-    public string TableId { get; set; }
+    public string TableId { get; set; } = default!;
 
     [SupplyParameterFromQuery]
-    public string Token { get; set; }
+    public string Token { get; set; } = default!;
 
     private string TableName = "Bàn 12"; // Mock
     private string ActiveCategory = "Phổ biến";
     private bool IsDrawerOpen = false;
-    private QrBottomDrawer.MenuItem SelectedItem;
+    private QrBottomDrawer.MenuItem SelectedItem = default!;
     private List<QrBottomDrawer.CartItem> CartItems = new();
 
     private List<string> MockCategories = new() { "Phổ biến", "Pizza", "Mì Ý", "Salad", "Đồ uống" };

@@ -1,5 +1,7 @@
 @page "/admin/login"
+@rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.EmptyLayout
+@using Restaurant.Web.Services
 
 <div class="bg-background min-h-screen flex items-center justify-center font-body-md text-on-surface">
     <main class="w-full h-screen flex flex-col md:flex-row">
@@ -23,9 +25,17 @@
                     <h1 class="font-headline-md text-headline-md text-primary">Đăng nhập hệ thống Quản trị</h1>
                     <p class="font-body-md text-body-md text-on-surface-variant">BOH Administration Portal</p>
                 </div>
+
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="bg-error-container text-on-error-container p-3 rounded-md text-sm font-label-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined">error</span>
+                        @ErrorMessage
+                    </div>
+                }
                 
                 <!-- Form -->
-                <form class="flex flex-col gap-container-gap" @onsubmit="HandleLogin">
+                <div class="flex flex-col gap-container-gap" @onkeydown="HandleKeyDown">
                     <!-- Username -->
                     <div class="flex flex-col gap-1">
                         <label class="font-label-bold text-label-bold text-on-surface-variant" for="username">Tên đăng nhập</label>
@@ -57,7 +67,7 @@
                     </div>
                     
                     <!-- Submit -->
-                    <button class="w-full h-[40px] bg-primary-container text-on-primary font-label-bold text-label-bold rounded hover:bg-surface-tint transition-colors mt-4 flex items-center justify-center gap-2 shadow-sm relative overflow-hidden" type="submit" disabled="@IsLoading">
+                    <button class="w-full h-[40px] bg-primary-container text-on-primary font-label-bold text-label-bold rounded hover:bg-surface-tint transition-colors mt-4 flex items-center justify-center gap-2 shadow-sm relative overflow-hidden" type="button" @onclick="HandleLogin" disabled="@IsLoading">
                         <span class="relative z-10 flex items-center gap-2 @(IsLoading ? "opacity-0" : "")">
                             ĐĂNG NHẬP
                             <span class="material-symbols-outlined text-[18px]">login</span>
@@ -65,8 +75,106 @@
                         
                         <div class="@(!IsLoading ? "hidden" : "") absolute z-10 animate-spin h-5 w-5 border-2 border-surface-pure border-t-transparent rounded-full"></div>
                     </button>
-                </form>
+                </div>
             </div>
         </div>
     </main>
 </div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    [Inject]
+    protected NavigationManager NavigationManager { get; set; } = default!;
+    
+    [Inject]
+    protected IAuthApiClient AuthApiClient { get; set; } = default!;
+
+    protected Restaurant.Application.DTOs.LoginRequest Request { get; set; } = new();
+    protected bool RememberMe { get; set; }
+    protected bool IsLoading { get; set; }
+    protected string? ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask != null)
+        {
+            var authState = await AuthStateTask;
+            if (authState.User.Identity?.IsAuthenticated == true && (authState.User.IsInRole("Admin") || authState.User.IsInRole("Manager")))
+            {
+                NavigationManager.NavigateTo("/admin/dashboard");
+            }
+        }
+    }
+    
+    protected string PasswordInputType { get; set; } = "password";
+    protected string PasswordIcon { get; set; } = "visibility";
+
+    protected void TogglePasswordVisibility()
+    {
+        if (PasswordInputType == "password")
+        {
+            PasswordInputType = "text";
+            PasswordIcon = "visibility_off";
+        }
+        else
+        {
+            PasswordInputType = "password";
+            PasswordIcon = "visibility";
+        }
+    }
+    
+    protected async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(Request.Username) || string.IsNullOrWhiteSpace(Request.Password))
+        {
+            ErrorMessage = "Vui lòng nhập tên đăng nhập và mật khẩu.";
+            return;
+        }
+
+        ErrorMessage = null;
+        IsLoading = true;
+        StateHasChanged();
+        
+        try
+        {
+            var response = await AuthApiClient.LoginAsync(Request);
+
+            if (response != null && !string.IsNullOrEmpty(response.Token))
+            {
+                if (response.RoleName != "Admin" && response.RoleName != "Manager")
+                {
+                    ErrorMessage = "Tài khoản không có quyền truy cập trang quản trị.";
+                }
+                else
+                {
+                    // Redirect to the Account Controller to set the cookie
+                    NavigationManager.NavigateTo($"/Account/Login?token={response.Token}", forceLoad: true);
+                    return;
+                }
+            }
+            else
+            {
+                ErrorMessage = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+            }
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Đã xảy ra lỗi kết nối. Vui lòng thử lại sau.";
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task HandleKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !IsLoading)
+        {
+            await HandleLogin();
+        }
+    }
+}

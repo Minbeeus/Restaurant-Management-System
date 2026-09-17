@@ -27,20 +27,34 @@
                         <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
                     </div>
                     <div class="flex flex-col gap-1 pl-12 pr-4 pb-2">
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Danh mục món</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Danh sách món ăn</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Cấu hình Combo</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Tùy chọn &amp; Topping</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Công thức (BOM)</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/categories">Danh mục món</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/menu-items">Danh sách món ăn</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/combos">Cấu hình Combo</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/modifiers">Tùy chọn &amp; Topping</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/recipes">Công thức (BOM)</a>
                     </div>
                 </div>
                 
-                <a class="flex items-center gap-3 py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80" href="#">
+                <div class="flex flex-col">
+                    <div class="flex items-center justify-between py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined" data-icon="table_restaurant">table_restaurant</span>
+                            Quản lý Phòng bàn
+                        </div>
+                        <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
+                    </div>
+                    <div class="flex flex-col gap-1 pl-12 pr-4 pb-2">
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/areas">Khu vực</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/tables">Danh sách bàn</a>
+                    </div>
+                </div>
+
+                <a class="flex items-center gap-3 py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80" href="/admin/orders">
                     <span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
                     Order History
                 </a>
                 
-                <a class="flex items-center gap-3 py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80" href="#">
+                <a class="flex items-center gap-3 py-3 px-4 text-on-secondary/70 hover:bg-on-secondary-container/5 hover:text-on-secondary transition-colors cursor-pointer active:opacity-80" href="/admin/staff">
                     <span class="material-symbols-outlined" data-icon="groups">groups</span>
                     Staff Schedules
                 </a>
@@ -54,10 +68,10 @@
                         <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
                     </div>
                     <div class="flex flex-col gap-1 pl-12 pr-4 pb-2">
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Nguyên vật liệu</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Nhập kho</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Kiểm kê kho</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Nhà cung cấp</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/materials">Nguyên vật liệu</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/goods-receipts">Nhập kho</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/stocktakes">Kiểm kê kho</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/suppliers">Nhà cung cấp</a>
                     </div>
                 </div>
                 
@@ -70,9 +84,9 @@
                         <span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
                     </div>
                     <div class="flex flex-col gap-1 pl-12 pr-4 pb-2">
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Báo cáo doanh thu</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Món bán chạy</a>
-                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="#">Hao hụt kho</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/reports/revenue">Báo cáo doanh thu</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/reports/top-movers">Món bán chạy</a>
+                        <a class="py-1.5 text-sm font-light text-on-secondary/60 hover:text-on-secondary transition-colors" href="/admin/reports/inventory-loss">Hao hụt kho</a>
                     </div>
                 </div>
             </nav>

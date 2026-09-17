@@ -16,7 +16,7 @@ public partial class PosMain : IAsyncDisposable
     public HttpClient Http { get; set; } = default!;
 
     [SupplyParameterFromQuery]
-    public string TableId { get; set; }
+    public string TableId { get; set; } = default!;
 
     protected string CurrentTableName { get; set; } = "Chọn bàn...";
     protected string CurrentOrderCode { get; set; } = "N/A";

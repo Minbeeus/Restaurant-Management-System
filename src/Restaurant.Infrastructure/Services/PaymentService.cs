@@ -90,20 +90,29 @@ public class PaymentService : IPaymentService
 
         if (existingLog == null)
         {
-            existingLog = new SepayWebhookLog
+            try
             {
-                TransactionId = payload.id.ToString(),
-                Amount = payload.transferAmount,
-                Content = payload.content,
-                BankCode = payload.gateway,
-                AccountNumber = payload.accountNumber,
-                RawPayload = payload.description ?? string.Empty,
-                IsProcessed = false,
-                ReceivedAt = DateTime.UtcNow
-            };
+                existingLog = new SepayWebhookLog
+                {
+                    TransactionId = payload.id.ToString(),
+                    Amount = payload.transferAmount,
+                    Content = payload.content,
+                    BankCode = payload.gateway,
+                    AccountNumber = payload.accountNumber,
+                    RawPayload = payload.description ?? string.Empty,
+                    IsProcessed = false,
+                    ReceivedAt = DateTime.UtcNow
+                };
 
-            _context.SepayWebhookLogs.Add(existingLog);
-            await _context.SaveChangesAsync();
+                _context.SepayWebhookLogs.Add(existingLog);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Conflict, another webhook request just created the log and we failed the Unique Constraint.
+                // It means it's already being processed. We return true (Idempotent 200 OK)
+                return true;
+            }
         }
 
         // Parse OrderId from content (e.g., POS123 -> OrderId = 123)

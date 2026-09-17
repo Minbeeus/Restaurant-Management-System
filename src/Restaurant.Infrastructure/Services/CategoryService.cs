@@ -107,6 +107,12 @@ public class CategoryService : ICategoryService
         var category = await _context.Categories.FindAsync(id);
         if (category == null) return false;
 
+        var hasActiveItems = await _context.MenuItems.AnyAsync(m => m.CategoryId == id && !m.IsDeleted);
+        if (hasActiveItems)
+        {
+            throw new InvalidOperationException("Không thể xóa danh mục đang chứa món ăn. Vui lòng chuyển hoặc xóa các món ăn trước.");
+        }
+
         _context.Categories.Remove(category); // AuditableEntityInterceptor converts this to Soft Delete (IsDeleted = true)
         await _context.SaveChangesAsync();
         return true;

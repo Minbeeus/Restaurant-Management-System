@@ -18,9 +18,20 @@ public class TablesController : ControllerBase
 
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] int? areaId = null, [FromQuery] int? status = null)
     {
         var tables = await _tableService.GetAllAsync();
+        
+        if (areaId.HasValue)
+        {
+            tables = tables.Where(t => t.AreaId == areaId.Value).ToList();
+        }
+        
+        if (status.HasValue)
+        {
+            tables = tables.Where(t => t.Status == status.Value).ToList();
+        }
+
         return Ok(tables);
     }
 

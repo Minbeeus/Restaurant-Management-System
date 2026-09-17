@@ -1,3 +1,5 @@
+@using Restaurant.Application.DTOs.Dashboard
+
 <div class="bg-surface-container-lowest rounded-xl border border-surface-low shadow-sm h-full flex flex-col">
     <div class="p-6 border-b border-surface-variant bg-surface-mid rounded-t-xl flex justify-between items-center">
         <h3 class="font-headline-sm text-headline-sm text-on-background m-0">Hoạt động gần nhất</h3>
@@ -6,59 +8,47 @@
         </button>
     </div>
     <div class="p-6 flex-1 overflow-y-auto">
-        <ul class="relative border-l-2 border-outline-variant/30 ml-3 space-y-6">
-            <li class="relative pl-6">
-                <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-success-green border-2 border-surface-container-lowest ring-2 ring-success-bg flex items-center justify-center"></span>
-                <div class="flex flex-col gap-1">
-                    <p class="font-body-md text-on-background">
-                        <span class="font-label-bold">Đơn #ORD-1025</span> vừa thanh toán thành công.
-                    </p>
-                    <span class="text-xs text-on-surface-variant">Vài giây trước • Tiền mặt</span>
-                </div>
-            </li>
-            <li class="relative pl-6">
-                <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-secondary border-2 border-surface-container-lowest ring-2 ring-sea-blue-container flex items-center justify-center"></span>
-                <div class="flex flex-col gap-1">
-                    <p class="font-body-md text-on-background">
-                        <span class="font-label-bold">Bàn T5</span> gọi thêm món.
-                    </p>
-                    <div class="mt-2 bg-surface-container p-3 rounded-lg text-sm border border-outline-variant/20">
-                        + 2 Bò bít tết (Chín vừa)<br/>
-                        + 1 Rượu vang đỏ ly
-                    </div>
-                    <span class="text-xs text-on-surface-variant mt-1">2 phút trước • Tầng 1</span>
-                </div>
-            </li>
-            <li class="relative pl-6">
-                <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-warning-amber border-2 border-surface-container-lowest ring-2 ring-warning-bg flex items-center justify-center"></span>
-                <div class="flex flex-col gap-1">
-                    <p class="font-body-md text-on-background">
-                        <span class="font-label-bold">Đơn #ORD-1026</span> đang chờ bếp xác nhận.
-                    </p>
-                    <span class="text-xs text-on-surface-variant">5 phút trước • Kênh Delivery</span>
-                </div>
-            </li>
-            <li class="relative pl-6">
-                <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-tomato-container border-2 border-surface-container-lowest ring-2 ring-error-container flex items-center justify-center"></span>
-                <div class="flex flex-col gap-1">
-                    <p class="font-body-md text-on-background">
-                        Cảnh báo: Hết <span class="font-label-bold text-tomato-container">Cà chua bi</span> trong kho bếp chính.
-                    </p>
-                    <span class="text-xs text-on-surface-variant">15 phút trước • Hệ thống Inventory</span>
-                </div>
-            </li>
-            <li class="relative pl-6 pb-2">
-                <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-outline border-2 border-surface-container-lowest flex items-center justify-center"></span>
-                <div class="flex flex-col gap-1">
-                    <p class="font-body-md text-on-background">
-                        Nhân viên <span class="font-label-bold">Nguyễn Văn A</span> vừa đăng nhập (Ca sáng).
-                    </p>
-                    <span class="text-xs text-on-surface-variant">1 giờ trước • Máy POS-01</span>
-                </div>
-            </li>
-        </ul>
+        @if (Items == null)
+        {
+            <p class="text-on-surface-variant text-center">Đang tải dữ liệu...</p>
+        }
+        else if (!Items.Any())
+        {
+            <p class="text-on-surface-variant text-center">Chưa có hoạt động nào</p>
+        }
+        else
+        {
+            <ul class="relative border-l-2 border-outline-variant/30 ml-3 space-y-6">
+                @foreach (var item in Items)
+                {
+                    <li class="relative pl-6">
+                        @{
+                            var iconColor = item.ActivityType == "Order" ? "bg-success-green ring-success-bg" : "bg-warning-amber ring-warning-bg";
+                        }
+                        <span class="absolute -left-[9px] top-1 w-4 h-4 rounded-full @iconColor border-2 border-surface-container-lowest ring-2 flex items-center justify-center"></span>
+                        <div class="flex flex-col gap-1">
+                            <p class="font-body-md text-on-background">
+                                <span class="font-label-bold">@item.Title</span>
+                            </p>
+                            @if (!string.IsNullOrEmpty(item.Description))
+                            {
+                                <div class="mt-2 bg-surface-container p-3 rounded-lg text-sm border border-outline-variant/20">
+                                    @item.Description
+                                </div>
+                            }
+                            <span class="text-xs text-on-surface-variant mt-1">@item.Timestamp.ToString("HH:mm dd/MM/yyyy")</span>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
     </div>
     <div class="p-4 border-t border-surface-variant text-center bg-surface-container-lowest rounded-b-xl">
         <button class="text-primary font-label-bold hover:underline text-sm">Tải thêm hoạt động</button>
     </div>
 </div>
+
+@code {
+    [Parameter]
+    public List<ActivityFeedItemDto>? Items { get; set; }
+}

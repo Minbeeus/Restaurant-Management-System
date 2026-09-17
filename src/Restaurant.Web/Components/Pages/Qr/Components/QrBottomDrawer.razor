@@ -74,7 +74,7 @@
 @code {
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
-    [Parameter] public MenuItem Item { get; set; }
+    [Parameter] public MenuItem Item { get; set; } = default!;
     [Parameter] public EventCallback<CartItem> OnAddToCart { get; set; }
 
     private int Quantity { get; set; } = 1;
@@ -112,16 +112,16 @@
     public class MenuItem
     {
         public Guid Id { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = default!;
         public decimal Price { get; set; }
-        public string ImageUrl { get; set; }
-        public string Description { get; set; }
+        public string ImageUrl { get; set; } = default!;
+        public string Description { get; set; } = default!;
     }
 
     public class CartItem
     {
         public Guid MenuItemId { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = default!;
         public int Quantity { get; set; }
         public decimal Price { get; set; }
     }
