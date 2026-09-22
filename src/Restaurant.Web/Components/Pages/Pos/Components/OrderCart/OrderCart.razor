@@ -1,4 +1,5 @@
 @using Restaurant.Web.Components.UI.Buttons
+@inject NavigationManager Navigation
 
 <div class="pos-cart">
     <!-- Header -->
@@ -32,9 +33,9 @@
                     
                     <div class="pos-cart-item__actions">
                         <div class="pos-cart-item__qty-control">
-                            <button class="pos-cart-item__qty-btn" disabled="@IsProcessing" @onclick="() => HandleUpdateQuantity(item, item.Quantity - 1)">-</button>
+                            <button class="pos-cart-item__qty-btn" disabled="@_isProcessing" @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity - 1)">-</button>
                             <span class="pos-cart-item__qty-val">@item.Quantity</span>
-                            <button class="pos-cart-item__qty-btn" disabled="@IsProcessing" @onclick="() => HandleUpdateQuantity(item, item.Quantity + 1)">+</button>
+                            <button class="pos-cart-item__qty-btn" disabled="@_isProcessing" @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity + 1)">+</button>
                         </div>
                     </div>
                 </div>
@@ -45,20 +46,20 @@
     <!-- Summary -->
     <div class="pos-cart__summary">
         <div class="pos-cart__summary-row">
-            <span>@L["Pos_Label_Subtotal"]:</span>
+            <span>Subtotal:</span>
             <span>@Subtotal.ToString("N0")đ</span>
         </div>
         <div class="pos-cart__summary-row pos-cart__summary-row--discount">
-            <span>@L["Pos_Label_Discount"]:</span>
+            <span>Giảm giá:</span>
             <span>-@Discount.ToString("N0")đ</span>
         </div>
         <div class="pos-cart__summary-row">
-            <span>@L["Pos_Label_Tax"]:</span>
+            <span>Thuế (VAT 8%):</span>
             <span>@Tax.ToString("N0")đ</span>
         </div>
         
         <div class="pos-cart__summary-total">
-            <span>@L["Pos_Label_Total"]:</span>
+            <span>Tổng thanh toán:</span>
             <span class="pos-cart__total-val">@Total.ToString("N0")đ</span>
         </div>
     </div>
@@ -66,19 +67,19 @@
     <!-- Actions -->
     <div class="pos-cart__actions">
         <div class="pos-cart__actions-top">
-            <AppButton Variant="Secondary" Disabled="Items == null || !Items.Any() || IsProcessing" OnClick="HandleSendToKitchen">
-                @L["Pos_Btn_SendToKitchen"]
+            <AppButton Variant="Secondary" Disabled="Items == null || !Items.Any() || _isProcessing" OnClick="HandleSendToKitchenAsync">
+                Gửi Bếp
             </AppButton>
-            <AppButton Variant="Outline" Disabled="@IsProcessing" OnClick="() => {}">
+            <AppButton Variant="Outline" Disabled="@_isProcessing" OnClick='() => Navigation.NavigateTo("/pos")'>
                 Chuyển Bàn
             </AppButton>
-            <AppButton Variant="Outline" Disabled="@IsProcessing" OnClick="() => {}">
+            <AppButton Variant="Outline" Disabled="@_isProcessing" OnClick='() => Navigation.NavigateTo("/pos")'>
                 Gộp Bàn
             </AppButton>
         </div>
         <div class="pos-cart__actions-main">
-            <button class="pos-cart__pay-btn" disabled="@(Items == null || !Items.Any() || IsProcessing)" @onclick="HandlePay">
-                @L["Pos_Btn_Pay"]
+            <button class="pos-cart__pay-btn" disabled="@(Items == null || !Items.Any() || _isProcessing)" @onclick="HandlePayAsync">
+                Thanh Toán (@Total.ToString("N0")đ)
             </button>
         </div>
     </div>

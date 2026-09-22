@@ -13,8 +13,16 @@ builder.Services.AddRazorComponents()
         options.DetailedErrors = true;
     });
 
-builder.Services.AddControllers(); // Needed for AccountController
+builder.Services.AddControllers(); // Needed for AccountController & CultureController
 builder.Services.AddLocalization();
+
+var supportedCultures = new[] { "vi-VN", "vi", "en-US", "en" };
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.SetDefaultCulture("vi-VN")
+           .AddSupportedCultures(supportedCultures)
+           .AddSupportedUICultures(supportedCultures);
+});
 
 // Cookie Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -35,6 +43,7 @@ builder.Services.AddHttpClient<IAuthApiClient, AuthApiClient>(client => client.B
 builder.Services.AddScoped<DashboardApiClient>();
 builder.Services.AddScoped<MenuApiClient>();
 builder.Services.AddScoped<TableApiClient>();
+builder.Services.AddHttpClient<AdminApiClient>(client => client.BaseAddress = new Uri("http://localhost:5011/"));
 
 var app = builder.Build();
 
@@ -46,6 +55,13 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+var localizationOptions = new RequestLocalizationOptions()
+    .SetDefaultCulture("vi-VN")
+    .AddSupportedCultures(supportedCultures)
+    .AddSupportedUICultures(supportedCultures);
+
+app.UseRequestLocalization(localizationOptions);
 
 app.UseAuthentication();
 app.UseAuthorization();

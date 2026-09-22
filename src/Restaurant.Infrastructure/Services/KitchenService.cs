@@ -27,16 +27,28 @@ public class KitchenService : IKitchenService
         _mediator = mediator;
     }
 
-    public async Task<List<KitchenTicketDto>> GetActiveTicketsAsync()
+    public async Task<List<KitchenTicketDto>> GetActiveTicketsAsync(bool includeCompleted = false)
     {
         var utcNow = DateTime.UtcNow;
+        var today = utcNow.Date;
 
-        var orders = await _context.Orders
+        var query = _context.Orders
             .Include(o => o.Table)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemModifiers)
-            .Where(o => o.OrderItems.Any(oi => oi.KitchenStatus != (int)KitchenStatus.Done))
-            .OrderBy(o => o.CreatedAt)
+            .AsQueryable();
+
+        if (!includeCompleted)
+        {
+            query = query.Where(o => o.OrderItems.Any(oi => oi.KitchenStatus != (int)KitchenStatus.Done));
+        }
+        else
+        {
+            query = query.Where(o => o.CreatedAt >= today);
+        }
+
+        var orders = await query
+            .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
 
         return orders.Select(o => new KitchenTicketDto

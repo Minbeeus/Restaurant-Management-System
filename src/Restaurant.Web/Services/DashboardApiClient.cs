@@ -41,21 +41,21 @@ public class DashboardApiClient
     public async Task<DashboardSummaryDto?> GetSummaryAsync(DateTime? date = null)
     {
         await SetAuthorizationHeaderAsync();
-        var url = date.HasValue ? $"/api/dashboard/summary?date={date:O}" : "/api/dashboard/summary";
+        var url = date.HasValue ? $"/api/dashboard/summary?date={date.Value:yyyy-MM-dd}" : "/api/dashboard/summary";
         return await _httpClient.GetFromJsonAsync<DashboardSummaryDto>(url);
     }
 
     public async Task<List<SalesChartPointDto>?> GetSalesChartAsync(DateTime? date = null)
     {
         await SetAuthorizationHeaderAsync();
-        var url = date.HasValue ? $"/api/dashboard/sales-chart?date={date:O}" : "/api/dashboard/sales-chart";
+        var url = date.HasValue ? $"/api/dashboard/sales-chart?date={date.Value:yyyy-MM-dd}" : "/api/dashboard/sales-chart";
         return await _httpClient.GetFromJsonAsync<List<SalesChartPointDto>>(url);
     }
 
     public async Task<List<TopMoverDto>?> GetTopMoversAsync(DateTime? date = null, int limit = 5)
     {
         await SetAuthorizationHeaderAsync();
-        var url = date.HasValue ? $"/api/dashboard/top-movers?date={date:O}&limit={limit}" : $"/api/dashboard/top-movers?limit={limit}";
+        var url = date.HasValue ? $"/api/dashboard/top-movers?date={date.Value:yyyy-MM-dd}&limit={limit}" : $"/api/dashboard/top-movers?limit={limit}";
         return await _httpClient.GetFromJsonAsync<List<TopMoverDto>>(url);
     }
 

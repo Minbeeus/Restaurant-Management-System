@@ -44,7 +44,7 @@
 
             @if (_isEditMode)
             {
-                <button class="flex items-center gap-2 px-4 py-2 rounded font-label-bold shadow-sm transition-colors @(_hasCollision ? "bg-on-surface-variant/20 text-on-surface-variant cursor-not-allowed" : "bg-basil-container text-white hover:bg-basil-container/90")" @onclick="SaveLayout" disabled="@_hasCollision">
+                <button class="flex items-center gap-2 px-4 py-2 rounded font-label-bold shadow-sm transition-colors @(_hasCollision ? "bg-on-surface-variant/20 text-on-surface-variant cursor-not-allowed" : "bg-basil-container text-white hover:bg-basil-container/90")" @onclick="SaveLayoutAsync" disabled="@_hasCollision">
                     <span class="material-symbols-outlined text-[20px]" data-icon="save">save</span>
                     Lưu sơ đồ
                 </button>
@@ -302,7 +302,7 @@
         try
         {
             _dotNetRef = DotNetObjectReference.Create(this);
-            await LoadData();
+            await LoadDataAsync();
         }
         catch (Exception ex)
         {
@@ -312,7 +312,7 @@
         }
     }
 
-    private async Task LoadData()
+    private async Task LoadDataAsync()
     {
         _isLoading = true;
         try
@@ -346,6 +346,7 @@
     {
         _currentTables = _tables.Where(t => t.AreaId == _currentAreaId).ToList();
         _selectedTable = null; // reset selection
+        _isJsInitialized = false;
     }
 
     private bool _isJsInitialized = false;
@@ -383,7 +384,6 @@
         {
             _currentAreaId = areaId;
             UpdateCurrentTables();
-            _isJsInitialized = false; // Re-init JS will happen in OnAfterRenderAsync
         }
     }
 
@@ -391,6 +391,7 @@
     {
         _isEditMode = !_isEditMode;
         _selectedTable = null;
+        _isJsInitialized = false;
     }
 
     private void SwitchViewMode(string mode)
@@ -398,29 +399,7 @@
         _viewMode = mode;
         _isEditMode = false;
         _selectedTable = null;
-        
-        // If switching back to canvas, we need to re-init JS
-        if (mode == "Canvas")
-        {
-            _ = InvokeAsync(async () => {
-                try 
-                {
-                    await Task.Delay(100); // small delay to let DOM render canvas
-                    if (_areas.Any())
-                    {
-                        var tablesData = _currentTables.Select(t => new { 
-                            tableId = t.Id, positionX = t.PositionX, positionY = t.PositionY, 
-                            width = t.Width, height = t.Height, shape = t.Shape, rotation = t.Rotation
-                        }).ToList();
-                        await JS.InvokeVoidAsync("floorplan.init", _dotNetRef, tablesData);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[JS-ERROR] SwitchViewMode: {ex.Message}");
-                }
-            });
-        }
+        _isJsInitialized = false;
     }
 
     private void OnTableClicked(TableDto table)
@@ -448,12 +427,11 @@
         {
             _selectedTable.Rotation = (_selectedTable.Rotation + 90) % 360;
             // Swap width and height if changing from horizontal to vertical or vice versa
-            // Actually wait, rotating visually might just be CSS transform. 
-            // But if we want actual bounds change for collision:
             var temp = _selectedTable.Width;
             _selectedTable.Width = _selectedTable.Height;
             _selectedTable.Height = temp;
             
+            _isJsInitialized = false;
             StateHasChanged();
         }
     }
@@ -475,11 +453,12 @@
                 _selectedTable.Width = 120;
                 _selectedTable.Height = 80;
             }
+            _isJsInitialized = false;
             StateHasChanged();
         }
     }
 
-    private async Task SaveLayout()
+    private async Task SaveLayoutAsync()
     {
         if (_hasCollision) return;
 
@@ -500,6 +479,7 @@
             // Show success toast here normally
             _isEditMode = false;
             _selectedTable = null;
+            _isJsInitialized = false;
         }
         catch (Exception ex)
         {
@@ -591,7 +571,7 @@
 
     private void CloseModal() => _showModal = false;
 
-    private async Task SaveTable()
+    private async Task SaveTableAsync()
     {
         if (string.IsNullOrWhiteSpace(_model.Name)) return;
 
@@ -620,7 +600,7 @@
                 await ApiClient.CreateTableAsync(req);
             }
             _showModal = false;
-            await LoadData(); // Reload all to get DB assigned IDs
+            await LoadDataAsync(); // Reload all to get DB assigned IDs
         }
         catch (Exception ex)
         {
@@ -640,7 +620,7 @@
         _showDeleteConfirm = true;
     }
 
-    private async Task ExecuteDelete()
+    private async Task ExecuteDeleteAsync()
     {
         if (_tableToDelete != null)
         {
@@ -651,7 +631,7 @@
                 await ApiClient.DeleteTableAsync(_tableToDelete.Id);
                 _showDeleteConfirm = false;
                 _selectedTable = null;
-                await LoadData();
+                await LoadDataAsync();
             }
             catch (HttpRequestException)
             {
@@ -684,7 +664,7 @@
     <div class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-200">
             <h3 class="font-bold text-lg mb-4 text-on-background">@(_isEditing ? "Sửa bàn" : "Thêm bàn mới")</h3>
-            <EditForm Model="@_model" OnValidSubmit="SaveTable">
+            <EditForm Model="@_model" OnValidSubmit="SaveTableAsync">
                 <div class="space-y-3 mb-6">
                     <div>
                         <label class="text-sm font-bold block mb-1 text-on-surface">Tên Bàn</label>
@@ -725,7 +705,7 @@
 
                 <div class="flex justify-center gap-3">
                     <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">Hủy</button>
-                    <button class="px-4 py-2 bg-error text-white rounded hover:bg-error/90 transition-colors font-label-bold flex-1 flex items-center justify-center gap-2" @onclick="ExecuteDelete" disabled="@_isDeleting">
+                    <button class="px-4 py-2 bg-error text-white rounded hover:bg-error/90 transition-colors font-label-bold flex-1 flex items-center justify-center gap-2" @onclick="ExecuteDeleteAsync" disabled="@_isDeleting">
                         @if (_isDeleting)
                         {
                             <span class="material-symbols-outlined animate-spin text-sm" data-icon="progress_activity">progress_activity</span>

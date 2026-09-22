@@ -3,86 +3,131 @@
 @layout Restaurant.Web.Components.Layout.KdsLayout
 @using Restaurant.Web.Components.UI.Cards
 @using Restaurant.Web.Components.UI.Buttons
+@using Restaurant.Application.DTOs
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 
 <div class="flex flex-col h-full bg-background dark:bg-background">
+    <!-- Header -->
     <header class="h-16 flex items-center justify-between px-6 bg-surface dark:bg-inverse-surface border-b border-outline-variant dark:border-outline shrink-0 shadow-sm">
         <div class="flex flex-col justify-center">
-            <h1 class="font-headline-sm text-headline-sm font-bold text-primary dark:text-inverse-primary m-0 leading-tight">Màn hình Bếp (KDS)</h1>
-            <span class="text-sm text-on-surface-variant dark:text-outline leading-tight">Hiệu suất: Bình thường</span>
+            <h1 class="font-headline-sm text-headline-sm font-bold text-primary dark:text-inverse-primary m-0 leading-tight">Màn Hình Bếp (KDS)</h1>
+            <span class="text-xs text-on-surface-variant dark:text-outline leading-tight">Cập nhật chế biến thời gian thực</span>
         </div>
-        <div class="flex items-center gap-8">
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-on-surface-variant dark:text-outline font-label-bold uppercase tracking-wider">Chờ làm:</span>
-                <span class="bg-warning-bg text-warning-amber px-3 py-1 rounded-full font-bold">@ActiveTickets.Count</span>
+        
+        <!-- Status Counters -->
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2 cursor-pointer" @onclick='() => SetFilterStatus("All")'>
+                <span class="text-xs text-on-surface-variant dark:text-outline font-label-bold uppercase">Tất cả:</span>
+                <span class="bg-surface-high text-on-surface px-3 py-1 rounded-full font-bold text-sm">@ActiveTickets.Count</span>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-on-surface-variant dark:text-outline font-label-bold uppercase tracking-wider">Quá hạn:</span>
-                <span class="bg-error-container text-error px-3 py-1 rounded-full font-bold">0</span>
+            <div class="flex items-center gap-2 cursor-pointer" @onclick='() => SetFilterStatus("Pending")'>
+                <span class="text-xs text-on-surface-variant dark:text-outline font-label-bold uppercase">Chờ làm:</span>
+                <span class="bg-warning-bg text-warning-amber px-3 py-1 rounded-full font-bold text-sm">@PendingCount</span>
+            </div>
+            <div class="flex items-center gap-2 cursor-pointer" @onclick='() => SetFilterStatus("Processing")'>
+                <span class="text-xs text-on-surface-variant dark:text-outline font-label-bold uppercase">Đang làm:</span>
+                <span class="bg-primary/20 text-primary px-3 py-1 rounded-full font-bold text-sm">@ProcessingCount</span>
             </div>
         </div>
-        <div class="flex items-center gap-4">
-            <button class="px-4 py-2 text-on-surface dark:text-on-background hover:bg-surface-high dark:hover:bg-[#2a3441] rounded-lg transition-colors font-label-bold flex items-center gap-2">
-                <span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
-                Đơn đã xong
+
+        <div class="flex items-center gap-3">
+            <button class="px-4 py-2 text-on-surface dark:text-on-background hover:bg-surface-high dark:hover:bg-[#2a3441] rounded-lg transition-colors font-label-bold flex items-center gap-2 text-sm"
+                    @onclick="ToggleCompletedViewAsync">
+                <span class="material-symbols-outlined text-[20px]">history</span>
+                @(ShowCompletedOnly ? "Xem Vé Đang Chờ" : "Xem Vé Đã Xong")
             </button>
         </div>
     </header>
 
+    @if (NewTicketNotification)
+    {
+        <div class="bg-primary text-on-primary px-6 py-2 flex justify-between items-center animate-bounce shrink-0">
+            <div class="flex items-center gap-2 font-bold text-sm">
+                <span class="material-symbols-outlined">notifications_active</span>
+                CÓ PHIẾU BẾP MỚI ĐƯỢC GỬI XUỐNG!
+            </div>
+            <button class="text-xs border border-white px-2 py-1 rounded hover:bg-white/20" @onclick="() => NewTicketNotification = false">Đóng</button>
+        </div>
+    }
+
+    <!-- Main Workspace -->
     <main class="flex-1 overflow-x-auto p-6 bg-surface-low dark:bg-[#121820]">
-        <div class="flex gap-6 h-full items-stretch">
-            @foreach (var ticket in ActiveTickets)
-            {
-                <KdsTicketCard 
-                    OrderId="@ticket.OrderCode" 
-                    TableName="@ticket.TableName" 
-                    CreatedAt="@ticket.CreatedAt">
-                    <ItemsList>
-                        <div class="flex flex-col">
-                            @foreach (var item in ticket.Items)
-                            {
-                                <div class="flex flex-col p-4 border-b border-outline-variant dark:border-outline last:border-b-0 @(item.KitchenStatus == 2 ? "opacity-50" : "")">
-                                    <div class="flex gap-4">
-                                        <div class="font-bold text-primary dark:text-inverse-primary bg-primary-container/10 dark:bg-primary-container/20 px-2 py-1 rounded h-fit shrink-0">@item.Quantity x</div>
-                                        <div class="flex flex-col flex-1">
-                                            <div class="font-bold text-on-surface dark:text-on-background text-lg">
-                                                @item.MenuItemName 
-                                                <span class="text-xs text-gray-500 ml-2">(@item.KitchenStatusName)</span>
+        @if (IsLoading)
+        {
+            <div class="flex items-center justify-center h-full gap-3 text-on-surface-variant">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span class="font-medium text-sm">Đang tải danh sách phiếu bếp...</span>
+            </div>
+        }
+        else if (!DisplayedTickets.Any())
+        {
+            <div class="flex flex-col items-center justify-center h-full text-on-surface-variant py-12">
+                <span class="material-symbols-outlined text-4xl mb-2">skillet</span>
+                <p class="text-sm font-medium">Hiện không có phiếu bếp nào cần xử lý.</p>
+            </div>
+        }
+        else
+        {
+            <div class="flex gap-6 h-full items-stretch">
+                @foreach (var ticket in DisplayedTickets)
+                {
+                    <KdsTicketCard 
+                        OrderId="@ticket.OrderCode" 
+                        TableName="@ticket.TableName" 
+                        CreatedAt="@ticket.CreatedAt"
+                        OnComplete="() => CompleteAllItemsInTicketAsync(ticket)">
+                        <ItemsList>
+                            <div class="flex flex-col">
+                                @foreach (var item in ticket.Items)
+                                {
+                                    <div class="flex flex-col p-4 border-b border-outline-variant dark:border-outline last:border-b-0 @(item.KitchenStatus == 2 ? "opacity-50 bg-surface-low" : "")">
+                                        <div class="flex gap-4">
+                                            <div class="font-bold text-primary dark:text-inverse-primary bg-primary-container/10 dark:bg-primary-container/20 px-2 py-1 rounded h-fit shrink-0">@item.Quantity x</div>
+                                            <div class="flex flex-col flex-1">
+                                                <div class="font-bold text-on-surface dark:text-on-background text-lg">
+                                                    @item.MenuItemName 
+                                                    <span class="text-xs text-gray-500 ml-2">(@item.KitchenStatusName)</span>
+                                                </div>
+                                                @if (item.Modifiers != null && item.Modifiers.Any())
+                                                {
+                                                    <div class="text-xs text-on-surface-variant dark:text-outline mt-1 font-medium bg-surface-high p-1.5 rounded">
+                                                        + @string.Join(", ", item.Modifiers)
+                                                    </div>
+                                                }
+                                                @if (!string.IsNullOrEmpty(item.Note))
+                                                {
+                                                    <div class="text-error dark:text-error-container text-xs mt-1 flex items-start gap-1 font-medium bg-error-container/10 p-2 rounded">
+                                                        <span class="material-symbols-outlined text-[14px]">warning</span>
+                                                        @item.Note
+                                                    </div>
+                                                }
                                             </div>
-                                            @if (item.Modifiers != null && item.Modifiers.Any())
+                                        </div>
+                                        <div class="flex gap-2 justify-end mt-3">
+                                            @if (item.KitchenStatus == 0) // Pending
                                             {
-                                                <div class="text-sm text-on-surface-variant dark:text-outline mt-1">
-                                                    @string.Join(", ", item.Modifiers)
-                                                </div>
+                                                <AppButton Variant="Outline" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatusAsync(item.OrderItemId, 1)">Nhận Chế Biến</AppButton>
                                             }
-                                            @if (!string.IsNullOrEmpty(item.Note))
+                                            else if (item.KitchenStatus == 1) // Processing
                                             {
-                                                <div class="text-error dark:text-error-container text-sm mt-1 flex items-start gap-1 font-medium bg-error-container/10 p-2 rounded">
-                                                    <span class="material-symbols-outlined text-[16px]" data-icon="warning">warning</span>
-                                                    @item.Note
-                                                </div>
+                                                <AppButton Variant="Primary" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatusAsync(item.OrderItemId, 2)">Hoàn Thành Món</AppButton>
+                                            }
+                                            else if (item.KitchenStatus == 2)
+                                            {
+                                                <span class="text-success font-bold text-xs flex items-center gap-1">
+                                                    <span class="material-symbols-outlined text-[16px]">check</span>
+                                                    Đã Xong
+                                                </span>
                                             }
                                         </div>
                                     </div>
-                                    <div class="flex gap-2 justify-end mt-3">
-                                        @if (item.KitchenStatus == 0) // Pending
-                                        {
-                                            <AppButton Variant="Outline" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatus(item.OrderItemId, 1)">Nhận món</AppButton>
-                                        }
-                                        else if (item.KitchenStatus == 1) // Processing
-                                        {
-                                            <AppButton Variant="Primary" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatus(item.OrderItemId, 2)">Xong</AppButton>
-                                        }
-                                        else if (item.KitchenStatus == 2)
-                                        {
-                                            <span class="text-success font-bold">Đã xong</span>
-                                        }
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </ItemsList>
-                </KdsTicketCard>
-            }
-        </div>
+                                }
+                            </div>
+                        </ItemsList>
+                    </KdsTicketCard>
+                }
+            </div>
+        }
     </main>
 </div>

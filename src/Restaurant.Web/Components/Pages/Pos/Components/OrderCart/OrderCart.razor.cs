@@ -32,12 +32,12 @@ public partial class OrderCart
     private decimal Tax => Subtotal * 0.08m; // 8% VAT
     private decimal Total => Subtotal - Discount + Tax;
     
-    private bool IsProcessing { get; set; }
+    private bool _isProcessing;
     
-    private async Task HandleUpdateQuantity(OrderCartItemLocal item, int newQuantity)
+    private async Task HandleUpdateQuantityAsync(OrderCartItemLocal item, int newQuantity)
     {
-        if (IsProcessing) return;
-        IsProcessing = true;
+        if (_isProcessing) return;
+        _isProcessing = true;
         
         try
         {
@@ -55,15 +55,15 @@ public partial class OrderCart
         }
         finally
         {
-            IsProcessing = false;
+            _isProcessing = false;
             StateHasChanged();
         }
     }
     
-    private async Task HandleSendToKitchen()
+    private async Task HandleSendToKitchenAsync()
     {
-        if (IsProcessing) return;
-        IsProcessing = true;
+        if (_isProcessing) return;
+        _isProcessing = true;
         try
         {
             if (OnSendToKitchen.HasDelegate)
@@ -71,15 +71,15 @@ public partial class OrderCart
         }
         finally
         {
-            IsProcessing = false;
+            _isProcessing = false;
             StateHasChanged();
         }
     }
     
-    private async Task HandlePay()
+    private async Task HandlePayAsync()
     {
-        if (IsProcessing) return;
-        IsProcessing = true;
+        if (_isProcessing) return;
+        _isProcessing = true;
         try
         {
             if (OnPay.HasDelegate)
@@ -87,7 +87,7 @@ public partial class OrderCart
         }
         finally
         {
-            IsProcessing = false;
+            _isProcessing = false;
             StateHasChanged();
         }
     }

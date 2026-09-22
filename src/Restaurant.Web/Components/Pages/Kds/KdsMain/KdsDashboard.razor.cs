@@ -7,60 +7,88 @@ namespace Restaurant.Web.Components.Pages.Kds.KdsMain;
 
 public partial class KdsDashboard : IAsyncDisposable
 {
-    [Inject]
-    public NavigationManager Navigation { get; set; } = default!;
-
-    [Inject]
-    public HttpClient Http { get; set; } = default!;
+    [Inject] public NavigationManager Navigation { get; set; } = default!;
+    [Inject] public HttpClient Http { get; set; } = default!;
 
     protected List<KitchenTicketDto> ActiveTickets { get; set; } = new();
     protected HashSet<int> ProcessingItems { get; set; } = new();
-    
-    private HubConnection? hubConnection;
+
+    protected bool IsLoading { get; set; } = true;
+    protected string FilterStatus { get; set; } = "All";
+    protected bool ShowCompletedOnly { get; set; } = false;
+    protected bool NewTicketNotification { get; set; } = false;
+
+    private HubConnection? _hubConnection;
+
+    protected int PendingCount => ActiveTickets.SelectMany(t => t.Items).Count(i => i.KitchenStatus == 0);
+    protected int ProcessingCount => ActiveTickets.SelectMany(t => t.Items).Count(i => i.KitchenStatus == 1);
+
+    protected List<KitchenTicketDto> DisplayedTickets
+    {
+        get
+        {
+            if (ShowCompletedOnly)
+            {
+                return ActiveTickets.Where(t => t.Items.All(i => i.KitchenStatus == 2)).ToList();
+            }
+
+            var uncompleted = ActiveTickets.Where(t => t.Items.Any(i => i.KitchenStatus != 2)).ToList();
+
+            if (FilterStatus == "Pending")
+                return uncompleted.Where(t => t.Items.Any(i => i.KitchenStatus == 0)).ToList();
+            if (FilterStatus == "Processing")
+                return uncompleted.Where(t => t.Items.Any(i => i.KitchenStatus == 1)).ToList();
+
+            return uncompleted;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadActiveTickets();
+        await LoadActiveTicketsAsync();
 
         // Hub Connection setup for Chefs
-        hubConnection = new HubConnectionBuilder()
+        _hubConnection = new HubConnectionBuilder()
             .WithUrl(Navigation.ToAbsoluteUri("/hubs/restaurant"))
+            .WithAutomaticReconnect()
             .Build();
 
-        hubConnection.On<KitchenTicketDto>("ReceiveKitchenTicket", (ticket) =>
+        _hubConnection.On<KitchenTicketDto>("ReceiveKitchenTicket", (ticket) =>
         {
-            try
+            _ = InvokeAsync(async () =>
             {
-                // Append ticket to UI
-                Console.WriteLine($"Received ticket data for Order: {ticket.OrderCode}");
-                
-                // Check if ticket already exists (might be appending items)
-                var existing = ActiveTickets.FirstOrDefault(t => t.OrderId == ticket.OrderId);
-                if (existing != null)
-                {
-                    existing.Items.AddRange(ticket.Items);
-                }
-                else
-                {
-                    ActiveTickets.Add(ticket);
-                }
-                
-                InvokeAsync(StateHasChanged);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error processing ReceiveKitchenTicket: {ex.Message}");
-            }
+                NewTicketNotification = true;
+                await LoadActiveTicketsAsync();
+                StateHasChanged();
+            });
         });
 
-        await hubConnection.StartAsync();
-    }
+        _hubConnection.On<int, int>("KitchenItemStatusChanged", (orderItemId, status) =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadActiveTicketsAsync();
+                StateHasChanged();
+            });
+        });
 
-    private async Task LoadActiveTickets()
-    {
         try
         {
-            var tickets = await Http.GetFromJsonAsync<List<KitchenTicketDto>>("api/v1/kds/tickets/active");
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"KDS SignalR Error: {ex.Message}");
+        }
+    }
+
+    private async Task LoadActiveTicketsAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            var url = ShowCompletedOnly ? "api/v1/kds/tickets/active?includeCompleted=true" : "api/v1/kds/tickets/active";
+            var tickets = await Http.GetFromJsonAsync<List<KitchenTicketDto>>(url);
             if (tickets != null)
             {
                 ActiveTickets = tickets;
@@ -70,23 +98,33 @@ public partial class KdsDashboard : IAsyncDisposable
         {
             Console.WriteLine($"Error loading tickets: {ex.Message}");
         }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
-    protected async Task UpdateItemStatus(int orderItemId, int newStatus)
+    protected void SetFilterStatus(string status) => FilterStatus = status;
+
+    protected async Task ToggleCompletedViewAsync()
+    {
+        ShowCompletedOnly = !ShowCompletedOnly;
+        await LoadActiveTicketsAsync();
+    }
+
+    protected async Task UpdateItemStatusAsync(int orderItemId, int newStatus)
     {
         if (ProcessingItems.Contains(orderItemId)) return;
-        
-        Console.WriteLine($"Chef updated item {orderItemId} to status {newStatus}");
+
         ProcessingItems.Add(orderItemId);
-        
+
         try
         {
             var request = new UpdateKitchenStatusRequest { KitchenStatus = newStatus };
             var response = await Http.PatchAsJsonAsync($"api/v1/kds/items/{orderItemId}/status", request);
-            
+
             if (response.IsSuccessStatusCode)
             {
-                // Find item and update locally
                 foreach (var ticket in ActiveTickets)
                 {
                     var item = ticket.Items.FirstOrDefault(i => i.OrderItemId == orderItemId);
@@ -97,10 +135,6 @@ public partial class KdsDashboard : IAsyncDisposable
                         break;
                     }
                 }
-            }
-            else
-            {
-                Console.WriteLine("Failed to update status.");
             }
         }
         catch (Exception ex)
@@ -114,11 +148,22 @@ public partial class KdsDashboard : IAsyncDisposable
         }
     }
 
+    protected async Task CompleteAllItemsInTicketAsync(KitchenTicketDto ticket)
+    {
+        foreach (var item in ticket.Items)
+        {
+            if (item.KitchenStatus != 2)
+            {
+                await UpdateItemStatusAsync(item.OrderItemId, 2);
+            }
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
-        if (hubConnection is not null)
+        if (_hubConnection is not null)
         {
-            await hubConnection.DisposeAsync();
+            await _hubConnection.DisposeAsync();
         }
     }
 }

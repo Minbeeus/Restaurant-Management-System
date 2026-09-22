@@ -1,4 +1,5 @@
 @page "/pos/order"
+@rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.PosLayout
 @using Restaurant.Web.Components.Pages.Pos.Components.OrderCart
 @using Restaurant.Web.Components.Pages.Pos.Components.CategoryTabs
@@ -15,10 +16,18 @@
             OrderCode="@CurrentOrderCode"
             OnQuantityChanged="HandleCartQuantityChanged"
             OnItemRemoved="HandleCartItemRemoved"
-            OnSendToKitchen="HandleSendToKitchen"
-            OnPay="HandlePay" />
+            OnSendToKitchen="HandleSendToKitchenAsync"
+            OnPay="HandlePayAsync" />
     </div>
     <div class="pos-main__right">
+        @if (!string.IsNullOrEmpty(ToastMessage))
+        {
+            <div class="bg-success-container text-success px-4 py-2 mb-2 rounded font-bold shadow-sm flex items-center justify-between">
+                <span>@ToastMessage</span>
+                <button class="text-sm border border-success px-2 py-1 rounded hover:bg-success/10" @onclick="() => ToastMessage = string.Empty">Đóng</button>
+            </div>
+        }
+
         @if (ShowAlert)
         {
             <div class="bg-warning-container text-warning px-4 py-2 mb-2 rounded font-bold shadow-sm flex items-center justify-between">
@@ -46,3 +55,11 @@
     MenuItem="SelectedItemDetail"
     ModifierGroups="SelectedModifierGroups"
     OnConfirm="HandleConfirmCombo" />
+
+<PosPaymentModal
+    @bind-IsOpen="ShowPaymentModal"
+    OrderId="ActiveOrderId"
+    OrderCode="@CurrentOrderCode"
+    TableName="@CurrentTableName"
+    SubTotal="@CartSubTotal"
+    OnPaymentCompleted="HandlePaymentCompletedAsync" />

@@ -1,124 +1,231 @@
 @page "/qr"
+@rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.EmptyLayout
 @using Restaurant.Web.Components.Pages.Qr.Components
+@using Restaurant.Application.DTOs
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
 
 <div class="h-screen bg-surface-low overflow-hidden flex flex-col relative font-body-md text-on-background">
     <!-- Header -->
-    <header class="bg-surface shadow-sm sticky top-0 z-10 px-4 py-3">
+    <header class="bg-surface shadow-sm sticky top-0 z-10 px-4 py-3 border-b border-outline-variant">
         <div class="flex justify-between items-center">
             <div>
-                <h1 class="font-bold text-lg text-primary">Bàn: @TableName</h1>
-                <p class="text-sm text-on-surface-variant">Xin chào quý khách!</p>
+                <h1 class="font-bold text-lg text-primary leading-tight">@TableName</h1>
+                <p class="text-xs text-on-surface-variant">@AreaName - Xin chào quý khách!</p>
             </div>
-            <div class="w-10 h-10 bg-primary-container text-primary rounded-full flex items-center justify-center font-bold">
-                M&B
-            </div>
+            <button class="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold flex items-center gap-1"
+                    @onclick="GoToOrderStatus">
+                <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+                Đơn của tôi
+            </button>
         </div>
         
         <!-- Search bar -->
         <div class="mt-3 relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
-            <input type="text" placeholder="Tìm kiếm món ăn..." class="w-full bg-surface-low border border-outline-variant rounded-full py-2 pl-10 pr-4 focus:outline-none focus:border-primary text-sm" />
+            <input type="text" placeholder="Tìm kiếm món ăn..." class="w-full bg-surface-low border border-outline-variant rounded-full py-2 pl-10 pr-4 focus:outline-none focus:border-primary text-sm"
+                   @bind="SearchText" @bind:event="oninput" />
         </div>
     </header>
 
-    <!-- Categories Tabs (Horizontal scroll) -->
-    <div class="bg-surface border-b border-outline-variant sticky top-[108px] z-10 px-4 py-2 flex overflow-x-auto custom-scrollbar gap-4 hide-scrollbar">
-        @foreach (var cat in MockCategories)
-        {
-            <button class="whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold @(ActiveCategory == cat ? "bg-primary text-white" : "bg-surface-low text-on-surface-variant")" @onclick="() => ActiveCategory = cat">
-                @cat
-            </button>
-        }
-    </div>
-
-    <!-- Menu List -->
-    <main class="flex-1 overflow-y-auto p-4 pb-24">
-        <h2 class="font-bold text-xl mb-4">@ActiveCategory</h2>
-        <div class="flex flex-col gap-4">
-            @foreach (var item in MockItems)
-            {
-                <div class="bg-surface rounded-xl p-3 flex gap-3 shadow-sm border border-outline-variant/30 active:scale-[0.98] transition-transform" @onclick="() => OpenItem(item)">
-                    <img src="@item.ImageUrl" class="w-24 h-24 rounded-lg object-cover bg-surface-low shrink-0" />
-                    <div class="flex-1 flex flex-col justify-between py-1">
-                        <div>
-                            <h3 class="font-bold text-on-surface leading-tight">@item.Name</h3>
-                            <p class="text-xs text-on-surface-variant mt-1 line-clamp-2">@item.Description</p>
-                        </div>
-                        <div class="flex justify-between items-end mt-2">
-                            <span class="font-bold text-primary">@item.Price.ToString("N0")đ</span>
-                            <button class="w-8 h-8 rounded-full bg-primary-container text-primary flex items-center justify-center">
-                                <span class="material-symbols-outlined text-[20px]">add</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    </main>
-
-    <!-- Sticky Bottom Cart -->
-    @if (CartItems.Any())
+    @if (IsLoading)
     {
-        <div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-20">
-            <div class="flex items-center justify-between">
-                <div class="flex flex-col">
-                    <span class="text-sm font-bold text-on-surface-variant">Tổng cộng (@CartItems.Sum(x => x.Quantity) món)</span>
-                    <span class="text-xl font-bold text-primary">@CartItems.Sum(x => x.Price * x.Quantity).ToString("N0")đ</span>
-                </div>
-                <button class="bg-primary text-white px-6 py-3 rounded-full font-bold shadow-md flex items-center gap-2 active:scale-95 transition-transform">
-                    <span class="material-symbols-outlined">shopping_cart_checkout</span>
-                    Gửi đơn
-                </button>
-            </div>
+        <div class="flex-1 flex flex-col items-center justify-center gap-3 text-on-surface-variant">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+            <span class="text-sm font-medium">Đang tải thực đơn...</span>
         </div>
     }
+    else if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="flex-1 flex flex-col items-center justify-center p-6 text-center text-error">
+            <span class="material-symbols-outlined text-5xl mb-2">error_outline</span>
+            <p class="font-bold text-base">@ErrorMessage</p>
+            <p class="text-xs text-on-surface-variant mt-1">Vui lòng quét lại mã QR tại bàn để sử dụng.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Categories Tabs -->
+        <div class="bg-surface border-b border-outline-variant sticky top-[108px] z-10 px-4 py-2 flex overflow-x-auto gap-2 hide-scrollbar">
+            <button class="whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all @(ActiveCategoryId == 0 ? "bg-primary text-on-primary shadow-xs" : "bg-surface-low text-on-surface-variant")"
+                    @onclick="() => ActiveCategoryId = 0">
+                Tất cả
+            </button>
+            @foreach (var cat in Categories)
+            {
+                <button class="whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all @(ActiveCategoryId == cat.Id ? "bg-primary text-on-primary shadow-xs" : "bg-surface-low text-on-surface-variant")"
+                        @onclick="() => ActiveCategoryId = cat.Id">
+                    @cat.Name
+                </button>
+            }
+        </div>
 
-    <QrBottomDrawer @bind-IsOpen="IsDrawerOpen" Item="SelectedItem" OnAddToCart="HandleAddToCart" />
+        <!-- Menu List -->
+        <main class="flex-1 overflow-y-auto p-4 pb-28">
+            <div class="flex flex-col gap-3">
+                @foreach (var item in DisplayedMenuItems)
+                {
+                    <div class="bg-surface rounded-2xl p-3 flex gap-3 shadow-xs border border-outline-variant/50 active:scale-[0.98] transition-transform cursor-pointer"
+                         @onclick="() => OpenItemDetail(item)">
+                        <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/placeholder.png" : item.ImageUrl)" class="w-24 h-24 rounded-xl object-cover bg-surface-low shrink-0" />
+                        <div class="flex-1 flex flex-col justify-between py-0.5">
+                            <div>
+                                <h3 class="font-bold text-on-surface text-base leading-tight">@item.Name</h3>
+                                <p class="text-xs text-on-surface-variant mt-1 line-clamp-2">@item.Description</p>
+                            </div>
+                            <div class="flex justify-between items-end mt-2">
+                                <span class="font-bold text-primary text-base">@item.Price.ToString("N0")đ</span>
+                                <button class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-xs active:scale-90 transition-transform"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => OpenItemDetail(item)">
+                                    <span class="material-symbols-outlined text-[18px]">add</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </main>
+
+        <!-- Sticky Bottom Cart -->
+        @if (CartItems.Any())
+        {
+            <div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 pb-safe shadow-2xl z-20">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-on-surface-variant">Tổng cộng (@CartItems.Sum(x => x.Quantity) món)</span>
+                        <span class="text-xl font-bold text-primary">@CartItems.Sum(x => x.Price * x.Quantity).ToString("N0")đ</span>
+                    </div>
+                    <button class="bg-primary text-on-primary px-6 py-3 rounded-full font-bold shadow-md flex items-center gap-2 active:scale-95 transition-transform"
+                            disabled="@IsSubmitting"
+                            @onclick="SubmitOrder">
+                        @if (IsSubmitting)
+                        {
+                            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        }
+                        else
+                        {
+                            <span class="material-symbols-outlined">send</span>
+                            <span>Gửi Đơn</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        }
+    }
+
+    <QrBottomDrawer 
+        @bind-IsOpen="IsDrawerOpen" 
+        Item="SelectedItem" 
+        ModifierGroups="SelectedItemModifiers"
+        OnAddToCart="HandleAddToCart" />
 </div>
 
 <style>
-    .hide-scrollbar::-webkit-scrollbar {
-        display: none;
-    }
-    .hide-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-    .pb-safe {
-        padding-bottom: env(safe-area-inset-bottom, 1rem);
-    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
 </style>
 
 @code {
-    [SupplyParameterFromQuery]
-    public string TableId { get; set; } = default!;
+    [SupplyParameterFromQuery] public string TableId { get; set; } = default!;
+    [SupplyParameterFromQuery] public string Token { get; set; } = default!;
 
-    [SupplyParameterFromQuery]
-    public string Token { get; set; } = default!;
+    private string TableName = "Bàn ăn";
+    private string AreaName = "";
+    private bool IsLoading = true;
+    private string ErrorMessage = string.Empty;
 
-    private string TableName = "Bàn 12"; // Mock
-    private string ActiveCategory = "Phổ biến";
+    private int ActiveCategoryId = 0;
+    private string SearchText = string.Empty;
+
+    private List<PublicCategoryDto> Categories = new();
+    private List<PublicMenuItemDto> AllMenuItems = new();
+    private List<QrBottomDrawer.QrCartItemLocal> CartItems = new();
+
     private bool IsDrawerOpen = false;
-    private QrBottomDrawer.MenuItem SelectedItem = default!;
-    private List<QrBottomDrawer.CartItem> CartItems = new();
+    private PublicMenuItemDto? SelectedItem;
+    private List<ModifierGroupDto>? SelectedItemModifiers;
+    private bool IsSubmitting = false;
 
-    private List<string> MockCategories = new() { "Phổ biến", "Pizza", "Mì Ý", "Salad", "Đồ uống" };
-    private List<QrBottomDrawer.MenuItem> MockItems = new()
+    private List<PublicMenuItemDto> DisplayedMenuItems
     {
-        new QrBottomDrawer.MenuItem { Id = Guid.NewGuid(), Name = "Pizza Hải sản nhiệt đới", Price = 189000, ImageUrl = "/images/pizza1.jpg", Description = "Tôm, mực, dứa, phô mai Mozzarella" },
-        new QrBottomDrawer.MenuItem { Id = Guid.NewGuid(), Name = "Mì Ý Sốt Bò Băm", Price = 125000, ImageUrl = "/images/pasta1.jpg", Description = "Mì Ý, sốt bò băm cà chua, phô mai Parmesan" }
-    };
+        get
+        {
+            var items = ActiveCategoryId == 0 ? AllMenuItems : AllMenuItems.Where(i => i.CategoryId == ActiveCategoryId).ToList();
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                items = items.Where(i => i.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            return items;
+        }
+    }
 
-    private void OpenItem(QrBottomDrawer.MenuItem item)
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(TableId) || string.IsNullOrEmpty(Token))
+        {
+            ErrorMessage = "Mã QR không hợp lệ hoặc thiếu thông tin bàn.";
+            IsLoading = false;
+            return;
+        }
+
+        try
+        {
+            int parsedTableId = int.Parse(TableId);
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<PublicMenuResponse>>($"api/v1/qr/menu?tableId={parsedTableId}&token={Token}");
+
+            if (res?.Success == true && res.Data != null)
+            {
+                TableName = res.Data.TableName;
+                AreaName = res.Data.AreaName;
+                Categories = res.Data.Categories;
+                AllMenuItems = res.Data.Categories.SelectMany(c => c.MenuItems).ToList();
+            }
+            else
+            {
+                ErrorMessage = "Không thể tải thực đơn. Vui lòng thử lại.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OpenItemDetail(PublicMenuItemDto item)
     {
         SelectedItem = item;
+        SelectedItemModifiers = null;
+
+        if (int.TryParse(TableId, out int parsedTableId))
+        {
+            try
+            {
+                var res = await Http.GetFromJsonAsync<ApiResponseWrapper<MenuItemDetailDto>>($"api/v1/qr/menu-items/{item.Id}?tableId={parsedTableId}&token={Token}");
+                if (res?.Success == true && res.Data != null)
+                {
+                    SelectedItemModifiers = res.Data.ModifierGroups;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading modifiers: {ex.Message}");
+            }
+        }
+
         IsDrawerOpen = true;
     }
 
-    private void HandleAddToCart(QrBottomDrawer.CartItem item)
+    private void HandleAddToCart(QrBottomDrawer.QrCartItemLocal item)
     {
-        var existing = CartItems.FirstOrDefault(x => x.MenuItemId == item.MenuItemId);
+        var existing = CartItems.FirstOrDefault(x => x.MenuItemId == item.MenuItemId && (x.SelectedModifiers?.SequenceEqual(item.SelectedModifiers) == true));
         if (existing != null)
         {
             existing.Quantity += item.Quantity;
@@ -128,5 +235,60 @@
             CartItems.Add(item);
         }
         StateHasChanged();
+    }
+
+    private async Task SubmitOrder()
+    {
+        if (!CartItems.Any() || IsSubmitting) return;
+
+        IsSubmitting = true;
+        try
+        {
+            int parsedTableId = int.Parse(TableId);
+            var req = new SubmitQrOrderRequest
+            {
+                TableId = parsedTableId,
+                QrToken = Token,
+                CustomerNote = "Gọi từ điện thoại khách hàng",
+                Items = CartItems.Select(i => new CartItemValidateRequest
+                {
+                    MenuItemId = i.MenuItemId,
+                    Quantity = i.Quantity,
+                    Note = i.Note,
+                    SelectedModifiers = i.SelectedModifiers
+                }).ToList()
+            };
+
+            var res = await Http.PostAsJsonAsync("api/v1/qr/orders/submit", req);
+            if (res.IsSuccessStatusCode)
+            {
+                CartItems.Clear();
+                GoToOrderStatus();
+            }
+            else
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                ErrorMessage = $"Gửi đơn không thành công: {err}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private void GoToOrderStatus()
+    {
+        Navigation.NavigateTo($"/qr/status?tableId={TableId}&token={Token}");
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
     }
 }

@@ -1,0 +1,226 @@
+@page "/qr/status"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.EmptyLayout
+@using Restaurant.Application.DTOs
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<div class="h-screen bg-surface-low overflow-y-auto flex flex-col font-body-md text-on-background">
+    <!-- Header -->
+    <header class="bg-surface shadow-sm sticky top-0 z-10 px-4 py-3 border-b border-outline-variant flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button class="p-1 rounded-full text-on-surface hover:bg-surface-high" @onclick="GoBackToMenu">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <div>
+                <h1 class="font-bold text-base text-primary leading-tight">Trạng Thái Đơn Hàng</h1>
+                <p class="text-xs text-on-surface-variant">@_tableName - @_orderCode</p>
+            </div>
+        </div>
+        <button class="px-3 py-1.5 bg-primary text-on-primary rounded-full text-xs font-bold flex items-center gap-1 shadow-xs"
+                @onclick="GoBackToMenu">
+            <span class="material-symbols-outlined text-[16px]">add</span>
+            Gọi thêm món
+        </button>
+    </header>
+
+    <main class="flex-1 p-4 space-y-4 max-w-lg mx-auto w-full pb-12">
+        @if (_isLoading)
+        {
+            <div class="flex flex-col items-center justify-center py-24 gap-3 text-on-surface-variant">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                <span class="text-sm font-medium">Đang tải trạng thái đơn hàng...</span>
+            </div>
+        }
+        else if (_orderStatusData == null)
+        {
+            <div class="flex flex-col items-center justify-center py-24 text-center text-on-surface-variant">
+                <span class="material-symbols-outlined text-5xl mb-2 text-primary/40">restaurant</span>
+                <p class="font-bold text-base text-on-surface">Chưa có đơn hàng nào</p>
+                <p class="text-xs text-on-surface-variant mt-1">Quý khách chưa đặt món nào cho bàn này.</p>
+                <button class="mt-4 px-6 py-2.5 bg-primary text-on-primary rounded-full font-bold text-sm shadow-md"
+                        @onclick="GoBackToMenu">
+                    Xem Thực Đơn & Gọi Món
+                </button>
+            </div>
+        }
+        else
+        {
+            <!-- Overview Card -->
+            <div class="bg-surface rounded-2xl p-4 shadow-sm border border-outline-variant space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-on-surface-variant uppercase">Mã Đơn: @_orderStatusData.OrderCode</span>
+                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                        @_orderStatusData.OrderStatusName
+                    </span>
+                </div>
+                <div class="flex justify-between items-baseline pt-2 border-t border-outline-variant/50">
+                    <span class="text-sm font-bold text-on-surface-variant">Tổng Tiền Tạm Tính</span>
+                    <span class="text-2xl font-bold text-primary">@_orderStatusData.TotalAmount.ToString("N0")đ</span>
+                </div>
+            </div>
+
+            <!-- Items List -->
+            <div class="space-y-3">
+                <h3 class="font-bold text-sm text-on-surface-variant uppercase px-1">Danh Sách Món Đã Đặt</h3>
+
+                @foreach (var item in _orderStatusData.Items)
+                {
+                    <div class="bg-surface rounded-2xl p-4 shadow-xs border border-outline-variant flex justify-between items-start gap-3">
+                        <div class="space-y-1 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-xs">@item.Quantity x</span>
+                                <span class="font-bold text-on-surface text-base">@item.MenuItemName</span>
+                            </div>
+                            
+                            @if (item.Modifiers != null && item.Modifiers.Any())
+                            {
+                                <div class="text-xs text-on-surface-variant bg-surface-low p-1.5 rounded-lg">
+                                    + @string.Join(", ", item.Modifiers)
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(item.Note))
+                            {
+                                <div class="text-xs text-error font-medium italic">
+                                    Ghi chú: @item.Note
+                                </div>
+                            }
+
+                            <div class="text-xs text-on-surface-variant font-medium pt-1">
+                                Đơn giá: @item.UnitPrice.ToString("N0")đ
+                            </div>
+                        </div>
+
+                        <!-- Status Badge -->
+                        <div class="shrink-0 flex flex-col items-end">
+                            @if (item.KitchenStatus == 0) // Pending
+                            {
+                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-warning-bg/20 text-warning-amber border border-warning/30 flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-warning-amber animate-pulse"></span>
+                                    Chờ bếp nhận
+                                </span>
+                            }
+                            else if (item.KitchenStatus == 1) // Processing
+                            {
+                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-primary/15 text-primary border border-primary/30 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px] animate-spin">skillet</span>
+                                    Đang chế biến
+                                </span>
+                            }
+                            else if (item.KitchenStatus == 2) // Done
+                            {
+                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-success-container/30 text-success border border-success/30 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                                    Đã chế biến xong
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string TableId { get; set; } = default!;
+    [SupplyParameterFromQuery] public string Token { get; set; } = default!;
+
+    private string _tableName = "Bàn ăn";
+    private string _orderCode = "";
+    private bool _isLoading = true;
+    private QrOrderStatusResponse? _orderStatusData;
+
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrderStatusAsync();
+
+        // SignalR Connection
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/restaurant"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<int, int>("KitchenItemStatusChanged", (orderItemId, status) =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadOrderStatusAsync();
+                StateHasChanged();
+            });
+        });
+
+        _hubConnection.On<string>("OrderPaid", (orderId) =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadOrderStatusAsync();
+                StateHasChanged();
+            });
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR Error: {ex.Message}");
+        }
+    }
+
+    private async Task LoadOrderStatusAsync()
+    {
+        if (string.IsNullOrEmpty(TableId) || string.IsNullOrEmpty(Token))
+        {
+            _isLoading = false;
+            return;
+        }
+
+        try
+        {
+            int parsedTableId = int.Parse(TableId);
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<QrOrderStatusResponse>>($"api/v1/qr/orders/status?tableId={parsedTableId}&token={Token}");
+
+            if (res?.Success == true && res.Data != null)
+            {
+                _orderStatusData = res.Data;
+                _tableName = res.Data.TableName;
+                _orderCode = res.Data.OrderCode;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading order status: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void GoBackToMenu()
+    {
+        Navigation.NavigateTo($"/qr?tableId={TableId}&token={Token}");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+    }
+}

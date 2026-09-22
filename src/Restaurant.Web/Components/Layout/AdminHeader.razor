@@ -1,0 +1,114 @@
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Routing
+@using System.Globalization
+
+<header class="flex justify-between items-center h-16 px-margin-page bg-surface dark:bg-background border-b border-outline-variant font-label-bold text-label-bold shrink-0 z-10">
+    <div class="flex items-center gap-8">
+        <span class="font-headline-sm text-headline-sm font-bold text-primary">@L["Admin_System_Title"]</span>
+        <nav class="hidden md:flex items-center gap-6">
+            <NavLink class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="/admin/dashboard" Match="NavLinkMatch.All" ActiveClass="text-primary font-bold border-b-2 border-primary pb-1">@L["Header_Overview"]</NavLink>
+            <NavLink class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="/admin/orders" ActiveClass="text-primary font-bold border-b-2 border-primary pb-1">@L["Header_Orders"]</NavLink>
+            <NavLink class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="/admin/reports/revenue" ActiveClass="text-primary font-bold border-b-2 border-primary pb-1">@L["Header_Reports"]</NavLink>
+        </nav>
+    </div>
+    
+    <div class="flex items-center gap-4">
+        <!-- Language Switcher Dropdown -->
+        <div class="relative">
+            <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-low border border-outline-variant hover:border-primary text-xs font-bold text-on-surface transition-all cursor-pointer" @onclick="ToggleLangMenu" title="Đổi ngôn ngữ / Change language">
+                <span class="text-sm">@(IsEnglish ? "🇬🇧" : "🇻🇳")</span>
+                <span>@(IsEnglish ? "EN" : "VI")</span>
+                <span class="material-symbols-outlined text-xs text-on-surface-variant transition-transform duration-200 @(_isLangMenuOpen ? "rotate-180" : "")">expand_more</span>
+            </button>
+            @if (_isLangMenuOpen)
+            {
+                <div class="absolute right-0 mt-2 w-36 bg-surface dark:bg-inverse-surface border border-outline-variant rounded-xl shadow-xl py-1 z-50 animate-fade-in">
+                    <a href="/Culture/SetCulture?culture=vi-VN&redirectUri=@Uri.EscapeDataString(Navigation.Uri)" class="flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-surface-high transition-colors text-on-surface @(!IsEnglish ? "font-bold text-primary" : "")">
+                        <span>🇻🇳</span>
+                        <span>Tiếng Việt</span>
+                    </a>
+                    <a href="/Culture/SetCulture?culture=en-US&redirectUri=@Uri.EscapeDataString(Navigation.Uri)" class="flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-surface-high transition-colors text-on-surface @(IsEnglish ? "font-bold text-primary" : "")">
+                        <span>🇬🇧</span>
+                        <span>English</span>
+                    </a>
+                </div>
+            }
+        </div>
+
+        <div class="relative flex items-center">
+            <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary mr-2" data-icon="search">search</span>
+            <input type="text" placeholder="@L["Header_Search_Placeholder"]" class="px-3 py-1.5 text-xs rounded-full border border-outline-variant bg-surface-low focus:outline-none focus:border-primary w-40 focus:w-60 transition-all" />
+        </div>
+        <button class="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-low relative cursor-pointer" title="Thông báo" @onclick="ToggleNotifications">
+            <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+            <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-error"></span>
+        </button>
+
+        <!-- User Profile & Dropdown -->
+        <div class="relative">
+            <button type="button" class="flex items-center gap-2 p-1.5 rounded-full hover:bg-surface-low transition-colors cursor-pointer border border-transparent hover:border-outline-variant" @onclick="ToggleUserMenu">
+                <div class="w-8 h-8 rounded-full bg-primary text-on-primary font-bold flex items-center justify-center border border-primary/20 shadow-sm text-xs">
+                    AD
+                </div>
+                <span class="text-xs font-bold text-on-surface hidden sm:inline pr-1">Admin User</span>
+                <span class="material-symbols-outlined text-sm text-on-surface-variant transition-transform duration-200 @(_isUserMenuOpen ? "rotate-180" : "")">expand_more</span>
+            </button>
+
+            @if (_isUserMenuOpen)
+            {
+                <div class="absolute right-0 mt-2 w-56 bg-surface dark:bg-inverse-surface border border-outline-variant rounded-xl shadow-xl py-2 z-50 animate-fade-in">
+                    <div class="px-4 py-2 border-b border-outline-variant">
+                        <p class="text-xs font-bold text-on-surface">Quản trị viên (Admin)</p>
+                        <p class="text-[11px] text-on-surface-variant">admin@restaurant.com</p>
+                    </div>
+
+                    <div class="py-1">
+                        <a href="/pos" class="flex items-center gap-2.5 px-4 py-2 text-xs text-on-surface hover:bg-surface-high transition-colors font-medium">
+                            <span class="material-symbols-outlined text-[18px]">point_of_sale</span>
+                            Màn hình POS Thu Ngân
+                        </a>
+                        <a href="/kds" class="flex items-center gap-2.5 px-4 py-2 text-xs text-on-surface hover:bg-surface-high transition-colors font-medium">
+                            <span class="material-symbols-outlined text-[18px]">soup_kitchen</span>
+                            Màn hình KDS Bếp
+                        </a>
+                    </div>
+
+                    <div class="border-t border-outline-variant pt-1 mt-1">
+                        <button type="button" class="w-full text-left flex items-center gap-2.5 px-4 py-2 text-xs text-error hover:bg-error-container/20 transition-colors font-bold cursor-pointer" @onclick="HandleLogout">
+                            <span class="material-symbols-outlined text-[18px]">logout</span>
+                            Đăng xuất hệ thống
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Direct Logout Button Icon -->
+        <button type="button" class="p-2 text-error hover:bg-error-container/20 transition-colors rounded-full cursor-pointer" title="Đăng xuất" @onclick="HandleLogout">
+            <span class="material-symbols-outlined">logout</span>
+        </button>
+    </div>
+</header>
+
+@code {
+    [Inject] public NavigationManager Navigation { get; set; } = default!;
+
+    private bool _isUserMenuOpen = false;
+    private bool _isLangMenuOpen = false;
+
+    private bool IsEnglish => CultureInfo.CurrentUICulture.Name.StartsWith("en", StringComparison.OrdinalIgnoreCase);
+
+    private void ToggleUserMenu() => _isUserMenuOpen = !_isUserMenuOpen;
+    private void ToggleLangMenu() => _isLangMenuOpen = !_isLangMenuOpen;
+
+    private void ToggleNotifications()
+    {
+        // Notification handler
+    }
+
+    private void HandleLogout()
+    {
+        Navigation.NavigateTo("/Account/Logout", forceLoad: true);
+    }
+}
+

@@ -9,6 +9,7 @@ public interface IPosOrderService
     Task<bool> MoveTableAsync(MoveTableRequest request);
     Task<bool> MergeTablesAsync(MergeTableRequest request);
     Task<SubmitPosOrderResponse> SubmitPosOrderAsync(SubmitPosOrderRequest request);
+    Task<bool> PrintTempBillAsync(int orderId);
 }
 
 public interface IShiftService

@@ -3,51 +3,137 @@
 @layout Restaurant.Web.Components.Layout.PosLayout
 @using Restaurant.Web.Components.UI.Cards
 @using Restaurant.Web.Components.UI.Buttons
+@using Restaurant.Application.DTOs
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 
 <div class="flex flex-col h-full bg-background">
-    <header class="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant shrink-0">
+    <!-- Header -->
+    <header class="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant shrink-0 shadow-sm">
         <div class="flex flex-col justify-center">
             <h1 class="font-headline-sm text-headline-sm font-bold text-primary m-0 leading-tight">Thu Ngân (POS)</h1>
-            <span class="text-sm text-on-surface-variant leading-tight">Ca: Sáng - NV: Nguyễn Văn A</span>
+            <span class="text-xs text-on-surface-variant leading-tight">Quản lý Bàn & Đơn Hàng</span>
         </div>
-        <div class="flex items-center gap-4">
-            <button class="px-4 py-2 text-primary hover:bg-primary/10 rounded-lg transition-colors font-label-bold flex items-center gap-2">
-                <span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
-                Lịch sử đơn
+        <div class="flex items-center gap-3">
+            <button class="px-3 py-2 text-on-surface border border-outline-variant hover:bg-surface-high rounded-lg transition-colors font-label-bold flex items-center gap-1 text-sm"
+                    @onclick="OpenMoveModal">
+                <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
+                Chuyển Bàn
             </button>
-            <button class="px-4 py-2 bg-primary text-on-primary hover:bg-primary-container rounded-lg transition-colors font-label-bold flex items-center gap-2 shadow-sm">
-                <span class="material-symbols-outlined text-[20px]" data-icon="add_circle">add_circle</span>
-                Tạo đơn mang về
+            <button class="px-3 py-2 text-on-surface border border-outline-variant hover:bg-surface-high rounded-lg transition-colors font-label-bold flex items-center gap-1 text-sm"
+                    @onclick="OpenMergeModal">
+                <span class="material-symbols-outlined text-[18px]">call_merge</span>
+                Gộp Bàn
+            </button>
+            <button class="px-3 py-2 text-primary hover:bg-primary/10 rounded-lg transition-colors font-label-bold flex items-center gap-1 text-sm"
+                    @onclick='() => Navigation.NavigateTo("/admin/orders")'>
+                <span class="material-symbols-outlined text-[18px]">history</span>
+                Lịch Sử Đơn
+            </button>
+            <button class="px-4 py-2 bg-primary text-on-primary hover:bg-primary-container rounded-lg transition-colors font-label-bold flex items-center gap-2 text-sm shadow-sm"
+                    @onclick="CreateTakeawayOrder">
+                <span class="material-symbols-outlined text-[18px]">takeout_dining</span>
+                Tạo Đơn Mang Về
             </button>
         </div>
     </header>
 
+    <!-- Main Workspace -->
     <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar Areas -->
         <aside class="w-[240px] bg-surface border-r border-outline-variant p-4 flex flex-col gap-2 shrink-0 overflow-y-auto">
-            <h3 class="font-label-bold text-label-bold text-on-surface-variant mb-2 px-2 uppercase tracking-wider">Khu vực</h3>
-            <button class="text-left px-4 py-3 rounded-lg bg-secondary-container text-on-secondary-container font-bold shadow-sm transition-colors cursor-pointer">
-                Tầng 1 (Trong nhà)
+            <h3 class="font-label-bold text-xs text-on-surface-variant mb-2 px-2 uppercase tracking-wider font-bold">Khu Vực</h3>
+            <button class="text-left px-4 py-3 rounded-xl font-bold transition-all text-sm cursor-pointer @(SelectedAreaId == 0 ? "bg-primary text-on-primary shadow-sm" : "text-on-surface hover:bg-surface-high")"
+                    @onclick="() => SelectArea(0)">
+                Tất Cả Bàn (@Tables.Count)
             </button>
-            <button class="text-left px-4 py-3 rounded-lg text-on-surface hover:bg-surface-high transition-colors cursor-pointer">
-                Tầng 2 (VIP)
-            </button>
-            <button class="text-left px-4 py-3 rounded-lg text-on-surface hover:bg-surface-high transition-colors cursor-pointer">
-                Sân Vườn
-            </button>
+            @foreach (var area in Areas)
+            {
+                var tableCountInArea = Tables.Count(t => t.AreaId == area.Id);
+                <button class="text-left px-4 py-3 rounded-xl font-bold transition-all text-sm cursor-pointer @(SelectedAreaId == area.Id ? "bg-primary text-on-primary shadow-sm" : "text-on-surface hover:bg-surface-high")"
+                        @onclick="() => SelectArea(area.Id)">
+                    @area.Name (@tableCountInArea)
+                </button>
+            }
         </aside>
 
+        <!-- Table Grid -->
         <main class="flex-1 overflow-y-auto p-6 bg-surface-low">
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                @foreach (var table in MockTables)
-                {
-                    <TableCard 
-                        TableName="@table.Name" 
-                        Capacity="@table.Capacity" 
-                        Status="@table.Status" 
-                        TotalAmount="@table.TotalAmount" 
-                        OnClick="() => HandleTableClick(table.Id)" />
-                }
-            </div>
+            @if (IsLoading)
+            {
+                <div class="flex items-center justify-center h-full gap-3 text-on-surface-variant">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span class="font-medium text-sm">Đang tải sơ đồ bàn...</span>
+                </div>
+            }
+            else if (!FilteredTables.Any())
+            {
+                <div class="flex flex-col items-center justify-center h-full text-on-surface-variant py-12">
+                    <span class="material-symbols-outlined text-4xl mb-2">table_restaurant</span>
+                    <p class="text-sm font-medium">Không tìm thấy bàn nào trong khu vực này.</p>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    @foreach (var table in FilteredTables)
+                    {
+                        <TableCard 
+                            TableName="@table.TableName" 
+                            Capacity="@table.Capacity" 
+                            Status="@table.StatusName" 
+                            TotalAmount="@table.TotalAmount" 
+                            OnClick="() => HandleTableClick(table)" />
+                    }
+                </div>
+            }
         </main>
     </div>
 </div>
+
+<!-- Move / Merge Table Modal -->
+@if (ShowMoveMergeModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-outline-variant p-6 space-y-4">
+            <h3 class="font-bold text-lg text-on-surface">@(IsMergeMode ? "Gộp Bàn" : "Chuyển Bàn")</h3>
+            
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Bàn Nguồn (Có Khách)</label>
+                <select class="w-full p-2 text-sm border rounded-lg" @bind="SourceTableId">
+                    <option value="0">-- Chọn Bàn --</option>
+                    @foreach (var t in Tables.Where(x => x.Status != 0)) // Occupied/Billing
+                    {
+                        <option value="@t.TableId">@t.TableName (@t.TotalAmount.ToString("N0")đ)</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Bàn Đích</label>
+                <select class="w-full p-2 text-sm border rounded-lg" @bind="TargetTableId">
+                    <option value="0">-- Chọn Bàn --</option>
+                    @foreach (var t in Tables)
+                    {
+                        if (t.TableId != SourceTableId)
+                        {
+                            <option value="@t.TableId">@t.TableName (@t.StatusName)</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            @if (!string.IsNullOrEmpty(ModalErrorMessage))
+            {
+                <div class="text-xs text-error font-medium bg-error-container/20 p-2 rounded">
+                    @ModalErrorMessage
+                </div>
+            }
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button class="px-4 py-2 border rounded-xl font-bold text-sm" @onclick="() => ShowMoveMergeModal = false">Hủy</button>
+                <button class="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-sm" @onclick="ExecuteMoveMergeAsync">Xác Nhận</button>
+            </div>
+        </div>
+    </div>
+}

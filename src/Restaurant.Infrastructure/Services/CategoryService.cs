@@ -52,6 +52,16 @@ public class CategoryService : ICategoryService
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new ArgumentException("Tên danh mục không được để trống.");
 
+        // Shift existing categories with SortOrder >= request.SortOrder by +1
+        var affectedCategories = await _context.Categories
+            .Where(c => c.SortOrder >= request.SortOrder)
+            .ToListAsync();
+
+        foreach (var existing in affectedCategories)
+        {
+            existing.SortOrder += 1;
+        }
+
         var category = new Category
         {
             Name = request.Name.Trim(),
@@ -63,6 +73,8 @@ public class CategoryService : ICategoryService
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
+
+        await NormalizeSortOrdersAsync();
 
         return new CategoryDto
         {
@@ -83,6 +95,18 @@ public class CategoryService : ICategoryService
         var category = await _context.Categories.FindAsync(id);
         if (category == null) return null;
 
+        if (category.SortOrder != request.SortOrder)
+        {
+            var affectedCategories = await _context.Categories
+                .Where(c => c.Id != id && c.SortOrder >= request.SortOrder)
+                .ToListAsync();
+
+            foreach (var existing in affectedCategories)
+            {
+                existing.SortOrder += 1;
+            }
+        }
+
         category.Name = request.Name.Trim();
         category.Description = request.Description;
         category.ImageUrl = request.ImageUrl;
@@ -90,6 +114,8 @@ public class CategoryService : ICategoryService
         category.IsActive = request.IsActive;
 
         await _context.SaveChangesAsync();
+
+        await NormalizeSortOrdersAsync();
 
         return new CategoryDto
         {
@@ -100,6 +126,31 @@ public class CategoryService : ICategoryService
             SortOrder = category.SortOrder,
             IsActive = category.IsActive
         };
+    }
+
+    private async Task NormalizeSortOrdersAsync()
+    {
+        var allCategories = await _context.Categories
+            .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Id)
+            .ToListAsync();
+
+        int order = 1;
+        bool hasChanges = false;
+        foreach (var cat in allCategories)
+        {
+            if (cat.SortOrder != order)
+            {
+                cat.SortOrder = order;
+                hasChanges = true;
+            }
+            order++;
+        }
+
+        if (hasChanges)
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<bool> DeleteAsync(int id)

@@ -60,4 +60,35 @@ public class PaymentsController : ControllerBase
             timestamp = DateTime.UtcNow
         });
     }
+
+    [HttpPost("cash")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
+    public async Task<IActionResult> CashPayment([FromBody] ProcessCashPaymentRequest request)
+    {
+        try
+        {
+            var result = await _paymentService.ProcessCashPaymentAsync(request);
+            return Ok(new
+            {
+                success = true,
+                data = result,
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "PAYMENT_FAILED",
+                    message = ex.Message
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+    }
 }

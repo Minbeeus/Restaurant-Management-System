@@ -440,4 +440,23 @@ public class PosOrderService : IPosOrderService
             throw;
         }
     }
+
+    public async Task<bool> PrintTempBillAsync(int orderId)
+    {
+        var order = await _context.Orders
+            .Include(o => o.Table)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+
+        if (order == null) return false;
+
+        if (order.Table != null)
+        {
+            order.Table.Status = (int)TableStatus.Billing;
+            await _context.SaveChangesAsync();
+
+            await _notificationService.NotifyTableStatusSyncAsync(order.Table.Id, "Billing");
+        }
+
+        return true;
+    }
 }

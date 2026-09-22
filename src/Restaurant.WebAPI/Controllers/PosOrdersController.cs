@@ -205,4 +205,32 @@ public class PosOrdersController : ControllerBase
             });
         }
     }
+
+    [HttpPost("orders/{id}/print-temp-bill")]
+    public async Task<IActionResult> PrintTempBill(int id)
+    {
+        var success = await _posOrderService.PrintTempBillAsync(id);
+        if (!success)
+        {
+            return NotFound(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "ORDER_NOT_FOUND",
+                    message = "Không tìm thấy đơn hàng để in tạm tính."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = new { message = "Đã in tạm tính và chuyển bàn sang trạng thái Chờ thanh toán (Billing)." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
 }

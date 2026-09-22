@@ -18,9 +18,9 @@ public class KdsController : ControllerBase
 
     [HttpGet("tickets/active")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetActiveTickets()
+    public async Task<IActionResult> GetActiveTickets([FromQuery] bool includeCompleted = false)
     {
-        var tickets = await _kitchenService.GetActiveTicketsAsync();
+        var tickets = await _kitchenService.GetActiveTicketsAsync(includeCompleted);
         return Ok(tickets);
     }
 

@@ -9,109 +9,151 @@ namespace Restaurant.Web.Components.Pages.Pos.PosMain;
 
 public partial class PosMain : IAsyncDisposable
 {
-    [Inject]
-    public NavigationManager Navigation { get; set; } = default!;
+    [Inject] public NavigationManager Navigation { get; set; } = default!;
+    [Inject] public HttpClient Http { get; set; } = default!;
 
-    [Inject]
-    public HttpClient Http { get; set; } = default!;
-
-    [SupplyParameterFromQuery]
-    public string TableId { get; set; } = default!;
+    [SupplyParameterFromQuery] public string TableId { get; set; } = default!;
+    [SupplyParameterFromQuery] public bool IsTakeaway { get; set; } = false;
 
     protected string CurrentTableName { get; set; } = "Chọn bàn...";
     protected string CurrentOrderCode { get; set; } = "N/A";
-    
+    protected int ActiveOrderId { get; set; } = 0;
+
     protected bool ShowAlert { get; set; } = false;
     protected string NewOrderTableName { get; set; } = "";
+    protected string ToastMessage { get; set; } = string.Empty;
 
     protected List<CategoryDto> Categories { get; set; } = new();
     protected List<MenuItemDto> AllMenuItems { get; set; } = new();
-    
-    protected int ActiveCategoryId { get; set; } = 0; // 0 = All
-    protected bool ShowImages { get; set; } = true;
-    
-    protected List<OrderCartItemLocal> CartItems { get; set; } = new();
-    
-    protected List<MenuItemDto> FilteredMenuItems => 
-        ActiveCategoryId == 0 
-            ? AllMenuItems 
-            : AllMenuItems.Where(m => m.CategoryId == ActiveCategoryId).ToList();
+    protected List<ModifierGroupDto> AllModifierGroups { get; set; } = new();
 
-    private HubConnection? hubConnection;
+    protected int ActiveCategoryId { get; set; } = 0;
+    protected bool ShowImages { get; set; } = true;
+
+    protected List<OrderCartItemLocal> CartItems { get; set; } = new();
+    protected decimal CartSubTotal => CartItems.Sum(i => i.Price * i.Quantity);
+
+    protected bool ShowComboModal { get; set; } = false;
+    protected MenuItemDetailDto? SelectedItemDetail { get; set; }
+    protected List<ModifierGroupDto>? SelectedModifierGroups { get; set; }
+
+    protected bool ShowPaymentModal { get; set; } = false;
+
+    private HubConnection? _hubConnection;
+
+    protected List<MenuItemDto> FilteredMenuItems =>
+        ActiveCategoryId == 0
+            ? AllMenuItems
+            : AllMenuItems.Where(m => m.CategoryId == ActiveCategoryId).ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        if (!string.IsNullOrEmpty(TableId))
+        if (IsTakeaway)
+        {
+            CurrentTableName = "Đơn Mang Về";
+            CurrentOrderCode = $"#TAK-{DateTime.Now.Ticks % 10000}";
+        }
+        else if (!string.IsNullOrEmpty(TableId))
         {
             CurrentTableName = $"Bàn {TableId}";
             CurrentOrderCode = $"#ORD-{DateTime.Now.Ticks % 10000}";
+            await CheckExistingTableOrderAsync();
         }
 
         try
         {
-            var categoriesData = await Http.GetFromJsonAsync<List<CategoryDto>>("api/v1/categories");
-            if (categoriesData != null)
-            {
-                Categories = categoriesData;
-            }
+            var categoriesTask = Http.GetFromJsonAsync<List<CategoryDto>>("api/v1/categories");
+            var menuItemsTask = Http.GetFromJsonAsync<List<MenuItemDto>>("api/v1/menu-items/active");
+            var modifiersTask = Http.GetFromJsonAsync<List<ModifierGroupDto>>("api/v1/modifiers/groups");
 
-            var menuItemsData = await Http.GetFromJsonAsync<List<MenuItemDto>>("api/v1/menu-items/active");
-            if (menuItemsData != null)
-            {
-                AllMenuItems = menuItemsData;
-            }
+            await Task.WhenAll(categoriesTask, menuItemsTask, modifiersTask);
+
+            Categories = await categoriesTask ?? new List<CategoryDto>();
+            AllMenuItems = await menuItemsTask ?? new List<MenuItemDto>();
+            AllModifierGroups = await modifiersTask ?? new List<ModifierGroupDto>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error fetching data: {ex.Message}");
+            Console.WriteLine($"Error fetching POS menu data: {ex.Message}");
         }
 
         // Hub Connection setup
-        hubConnection = new HubConnectionBuilder()
+        _hubConnection = new HubConnectionBuilder()
             .WithUrl(Navigation.ToAbsoluteUri("/hubs/restaurant"))
+            .WithAutomaticReconnect()
             .Build();
 
-        hubConnection.On<string, string>("NewQrOrderReceived", (tableId, tableName) =>
+        _hubConnection.On<string, string>("NewQrOrderReceived", (tableIdStr, tableName) =>
         {
             ShowAlert = true;
             NewOrderTableName = tableName;
             InvokeAsync(StateHasChanged);
         });
 
-        await hubConnection.StartAsync();
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR error: {ex.Message}");
+        }
     }
-    
-    protected void HandleCategoryChanged(int categoryId)
+
+    private async Task CheckExistingTableOrderAsync()
     {
-        ActiveCategoryId = categoryId;
+        if (int.TryParse(TableId, out int parsedTableId))
+        {
+            try
+            {
+                var tablesResult = await Http.GetFromJsonAsync<ApiResponseWrapper<List<TableStatusOverviewDto>>>("api/v1/pos/tables/overview");
+                var matchingTable = tablesResult?.Data?.FirstOrDefault(t => t.TableId == parsedTableId);
+                if (matchingTable != null)
+                {
+                    CurrentTableName = matchingTable.TableName;
+                    if (matchingTable.CurrentOrderId.HasValue && matchingTable.CurrentOrderId.Value > 0)
+                    {
+                        ActiveOrderId = matchingTable.CurrentOrderId.Value;
+                        CurrentOrderCode = matchingTable.CurrentOrderCode ?? $"#ORD-{ActiveOrderId}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking existing table order: {ex.Message}");
+            }
+        }
     }
-    
-    protected void HandleImageToggle(bool show)
-    {
-        ShowImages = show;
-    }
-    
-    protected bool ShowComboModal { get; set; } = false;
-    protected MenuItemDetailDto? SelectedItemDetail { get; set; }
-    protected List<ModifierGroupDto>? SelectedModifierGroups { get; set; }
+
+    protected void HandleCategoryChanged(int categoryId) => ActiveCategoryId = categoryId;
+    protected void HandleImageToggle(bool show) => ShowImages = show;
 
     protected void HandleMenuItemClicked(MenuItemDto item)
     {
-        try
+        if (AllModifierGroups.Any())
         {
-            // Always fetch detail to see if it has modifiers
-            // For QR we used QrOrderController, here we can use QrOrderController's GetMenuItemDetail logic or create our own.
-            // Since we didn't expose GetMenuItemDetail in PosOrdersController, we'll try to fetch from API or just check if it's a combo/has modifiers.
-            // Actually, we can fetch from MenuItemsController ? Wait, MenuItemsController only returns base items.
-            // Let's use the QR endpoint for simplicity: GET /api/v1/qr/orders/status ? No, that's status.
-            // Is there an API for menu item detail? 
-            // Wait, QrMenuController has GET /api/v1/qr/menu/items/{id} ? I need to check QrMenuController.
-        }
-        catch(Exception e)
-        {
-            Console.WriteLine(e);
+            SelectedItemDetail = new MenuItemDetailDto
+            {
+                Id = item.Id,
+                CategoryId = item.CategoryId,
+                CategoryName = item.CategoryName,
+                Name = item.Name,
+                Price = item.Price,
+                Description = item.Description,
+                ImageUrl = item.ImageUrl,
+                IsCombo = item.IsCombo,
+                ModifierGroups = AllModifierGroups
+            };
+            SelectedModifierGroups = AllModifierGroups;
+            ShowComboModal = true;
+            return;
         }
 
+        AddDirectToCart(item);
+    }
+
+    private void AddDirectToCart(MenuItemDto item)
+    {
         var existing = CartItems.FirstOrDefault(i => i.MenuItemId == item.Id && (i.SelectedModifiers == null || !i.SelectedModifiers.Any()));
         if (existing != null)
         {
@@ -129,7 +171,7 @@ public partial class PosMain : IAsyncDisposable
             });
         }
     }
-    
+
     protected void HandleConfirmCombo((MenuItemDetailDto item, int qty, List<int> selectedMods) result)
     {
         CartItems.Add(new OrderCartItemLocal
@@ -142,20 +184,13 @@ public partial class PosMain : IAsyncDisposable
         });
     }
 
-    protected void HandleCartQuantityChanged(OrderCartItemLocal item)
-    {
-        // Object reference updated directly by OrderCart component
-    }
-    
-    protected void HandleCartItemRemoved(OrderCartItemLocal item)
-    {
-        CartItems.Remove(item);
-    }
-    
-    protected async Task HandleSendToKitchen()
+    protected void HandleCartQuantityChanged(OrderCartItemLocal item) { }
+    protected void HandleCartItemRemoved(OrderCartItemLocal item) => CartItems.Remove(item);
+
+    protected async Task HandleSendToKitchenAsync()
     {
         if (!CartItems.Any()) return;
-        
+
         int parsedTableId = 1;
         if (!string.IsNullOrEmpty(TableId) && int.TryParse(TableId, out int tId))
         {
@@ -165,7 +200,7 @@ public partial class PosMain : IAsyncDisposable
         var request = new SubmitPosOrderRequest
         {
             TableId = parsedTableId,
-            CustomerNote = "Đơn gọi từ POS",
+            CustomerNote = IsTakeaway ? "Đơn mang về (POS)" : "Đơn ăn tại bàn (POS)",
             Items = CartItems.Select(i => new CartItemValidateRequest
             {
                 MenuItemId = i.MenuItemId,
@@ -181,31 +216,65 @@ public partial class PosMain : IAsyncDisposable
             var response = await Http.PostAsJsonAsync("api/v1/pos/orders/submit", request);
             if (response.IsSuccessStatusCode)
             {
+                var body = await response.Content.ReadFromJsonAsync<ApiResponseWrapper<SubmitPosOrderResponse>>();
+                if (body?.Data != null)
+                {
+                    ActiveOrderId = body.Data.OrderId;
+                    CurrentOrderCode = body.Data.OrderCode;
+                }
+
                 CartItems.Clear();
-                Console.WriteLine("Sent order to kitchen successfully!");
+                ToastMessage = "Đã gửi đơn xuống Bếp thành công!";
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Failed to send order: {error}");
+                ToastMessage = $"Gửi đơn thất bại: {error}";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending order: {ex.Message}");
+            ToastMessage = $"Lỗi gửi đơn: {ex.Message}";
         }
     }
-    
-    protected void HandlePay()
+
+    protected async Task HandlePayAsync()
     {
-        Console.WriteLine("Initiating payment...");
+        if (!CartItems.Any()) return;
+
+        if (ActiveOrderId == 0)
+        {
+            await HandleSendToKitchenAsync();
+        }
+
+        if (ActiveOrderId > 0)
+        {
+            ShowPaymentModal = true;
+        }
+    }
+
+    protected async Task HandlePaymentCompletedAsync(bool isPaid)
+    {
+        if (isPaid)
+        {
+            CartItems.Clear();
+            ToastMessage = "Thanh toán thành công! Đang trở về sơ đồ bàn...";
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/pos");
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (hubConnection is not null)
+        if (_hubConnection is not null)
         {
-            await hubConnection.DisposeAsync();
+            await _hubConnection.DisposeAsync();
         }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
     }
 }

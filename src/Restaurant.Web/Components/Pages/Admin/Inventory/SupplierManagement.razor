@@ -1,0 +1,202 @@
+@page "/admin/suppliers"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.AdminLayout
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Services
+@inject AdminApiClient ApiClient
+
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div>
+        <h2 class="text-2xl font-headline-sm text-primary m-0">Quản lý Nhà Cung Cấp</h2>
+        <p class="text-on-surface-variant text-sm mt-1">Danh bạ đối tác cung ứng vật tư, nguyên liệu và thông tin liên hệ nhập kho.</p>
+    </div>
+    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center" @onclick="OpenAddModal">
+        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> Thêm Nhà Cung Cấp
+    </button>
+</div>
+
+@if (_isLoading)
+{
+    <div class="flex justify-center p-12">
+        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    </div>
+}
+else
+{
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        @foreach (var sup in _suppliers)
+        {
+            <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-6 flex flex-col justify-between hover:border-primary/50 transition-colors">
+                <div>
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <span class="text-xs font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">ID #@sup.Id</span>
+                            <h3 class="text-lg font-bold text-on-background mt-1 m-0">@sup.Name</h3>
+                        </div>
+                        <span class="px-2.5 py-1 bg-success-green/10 text-success-green rounded-full text-xs font-bold border border-success-green/20">Đối tác Hoạt động</span>
+                    </div>
+
+                    <div class="space-y-2 text-sm text-on-surface-variant mt-4">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base text-primary" data-icon="person">person</span>
+                            <span>Người đại diện: <strong class="text-on-surface">@(sup.ContactPerson ?? "Chưa cập nhật")</strong></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base text-primary" data-icon="call">call</span>
+                            <span>Số điện thoại: <strong class="text-on-surface font-mono">@(sup.PhoneNumber ?? "Chưa có")</strong></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-base text-primary" data-icon="location_on">location_on</span>
+                            <span>Địa chỉ: <span class="text-on-surface">@(sup.Address ?? "Chưa có")</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4 mt-6 border-t border-outline-variant/30">
+                    <button class="px-3 py-1.5 text-xs bg-surface-container text-on-surface hover:bg-surface-low rounded font-bold transition-colors" @onclick="() => OpenEditModal(sup)">
+                        Chỉnh sửa
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- Modal Add/Edit Supplier -->
+@if (_showModal)
+{
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
+                <h3 class="font-bold text-on-background m-0">@(_isEditing ? "Cập nhật Nhà Cung Cấp" : "Thêm Nhà Cung Cấp Mới")</h3>
+                <button class="text-on-surface-variant hover:text-error" @onclick="CloseModal">
+                    <span class="material-symbols-outlined" data-icon="close">close</span>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-on-surface mb-1">Tên Công ty / NCC <span class="text-error">*</span></label>
+                    <input type="text" @bind="_model.Name" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary" placeholder="VD: Công ty Thực phẩm Ý Việt" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-on-surface mb-1">Người đại diện liên hệ</label>
+                    <input type="text" @bind="_model.ContactPerson" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary" placeholder="VD: Nguyễn Văn A" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-on-surface mb-1">Số điện thoại liên hệ</label>
+                    <input type="text" @bind="_model.PhoneNumber" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary font-mono" placeholder="0901234567" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-on-surface mb-1">Địa chỉ văn phòng / Kho</label>
+                    <textarea @bind="_model.Address" rows="2" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary resize-none" placeholder="Địa chỉ chi tiết..."></textarea>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-outline-variant/30 flex justify-end gap-3 bg-surface-container-low">
+                <button class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded text-sm font-bold" @onclick="CloseModal">Hủy</button>
+                <button class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-bold shadow-sm hover:bg-primary/90 flex items-center" disabled="@_isSaving" @onclick="SaveSupplier">
+                    @if (_isSaving)
+                    {
+                        <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
+                        <span>Đang lưu...</span>
+                    }
+                    else
+                    {
+                        <span>Lưu Nhà Cung Cấp</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SupplierDto> _suppliers = new();
+    private bool _isLoading = true;
+    private bool _showModal = false;
+    private bool _isEditing = false;
+    private bool _isSaving = false;
+
+    private SupplierFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            _suppliers = await ApiClient.GetSuppliersAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenAddModal()
+    {
+        _isEditing = false;
+        _model = new SupplierFormModel();
+        _showModal = true;
+    }
+
+    private void OpenEditModal(SupplierDto sup)
+    {
+        _isEditing = true;
+        _model = new SupplierFormModel
+        {
+            Name = sup.Name,
+            ContactPerson = sup.ContactPerson,
+            PhoneNumber = sup.PhoneNumber,
+            Address = sup.Address
+        };
+        _showModal = true;
+    }
+
+    private void CloseModal() => _showModal = false;
+
+    private async Task SaveSupplier()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name)) return;
+
+        _isSaving = true;
+        try
+        {
+            var req = new CreateSupplierRequest
+            {
+                Name = _model.Name,
+                ContactPerson = _model.ContactPerson,
+                PhoneNumber = _model.PhoneNumber,
+                Address = _model.Address
+            };
+
+            await ApiClient.CreateSupplierAsync(req);
+            _showModal = false;
+            await LoadData();
+        }
+        catch
+        {
+            _showModal = false;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    public class SupplierFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? ContactPerson { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
+    }
+}

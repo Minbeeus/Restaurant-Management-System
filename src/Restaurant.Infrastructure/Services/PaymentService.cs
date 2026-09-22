@@ -229,6 +229,101 @@ public class PaymentService : IPaymentService
         }
     }
 
+    public async Task<CashPaymentResponse> ProcessCashPaymentAsync(ProcessCashPaymentRequest request)
+    {
+        using var dbTransaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var order = await _context.Orders
+                .Include(o => o.Table)
+                .Include(o => o.Customer)
+                .FirstOrDefaultAsync(o => o.Id == request.OrderId);
+
+            if (order == null)
+            {
+                throw new ArgumentException(_localizer["ORDER_NOT_FOUND"] ?? "Đơn hàng không tồn tại.");
+            }
+
+            if (order.Status == (int)OrderStatus.Paid)
+            {
+                throw new InvalidOperationException("Đơn hàng này đã được thanh toán trước đó.");
+            }
+
+            if (order.Status == (int)OrderStatus.Cancelled)
+            {
+                throw new InvalidOperationException("Không thể thanh toán đơn hàng đã bị hủy.");
+            }
+
+            if (request.CashReceived < order.TotalAmount)
+            {
+                throw new InvalidOperationException($"Số tiền khách đưa ({request.CashReceived:N0}đ) chưa đủ thanh toán tổng tiền ({order.TotalAmount:N0}đ).");
+            }
+
+            var changeAmount = request.CashReceived - order.TotalAmount;
+
+            var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open)
+                             ?? await _context.Shifts.FirstOrDefaultAsync();
+
+            var payment = new Payment
+            {
+                OrderId = order.Id,
+                ShiftId = activeShift?.Id ?? 1,
+                Amount = order.TotalAmount,
+                CashReceived = request.CashReceived,
+                ChangeAmount = changeAmount,
+                PaymentMethod = (int)PaymentMethod.Cash,
+                Status = (int)PaymentStatus.Completed,
+                CompletedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Payments.Add(payment);
+
+            order.Status = (int)OrderStatus.Paid;
+            if (order.Table != null)
+            {
+                order.Table.Status = (int)TableStatus.Available;
+            }
+
+            if (request.CustomerId.HasValue)
+            {
+                order.CustomerId = request.CustomerId.Value;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Loyalty Points Accumulation
+            if (order.CustomerId.HasValue)
+            {
+                await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, order.TotalAmount);
+            }
+
+            await dbTransaction.CommitAsync();
+
+            // Realtime SignalR Notification
+            await _notificationService.NotifyPaymentCompletedAsync(order.Id, order.OrderCode, order.TotalAmount, "Tiền mặt");
+            if (order.TableId.HasValue)
+            {
+                await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Available) ?? "Available");
+            }
+
+            return new CashPaymentResponse
+            {
+                OrderId = order.Id,
+                OrderCode = order.OrderCode,
+                TotalAmount = order.TotalAmount,
+                CashReceived = request.CashReceived,
+                ChangeAmount = changeAmount,
+                CompletedAt = payment.CompletedAt ?? DateTime.UtcNow
+            };
+        }
+        catch
+        {
+            await dbTransaction.RollbackAsync();
+            throw;
+        }
+    }
+
     private static bool VerifySePaySignature(SepayWebhookPayload payload, string? signatureHeader, string apiKey)
     {
         if (string.IsNullOrWhiteSpace(signatureHeader)) return true;

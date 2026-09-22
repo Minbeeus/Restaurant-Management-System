@@ -1,40 +1,61 @@
 @using Restaurant.Application.DTOs.Dashboard
+@inject NavigationManager Navigation
 
 <div class="bg-surface-container-lowest rounded-xl border border-surface-low shadow-sm">
     <div class="p-6 border-b border-surface-variant bg-surface-mid rounded-t-xl flex justify-between items-center">
-        <h3 class="font-headline-sm text-headline-sm text-on-background m-0">Món bán chạy</h3>
-        <button class="text-primary font-label-bold hover:underline">Xem tất cả</button>
+        <h3 class="font-headline-sm text-headline-sm text-on-background m-0">@L["Dashboard_TopMovers_Title"]</h3>
+        <button class="text-primary font-label-bold hover:underline text-sm" @onclick="GoToMenu">@L["Dashboard_TopMovers_ViewMenu"]</button>
     </div>
     <div class="p-0">
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="border-b border-outline-variant/30 text-on-surface-variant font-label-bold text-label-bold bg-surface-container-low">
-                    <th class="py-3 px-6 font-normal">Tên món</th>
-                    <th class="py-3 px-6 font-normal text-right">Số lượng bán</th>
+                    <th class="py-3 px-6 font-normal w-12 text-center">@L["Dashboard_TopMovers_Header_Rank"]</th>
+                    <th class="py-3 px-6 font-normal">@L["Dashboard_TopMovers_Header_Name"]</th>
+                    <th class="py-3 px-6 font-normal text-right">@L["Dashboard_TopMovers_Header_Qty"]</th>
                 </tr>
             </thead>
             <tbody>
                 @if (Items == null)
                 {
                     <tr>
-                        <td colspan="2" class="py-4 px-6 text-center text-on-surface-variant">Đang tải dữ liệu...</td>
+                        <td colspan="3" class="py-8 px-6 text-center text-on-surface-variant">
+                            <span class="material-symbols-outlined animate-spin text-2xl text-primary align-middle mr-2" data-icon="progress_activity">progress_activity</span> @L["Dashboard_TopMovers_Loading"]
+                        </td>
                     </tr>
                 }
                 else if (!Items.Any())
                 {
                     <tr>
-                        <td colspan="2" class="py-4 px-6 text-center text-on-surface-variant">Chưa có dữ liệu hôm nay</td>
+                        <td colspan="3" class="py-8 px-6 text-center text-on-surface-variant">@L["Dashboard_TopMovers_Empty"]</td>
                     </tr>
                 }
                 else
                 {
-                    @foreach (var item in Items)
+                    @for (int i = 0; i < Items.Count; i++)
                     {
+                        var item = Items[i];
+                        var rank = i + 1;
+                        var rankBadgeClass = rank switch
+                        {
+                            1 => "bg-amber-100 text-amber-800 border-amber-300 font-bold",
+                            2 => "bg-slate-100 text-slate-700 border-slate-300 font-bold",
+                            3 => "bg-orange-100 text-orange-800 border-orange-300 font-bold",
+                            _ => "bg-surface-container text-on-surface-variant border-transparent"
+                        };
+
                         <tr class="border-b border-outline-variant/20 hover:bg-surface-low transition-colors group">
-                            <td class="py-4 px-6 flex items-center gap-3">
-                                <span class="font-body-lg text-on-background font-semibold group-hover:text-primary transition-colors">@item.ItemName</span>
+                            <td class="py-4 px-6 text-center">
+                                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs border @rankBadgeClass">
+                                    @rank
+                                </span>
                             </td>
-                            <td class="py-4 px-6 text-right font-body-md text-on-background font-label-bold">@item.QuantitySold</td>
+                            <td class="py-4 px-6 font-body-lg text-on-background font-semibold group-hover:text-primary transition-colors">
+                                @item.ItemName
+                            </td>
+                            <td class="py-4 px-6 text-right font-body-md text-on-background font-label-bold">
+                                @item.QuantitySold <span class="text-xs text-on-surface-variant font-normal">@L["Dashboard_TopMovers_Unit"]</span>
+                            </td>
                         </tr>
                     }
                 }
@@ -46,4 +67,9 @@
 @code {
     [Parameter]
     public List<TopMoverDto>? Items { get; set; }
+
+    private void GoToMenu()
+    {
+        Navigation.NavigateTo("/admin/menu");
+    }
 }

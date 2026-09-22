@@ -7,45 +7,99 @@
 @using Restaurant.Application.DTOs.Dashboard
 @using Restaurant.Web.Services
 @inject DashboardApiClient ApiClient
-@inject IServiceProvider ServiceProvider
+@inject NavigationManager Navigation
 @layout Restaurant.Web.Components.Layout.AdminLayout
 
-<PageTitle>Dashboard</PageTitle>
+<PageTitle>@L["Dashboard_Title"]</PageTitle>
 
-<div class="flex flex-col gap-6 w-full max-w-7xl mx-auto">
-    <!-- Header -->
-    <div class="flex justify-between items-end pb-sm">
+<div class="flex flex-col gap-6 w-full max-w-7xl mx-auto pb-8">
+    <!-- Header & Controls -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-outline-variant/30">
         <div>
-            <h1 class="font-display-lg text-display-lg text-on-surface tracking-tight">Tổng quan hôm nay</h1>
-            <p class="font-body-md text-body-md text-outline mt-1">Ca làm việc: Sáng • 08:00 - 15:00</p>
+            <h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">
+                @(IsToday ? L["Dashboard_Header_Today"] : string.Format(L["Dashboard_Header_Date"], _selectedDate.ToString("dd/MM/yyyy")))
+            </h1>
+            <p class="font-body-md text-sm text-on-surface-variant mt-1">
+                @L["Dashboard_Subtitle"]
+            </p>
         </div>
-        <button class="bg-primary-container text-on-primary px-4 py-2 rounded shadow-sm hover:bg-surface-tint transition-colors font-label-bold text-sm">
-            Tạo đơn mới (POS)
-        </button>
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Date Filter & Quick Presets -->
+            <div class="flex items-center gap-2 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant/40 shadow-xs">
+                <button class="px-3 py-1.5 rounded text-xs font-bold transition-colors @(IsToday ? "bg-white text-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")" @onclick="SelectToday">
+                    @L["Dashboard_Btn_Today"]
+                </button>
+                <button class="px-3 py-1.5 rounded text-xs font-bold transition-colors @(IsYesterday ? "bg-white text-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")" @onclick="SelectYesterday">
+                    @L["Dashboard_Btn_Yesterday"]
+                </button>
+                
+                <input type="date" value="@_selectedDate.ToString("yyyy-MM-dd")" @onchange="OnDateInputChanged" class="px-2 py-1 text-xs border border-outline rounded bg-surface focus:outline-none focus:border-primary text-on-surface cursor-pointer font-medium" />
+            </div>
+
+            <button class="p-2 bg-surface-container text-on-surface hover:bg-surface-container-high rounded-lg border border-outline-variant/40 transition-colors shadow-xs" @onclick="LoadDashboardData" title="@L["Dashboard_Tooltip_Refresh"]">
+                <span class="material-symbols-outlined text-[20px] @(_isLoading ? "animate-spin text-primary" : "")" data-icon="refresh">refresh</span>
+            </button>
+
+            <button class="bg-primary text-on-primary px-4 py-2 rounded-lg shadow-sm hover:bg-primary/90 transition-all font-label-bold text-sm flex items-center gap-2" @onclick="GoToPos">
+                <span class="material-symbols-outlined text-[18px]" data-icon="point_of_sale">point_of_sale</span>
+                @L["Dashboard_Btn_Pos"]
+            </button>
+        </div>
     </div>
 
     <!-- Stat Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard Title="Doanh thu" Value="@(_summary?.TodayRevenue.ToString("N0") + "đ")" SubText="@((_summary?.RevenueTrendPercentage > 0 ? "+" : "") + _summary?.RevenueTrendPercentage + "% so với hôm qua")" IconName="payments" TrendText="@(_summary?.IsRevenueTrendingUp == true ? "Tăng" : "Giảm")" TrendColor="@(_summary?.IsRevenueTrendingUp == true ? "text-success-green" : "text-tomato-container")" TrendIcon="@(_summary?.IsRevenueTrendingUp == true ? "trending_up" : "trending_down")" IconBgColor="bg-primary-container" IconColor="text-on-primary" />
+        <StatCard Title="@L["Dashboard_Stat_Revenue"]" 
+                  Value="@((_summary?.TodayRevenue ?? 0).ToString("N0") + "đ")" 
+                  SubText="@((_summary?.RevenueTrendPercentage > 0 ? "+" : "") + (_summary?.RevenueTrendPercentage ?? 0) + "% " + L["Dashboard_Trend_Compared"])" 
+                  IconName="payments" 
+                  TrendText="@(_summary?.IsRevenueTrendingUp == true ? L["Dashboard_Trend_Up"] : L["Dashboard_Trend_Down"])" 
+                  TrendColor="@(_summary?.IsRevenueTrendingUp == true ? "text-success-green" : "text-tomato-container")" 
+                  TrendIcon="@(_summary?.IsRevenueTrendingUp == true ? "trending_up" : "trending_down")" 
+                  IconBgColor="bg-primary-container" 
+                  IconColor="text-on-primary" />
         
-        <StatCard Title="Đơn hàng mới" Value="@(_summary?.ActiveOrders.ToString() ?? "0")" SubText="Cần duyệt ngay" SubTextColor="text-warning-amber" IconName="receipt" TrendText="" StatusColor="bg-warning-amber" IconBgColor="bg-warning-bg" IconColor="text-warning-amber" />
+        <StatCard Title="@L["Dashboard_Stat_ActiveOrders"]" 
+                  Value="@(_summary?.ActiveOrders.ToString() ?? "0")" 
+                  SubText="@L["Dashboard_Stat_ActiveOrders_Sub"]" 
+                  SubTextColor="text-warning-amber" 
+                  IconName="receipt_long" 
+                  TrendText="" 
+                  StatusColor="bg-warning-amber" 
+                  IconBgColor="bg-warning-bg" 
+                  IconColor="text-warning-amber" />
         
-        <StatCard Title="Bàn đang phục vụ" Value="@($"{_summary?.OccupiedTables ?? 0}/{_summary?.TotalTables ?? 0}")" SubText="@($"Tỉ lệ lấp đầy {(_summary?.TotalTables > 0 ? (_summary.OccupiedTables * 100 / _summary.TotalTables) : 0)}%")" IconName="table_restaurant" TrendText="" IconBgColor="bg-secondary-container" IconColor="text-on-secondary-container" />
+        <StatCard Title="@L["Dashboard_Stat_OccupiedTables"]" 
+                  Value="@($"{_summary?.OccupiedTables ?? 0}/{_summary?.TotalTables ?? 0}")" 
+                  SubText="@string.Format(L["Dashboard_Stat_OccupancyRate"], (_summary?.TotalTables > 0 ? (_summary.OccupiedTables * 100 / _summary.TotalTables) : 0))" 
+                  IconName="table_restaurant" 
+                  TrendText="" 
+                  IconBgColor="bg-secondary-container" 
+                  IconColor="text-on-secondary-container" />
         
-        <StatCard Title="Nguyên liệu sắp hết" Value="@(_summary?.LowStockMaterials.ToString() ?? "0")" SubText="Cần nhập hàng" SubTextColor="text-tomato-container" IconName="inventory_2" TrendText="" StatusColor="@(_summary?.LowStockMaterials > 0 ? "bg-tomato-container" : "")" IconBgColor="bg-error-container" IconColor="text-tomato-container" />
+        <StatCard Title="@L["Dashboard_Stat_LowStock"]" 
+                  Value="@(_summary?.LowStockMaterials.ToString() ?? "0")" 
+                  SubText="@L["Dashboard_Stat_LowStock_Sub"]" 
+                  SubTextColor="text-tomato-container" 
+                  IconName="inventory_2" 
+                  TrendText="" 
+                  StatusColor="@(_summary?.LowStockMaterials > 0 ? "bg-tomato-container" : "")" 
+                  IconBgColor="bg-error-container" 
+                  IconColor="text-tomato-container" />
     </div>
 
     <!-- Main Grid Area -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <!-- Left Column (Chart + Top Movers) -->
         <div class="lg:col-span-2 flex flex-col gap-6">
-            <SalesChartWidget />
+            <SalesChartWidget Data="@_chartData" SelectedDate="@_selectedDate" />
             <TopMoversWidget Items="@_topMovers" />
         </div>
         
         <!-- Right Column (Activity Feed) -->
-        <div class="lg:col-span-1 h-[800px]">
-            <ActivityFeedWidget Items="@_activityFeed" />
+        <div class="lg:col-span-1 h-[780px]">
+            <ActivityFeedWidget Items="@_activityFeed" OnRefresh="LoadDashboardData" />
         </div>
     </div>
 </div>
@@ -55,27 +109,72 @@
     private List<SalesChartPointDto>? _chartData;
     private List<TopMoverDto>? _topMovers;
     private List<ActivityFeedItemDto>? _activityFeed;
+    
+    private DateTime _selectedDate = DateTime.Today;
+    private bool _isLoading = false;
 
-    [Inject]
-    public NavigationManager Navigation { get; set; } = default!;
+    private bool IsToday => _selectedDate.Date == DateTime.Today;
+    private bool IsYesterday => _selectedDate.Date == DateTime.Today.AddDays(-1);
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        _isLoading = true;
         try 
         {
-            _summary = await ApiClient.GetSummaryAsync();
-            _chartData = await ApiClient.GetSalesChartAsync();
-            _topMovers = await ApiClient.GetTopMoversAsync();
-            _activityFeed = await ApiClient.GetActivityFeedAsync();
+            var taskSummary = ApiClient.GetSummaryAsync(_selectedDate);
+            var taskChart = ApiClient.GetSalesChartAsync(_selectedDate);
+            var taskTopMovers = ApiClient.GetTopMoversAsync(_selectedDate);
+            var taskFeed = ApiClient.GetActivityFeedAsync();
+
+            await Task.WhenAll(taskSummary, taskChart, taskTopMovers, taskFeed);
+
+            _summary = taskSummary.Result ?? new DashboardSummaryDto();
+            _chartData = taskChart.Result ?? new List<SalesChartPointDto>();
+            _topMovers = taskTopMovers.Result ?? new List<TopMoverDto>();
+            _activityFeed = taskFeed.Result ?? new List<ActivityFeedItemDto>();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading dashboard: {ex.Message}");
-            // Khởi tạo data giả để tránh crash trang
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
             _summary = new DashboardSummaryDto();
             _chartData = new List<SalesChartPointDto>();
             _topMovers = new List<TopMoverDto>();
             _activityFeed = new List<ActivityFeedItemDto>();
         }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectToday()
+    {
+        _selectedDate = DateTime.Today;
+        await LoadDashboardData();
+    }
+
+    private async Task SelectYesterday()
+    {
+        _selectedDate = DateTime.Today.AddDays(-1);
+        await LoadDashboardData();
+    }
+
+    private async Task OnDateInputChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var parsedDate))
+        {
+            _selectedDate = parsedDate;
+            await LoadDashboardData();
+        }
+    }
+
+    private void GoToPos()
+    {
+        Navigation.NavigateTo("/pos");
     }
 }

@@ -60,3 +60,22 @@ public class CancelOrderRequest
 {
     public string Reason { get; set; } = string.Empty;
 }
+
+public class ProcessCashPaymentRequest
+{
+    public int OrderId { get; set; }
+    public decimal CashReceived { get; set; }
+    public int? CustomerId { get; set; }
+    public string? VoucherCode { get; set; }
+}
+
+public class CashPaymentResponse
+{
+    public int OrderId { get; set; }
+    public string OrderCode { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public decimal CashReceived { get; set; }
+    public decimal ChangeAmount { get; set; }
+    public DateTime CompletedAt { get; set; }
+}
+

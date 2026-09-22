@@ -5,6 +5,7 @@ window.floorplan = {
     activeTable: null,
     offsetX: 0,
     offsetY: 0,
+    _bound: false,
 
     init: function (dotNetReference, tablesData) {
         this.dotNetRef = dotNetReference;
@@ -13,17 +14,19 @@ window.floorplan = {
         const canvas = document.getElementById('floorplan-canvas');
         if (!canvas) return;
 
+        if (!this._bound) {
+            this.onPointerDown = this.onPointerDown.bind(this);
+            this.onPointerMove = this.onPointerMove.bind(this);
+            this.onPointerUp = this.onPointerUp.bind(this);
+            this.onPointerLeave = this.onPointerLeave.bind(this);
+            this._bound = true;
+        }
+
         // Cleanup previous listeners if any
         canvas.removeEventListener('pointerdown', this.onPointerDown);
         canvas.removeEventListener('pointermove', this.onPointerMove);
         canvas.removeEventListener('pointerup', this.onPointerUp);
         canvas.removeEventListener('pointerleave', this.onPointerLeave);
-
-        // Bind 'this' context
-        this.onPointerDown = this.onPointerDown.bind(this);
-        this.onPointerMove = this.onPointerMove.bind(this);
-        this.onPointerUp = this.onPointerUp.bind(this);
-        this.onPointerLeave = this.onPointerLeave.bind(this);
 
         canvas.addEventListener('pointerdown', this.onPointerDown);
         canvas.addEventListener('pointermove', this.onPointerMove);

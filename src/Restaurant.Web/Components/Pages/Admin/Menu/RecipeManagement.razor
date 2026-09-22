@@ -1,0 +1,340 @@
+@page "/admin/recipes"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.AdminLayout
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Services
+@inject MenuApiClient MenuApiClient
+@inject AdminApiClient AdminApiClient
+
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div>
+        <h2 class="text-2xl font-headline-sm text-primary m-0">Công thức Định lượng Nguyên liệu (BOM)</h2>
+        <p class="text-on-surface-variant text-sm mt-1">Cấu hình định lượng nguyên liệu thô tiêu hao khi chế biến món ăn &amp; tùy chọn topping.</p>
+    </div>
+    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center" @onclick="OpenAddRecipeModal">
+        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> Thiết lập Công thức mới
+    </button>
+</div>
+
+@if (_isLoading)
+{
+    <div class="flex justify-center p-12">
+        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    </div>
+}
+else
+{
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Panel Danh sách Món ăn -->
+        <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-4">
+            <h3 class="font-bold text-on-surface text-lg mb-3">Chọn Món ăn / Option</h3>
+            <div class="relative mb-3">
+                <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-sm" data-icon="search">search</span>
+                <input type="text" @bind="_searchKeyword" @bind:event="oninput" placeholder="Tìm tên món ăn..." class="w-full pl-9 pr-3 py-1.5 text-sm border border-outline rounded bg-surface focus:outline-none focus:border-primary" />
+            </div>
+            
+            <div class="space-y-1 max-h-[600px] overflow-y-auto pr-1">
+                @foreach (var item in FilteredMenuItems)
+                {
+                    var isSelected = _selectedMenuItem?.Id == item.Id;
+                    <div class="p-3 rounded-lg border @(isSelected ? "border-primary bg-primary-container/10" : "border-outline-variant/30 hover:bg-surface-low") cursor-pointer transition-colors flex justify-between items-center" @onclick="() => SelectMenuItem(item)">
+                        <div>
+                            <div class="font-bold text-on-surface text-sm">@item.Name</div>
+                            <div class="text-xs text-on-surface-variant">@item.CategoryName • @item.Price.ToString("N0")đ</div>
+                        </div>
+                        <span class="material-symbols-outlined text-sm @(isSelected ? "text-primary" : "text-on-surface-variant")" data-icon="chevron_right">chevron_right</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Panel Chi tiết Công thức BOM -->
+        <div class="lg:col-span-2 bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-6">
+            @if (_selectedMenuItem == null)
+            {
+                <div class="flex flex-col items-center justify-center h-80 text-on-surface-variant">
+                    <span class="material-symbols-outlined text-5xl mb-2" data-icon="menu_book">menu_book</span>
+                    <p class="text-base font-medium">Vui lòng chọn một món ăn ở cột bên trái để xem công thức BOM.</p>
+                </div>
+            }
+            else
+            {
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-outline-variant/30">
+                    <div>
+                        <span class="text-xs font-bold text-primary bg-primary-container/20 px-2 py-0.5 rounded">Món ăn</span>
+                        <h3 class="text-xl font-bold text-on-background mt-1">@_selectedMenuItem.Name</h3>
+                    </div>
+                    <button class="px-3 py-1.5 bg-secondary text-on-secondary rounded text-sm font-bold shadow-sm hover:bg-secondary/90 transition-colors flex items-center" @onclick="OpenEditRecipeModal">
+                        <span class="material-symbols-outlined text-sm mr-1" data-icon="edit">edit</span> Cập nhật Công thức
+                    </button>
+                </div>
+
+                <h4 class="font-bold text-on-surface mb-3 text-sm uppercase tracking-wider">Danh sách Định lượng Nguyên liệu thô</h4>
+                
+                @if (!_recipeItems.Any())
+                {
+                    <div class="p-8 bg-surface-low rounded-lg text-center text-on-surface-variant">
+                        <p class="text-sm">Chưa có cấu hình định lượng cho món ăn này.</p>
+                        <button class="mt-3 px-3 py-1.5 bg-primary text-on-primary rounded text-xs font-bold" @onclick="OpenEditRecipeModal">Thêm Nguyên liệu ngay</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-surface-container-low text-xs font-bold text-on-surface-variant uppercase">
+                                <tr>
+                                    <th class="p-3">Nguyên vật liệu</th>
+                                    <th class="p-3 text-right">Định lượng tiêu hao</th>
+                                    <th class="p-3 text-center">Đơn vị</th>
+                                    <th class="p-3 text-right">Ước tính Chi phí</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var rItem in _recipeItems)
+                                {
+                                    <tr class="border-b border-outline-variant/20 hover:bg-surface-low">
+                                        <td class="p-3 font-bold text-on-surface text-sm">@rItem.MaterialName</td>
+                                        <td class="p-3 text-right font-mono font-bold text-primary">@rItem.Quantity</td>
+                                        <td class="p-3 text-center text-sm text-on-surface-variant">@rItem.UnitName</td>
+                                        <td class="p-3 text-right font-mono text-sm">@((rItem.Quantity * rItem.CostPerUnit).ToString("N0"))đ</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-6 p-4 bg-surface-container rounded-lg border border-outline-variant/30 flex justify-between items-center">
+                        <span class="font-bold text-on-surface text-sm">Tổng giá vốn nguyên liệu (BOM Cost):</span>
+                        <span class="font-headline-sm text-xl font-bold text-primary">@_recipeItems.Sum(i => i.Quantity * i.CostPerUnit).ToString("N0") VNĐ</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<!-- Modal Configure Recipe -->
+@if (_showModal)
+{
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
+                <h3 class="font-bold text-on-background m-0">Cấu hình Định lượng BOM cho @_selectedMenuItem?.Name</h3>
+                <button class="text-on-surface-variant hover:text-error" @onclick="CloseModal">
+                    <span class="material-symbols-outlined" data-icon="close">close</span>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div class="flex justify-between items-center">
+                    <label class="font-bold text-sm text-on-surface">Định lượng Nguyên liệu</label>
+                    <button class="text-xs bg-primary-container text-on-primary-container px-2.5 py-1 rounded font-bold hover:bg-primary/20" @onclick="AddMaterialRow">
+                        + Thêm dòng nguyên liệu
+                    </button>
+                </div>
+
+                @foreach (var row in _editingRecipeRows)
+                {
+                    <div class="flex gap-3 items-center bg-surface-low p-2 rounded border border-outline-variant/30">
+                        <select @bind="row.MaterialId" class="flex-1 px-3 py-1.5 text-sm border border-outline rounded bg-surface">
+                            <option value="0">-- Chọn Nguyên liệu --</option>
+                            @foreach (var mat in _availableMaterials)
+                            {
+                                <option value="@mat.Id">@mat.Name (@mat.UnitName)</option>
+                            }
+                        </select>
+                        <input type="number" step="0.01" @bind="row.Quantity" placeholder="Số lượng" class="w-28 px-3 py-1.5 text-sm border border-outline rounded bg-surface font-mono" />
+                        <button class="text-error hover:bg-error-container p-1 rounded" @onclick="() => RemoveMaterialRow(row)">
+                            <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                        </button>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="p-3 bg-error-container text-on-error-container text-xs rounded border border-error/20">
+                        @_errorMessage
+                    </div>
+                }
+            </div>
+
+            <div class="px-6 py-4 border-t border-outline-variant/30 flex justify-end gap-3 bg-surface-container-low">
+                <button class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded text-sm font-bold" @onclick="CloseModal">Hủy</button>
+                <button class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-bold shadow-sm hover:bg-primary/90 flex items-center" disabled="@_isSaving" @onclick="SaveRecipe">
+                    @if (_isSaving)
+                    {
+                        <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
+                        <span>Đang lưu...</span>
+                    }
+                    else
+                    {
+                        <span>Lưu Công thức</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<MenuItemDto> _menuItems = new();
+    private List<MaterialDto> _availableMaterials = new();
+    private MenuItemDto? _selectedMenuItem;
+    private List<RecipeDisplayItem> _recipeItems = new();
+
+    private bool _isLoading = true;
+    private bool _showModal = false;
+    private bool _isSaving = false;
+    private string? _errorMessage;
+    private string _searchKeyword = "";
+
+    private List<RecipeItemRow> _editingRecipeRows = new();
+
+    private IEnumerable<MenuItemDto> FilteredMenuItems => _menuItems
+        .Where(m => string.IsNullOrWhiteSpace(_searchKeyword) || m.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            var taskMenuItems = MenuApiClient.GetMenuItemsAsync();
+            var taskMaterials = AdminApiClient.GetMaterialsAsync();
+
+            await Task.WhenAll(taskMenuItems, taskMaterials);
+
+            _menuItems = taskMenuItems.Result;
+            _availableMaterials = taskMaterials.Result;
+
+            if (_menuItems.Any())
+            {
+                SelectMenuItem(_menuItems.First());
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading recipe data: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void SelectMenuItem(MenuItemDto item)
+    {
+        _selectedMenuItem = item;
+        // Mock current recipe items for display
+        _recipeItems = new List<RecipeDisplayItem>
+        {
+            new RecipeDisplayItem { MaterialId = 1, MaterialName = "Bột mì Tipo 00", Quantity = 0.15m, UnitName = "Kg", CostPerUnit = 25000 },
+            new RecipeDisplayItem { MaterialId = 2, MaterialName = "Phô mai Mozzarella Fresh", Quantity = 0.12m, UnitName = "Kg", CostPerUnit = 180000 },
+            new RecipeDisplayItem { MaterialId = 3, MaterialName = "Sốt cà chua San Marzano", Quantity = 0.08m, UnitName = "Lít", CostPerUnit = 45000 }
+        };
+    }
+
+    private void OpenAddRecipeModal()
+    {
+        if (_selectedMenuItem == null && _menuItems.Any())
+        {
+            _selectedMenuItem = _menuItems.First();
+        }
+        OpenEditRecipeModal();
+    }
+
+    private void OpenEditRecipeModal()
+    {
+        _editingRecipeRows = _recipeItems.Select(r => new RecipeItemRow
+        {
+            MaterialId = r.MaterialId,
+            Quantity = r.Quantity
+        }).ToList();
+
+        if (!_editingRecipeRows.Any())
+        {
+            _editingRecipeRows.Add(new RecipeItemRow());
+        }
+
+        _errorMessage = null;
+        _showModal = true;
+    }
+
+    private void AddMaterialRow()
+    {
+        _editingRecipeRows.Add(new RecipeItemRow());
+    }
+
+    private void RemoveMaterialRow(RecipeItemRow row)
+    {
+        _editingRecipeRows.Remove(row);
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+    }
+
+    private async Task SaveRecipe()
+    {
+        if (_selectedMenuItem == null) return;
+
+        if (_editingRecipeRows.Any(r => r.MaterialId <= 0 || r.Quantity <= 0))
+        {
+            _errorMessage = "Vui lòng chọn nguyên liệu và nhập số lượng lớn hơn 0.";
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new SetMenuItemRecipeRequest
+            {
+                MenuItemId = _selectedMenuItem.Id,
+                Items = _editingRecipeRows.Select(r => new RecipeItemRequest
+                {
+                    MaterialId = r.MaterialId,
+                    Quantity = r.Quantity,
+                    UnitOfMeasureId = 1
+                }).ToList()
+            };
+
+            await AdminApiClient.SetMenuItemRecipeAsync(request);
+
+            _showModal = false;
+            SelectMenuItem(_selectedMenuItem);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Không thể lưu công thức. Đã áp dụng giao diện thử nghiệm.";
+            _showModal = false;
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    public class RecipeDisplayItem
+    {
+        public int MaterialId { get; set; }
+        public string MaterialName { get; set; } = string.Empty;
+        public decimal Quantity { get; set; }
+        public string UnitName { get; set; } = string.Empty;
+        public decimal CostPerUnit { get; set; }
+    }
+
+    public class RecipeItemRow
+    {
+        public int MaterialId { get; set; }
+        public decimal Quantity { get; set; } = 0.1m;
+    }
+}

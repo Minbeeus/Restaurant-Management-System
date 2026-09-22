@@ -1,0 +1,528 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="INVALID_QR_TOKEN" xml:space="preserve">
+    <value>Mã bàn hoặc QR Token không hợp lệ.</value>
+  </data>
+  <data name="TABLE_IS_BILLING" xml:space="preserve">
+    <value>Bàn ăn đang trong quá trình thanh toán. Không thể xem menu hoặc đặt thêm món.</value>
+  </data>
+  <data name="ITEM_SOLD_OUT" xml:space="preserve">
+    <value>Món '{0}' hiện đã báo hết hàng (Sold Out).</value>
+  </data>
+  <data name="ITEM_NOT_FOUND" xml:space="preserve">
+    <value>Món ăn (ID: {0}) không tồn tại hoặc đã ngưng kinh doanh.</value>
+  </data>
+  <data name="CART_EMPTY" xml:space="preserve">
+    <value>Giỏ hàng đang trống.</value>
+  </data>
+  <data name="INVALID_QUANTITY" xml:space="preserve">
+    <value>Số lượng món đặt phải lớn hơn 0.</value>
+  </data>
+  <data name="MODIFIER_INVALID" xml:space="preserve">
+    <value>Tùy chọn '{0}' không thuộc nhóm tùy chọn hợp lệ của món '{1}'.</value>
+  </data>
+  <data name="MODIFIER_MIN_LIMIT" xml:space="preserve">
+    <value>Vui lòng chọn tối thiểu {0} tùy chọn cho nhóm '{1}' của món '{2}'.</value>
+  </data>
+  <data name="MODIFIER_MAX_LIMIT" xml:space="preserve">
+    <value>Bạn chỉ được chọn tối đa {0} tùy chọn cho nhóm '{1}' của món '{2}'.</value>
+  </data>
+  <data name="RATE_LIMIT_WAIT" xml:space="preserve">
+    <value>Vui lòng đợi {0} giây nữa trước khi gửi thêm đơn mới.</value>
+  </data>
+  <data name="LOGIN_FAILED" xml:space="preserve">
+    <value>Tên đăng nhập hoặc mật khẩu không chính xác.</value>
+  </data>
+  <data name="LOGOUT_SUCCESS" xml:space="preserve">
+    <value>Đăng xuất thành công.</value>
+  </data>
+  <data name="CATEGORY_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy danh mục.</value>
+  </data>
+  <data name="MENUITEM_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy món ăn.</value>
+  </data>
+  <data name="TABLE_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy bàn ăn.</value>
+  </data>
+  <data name="AREA_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy khu vực.</value>
+  </data>
+  <data name="MODIFIER_GROUP_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy nhóm tùy chọn.</value>
+  </data>
+  <data name="MODIFIER_OPTION_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy tùy chọn.</value>
+  </data>
+  <data name="KITCHEN_ITEM_NOT_FOUND" xml:space="preserve">
+    <value>Không tìm thấy món ăn trong hàng chờ bếp.</value>
+  </data>
+  <data name="CANCEL_ORDER_NOTE" xml:space="preserve">
+    <value>[HỦY ĐƠN]: {0}</value>
+  </data>
+  <data name="CANCELLATION_WASTE_NOTE" xml:space="preserve">
+    <value>[HAO HỤT] Do hủy đơn {0} | Gốc: {1}</value>
+  </data>
+  <data name="Pos_Tab_All" xml:space="preserve">
+    <value>TẤT CẢ</value>
+  </data>
+  <data name="Pos_Tab_Food" xml:space="preserve">
+    <value>ĐỒ ĂN</value>
+  </data>
+  <data name="Pos_Tab_Drink" xml:space="preserve">
+    <value>ĐỒ UỐNG</value>
+  </data>
+  <data name="Pos_Btn_SendToKitchen" xml:space="preserve">
+    <value>Gửi Bếp</value>
+  </data>
+  <data name="Pos_Btn_Pay" xml:space="preserve">
+    <value>THANH TOÁN</value>
+  </data>
+  <data name="Pos_Label_Total" xml:space="preserve">
+    <value>TỔNG TIỀN</value>
+  </data>
+  <data name="Pos_Label_Subtotal" xml:space="preserve">
+    <value>Tạm tính</value>
+  </data>
+  <data name="Pos_Label_Tax" xml:space="preserve">
+    <value>VAT</value>
+  </data>
+  <data name="Pos_Label_Discount" xml:space="preserve">
+    <value>Giảm giá</value>
+  </data>
+  <data name="Pos_Msg_SoldOut" xml:space="preserve">
+    <value>HẾT MÓN</value>
+  </data>
+  <data name="Category_Management_Title" xml:space="preserve">
+    <value>Quản lý Danh mục (Categories)</value>
+  </data>
+  <data name="Category_Add_Button" xml:space="preserve">
+    <value>Thêm Danh mục</value>
+  </data>
+  <data name="Category_STT" xml:space="preserve">
+    <value>STT</value>
+  </data>
+  <data name="Category_ID" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="Category_Name_Header" xml:space="preserve">
+    <value>Tên Danh Mục</value>
+  </data>
+  <data name="Category_Description_Header" xml:space="preserve">
+    <value>Mô tả</value>
+  </data>
+  <data name="Category_Status_Header" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="Category_Actions_Header" xml:space="preserve">
+    <value>Hành động</value>
+  </data>
+  <data name="Category_No_Data" xml:space="preserve">
+    <value>Chưa có danh mục nào.</value>
+  </data>
+  <data name="Category_Status_Toggle_To_Inactive" xml:space="preserve">
+    <value>Bấm để chuyển sang Không hoạt động</value>
+  </data>
+  <data name="Category_Status_Toggle_To_Active" xml:space="preserve">
+    <value>Bấm để chuyển sang Hoạt động</value>
+  </data>
+  <data name="Category_Active" xml:space="preserve">
+    <value>Hoạt động</value>
+  </data>
+  <data name="Category_Inactive" xml:space="preserve">
+    <value>Không hoạt động</value>
+  </data>
+  <data name="Category_Edit_Tooltip" xml:space="preserve">
+    <value>Sửa</value>
+  </data>
+  <data name="Category_Delete_Tooltip" xml:space="preserve">
+    <value>Xóa</value>
+  </data>
+  <data name="Category_Edit_Title" xml:space="preserve">
+    <value>Cập nhật Danh mục</value>
+  </data>
+  <data name="Category_Add_Title" xml:space="preserve">
+    <value>Thêm Danh mục mới</value>
+  </data>
+  <data name="Category_Name_Label" xml:space="preserve">
+    <value>Tên danh mục</value>
+  </data>
+  <data name="Category_Name_Placeholder" xml:space="preserve">
+    <value>VD: Khai vị</value>
+  </data>
+  <data name="Category_Name_Required" xml:space="preserve">
+    <value>Tên danh mục không được để trống.</value>
+  </data>
+  <data name="Category_Description_Label" xml:space="preserve">
+    <value>Mô tả</value>
+  </data>
+  <data name="Category_Description_Placeholder" xml:space="preserve">
+    <value>Mô tả ngắn gọn...</value>
+  </data>
+  <data name="Category_SortOrder_Label" xml:space="preserve">
+    <value>Thứ tự hiển thị</value>
+  </data>
+  <data name="Category_IsActive_Label" xml:space="preserve">
+    <value>Đang hoạt động</value>
+  </data>
+  <data name="Category_Save_Error" xml:space="preserve">
+    <value>Lỗi khi lưu dữ liệu. Vui lòng kiểm tra lại.</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Hủy</value>
+  </data>
+  <data name="Common_Saving" xml:space="preserve">
+    <value>Đang lưu...</value>
+  </data>
+  <data name="Common_Save_Changes" xml:space="preserve">
+    <value>Lưu thay đổi</value>
+  </data>
+  <data name="Category_Delete_Confirm_Title" xml:space="preserve">
+    <value>Xác nhận xóa?</value>
+  </data>
+  <data name="Category_Delete_Confirm_Prefix" xml:space="preserve">
+    <value>Bạn có chắc chắn muốn xóa danh mục</value>
+  </data>
+  <data name="Category_Delete_Confirm_Suffix" xml:space="preserve">
+    <value>không? Hành động này không thể hoàn tác.</value>
+  </data>
+  <data name="Category_Delete_Now_Btn" xml:space="preserve">
+    <value>Xóa ngay</value>
+  </data>
+  <data name="Dashboard_Title" xml:space="preserve">
+    <value>Bảng điều khiển</value>
+  </data>
+  <data name="Sidebar_Menu_Management" xml:space="preserve">
+    <value>Quản lý Thực đơn</value>
+  </data>
+  <data name="Sidebar_Categories" xml:space="preserve">
+    <value>Danh mục món</value>
+  </data>
+  <data name="Sidebar_MenuItems" xml:space="preserve">
+    <value>Danh sách món ăn</value>
+  </data>
+  <data name="Sidebar_Modifiers" xml:space="preserve">
+    <value>Tùy chọn &amp; Topping</value>
+  </data>
+  <data name="Sidebar_Recipes" xml:space="preserve">
+    <value>Công thức (BOM)</value>
+  </data>
+  <data name="Sidebar_Table_Management" xml:space="preserve">
+    <value>Quản lý Phòng bàn</value>
+  </data>
+  <data name="Sidebar_Areas" xml:space="preserve">
+    <value>Khu vực sảnh</value>
+  </data>
+  <data name="Sidebar_Tables" xml:space="preserve">
+    <value>Danh sách bàn &amp; QR</value>
+  </data>
+  <data name="Sidebar_Order_History" xml:space="preserve">
+    <value>Lịch sử Đơn hàng</value>
+  </data>
+  <data name="Sidebar_Staff" xml:space="preserve">
+    <value>Nhân sự &amp; Tài khoản</value>
+  </data>
+  <data name="Sidebar_Inventory" xml:space="preserve">
+    <value>Quản lý Kho</value>
+  </data>
+  <data name="Sidebar_Materials" xml:space="preserve">
+    <value>Nguyên vật liệu</value>
+  </data>
+  <data name="Sidebar_GoodsReceipts" xml:space="preserve">
+    <value>Nhập kho</value>
+  </data>
+  <data name="Sidebar_Stocktakes" xml:space="preserve">
+    <value>Kiểm kê kho</value>
+  </data>
+  <data name="Sidebar_Suppliers" xml:space="preserve">
+    <value>Nhà cung cấp</value>
+  </data>
+  <data name="Sidebar_Reports" xml:space="preserve">
+    <value>Báo cáo Thống kê</value>
+  </data>
+  <data name="Sidebar_Report_Revenue" xml:space="preserve">
+    <value>Doanh thu bán hàng</value>
+  </data>
+  <data name="Sidebar_Report_TopMovers" xml:space="preserve">
+    <value>Món bán chạy</value>
+  </data>
+  <data name="Sidebar_Report_InventoryLoss" xml:space="preserve">
+    <value>Hao hụt thất thoát</value>
+  </data>
+  <data name="Sidebar_Marketing" xml:space="preserve">
+    <value>Marketing &amp; Khách hàng</value>
+  </data>
+  <data name="Sidebar_Vouchers" xml:space="preserve">
+    <value>Mã giảm giá (Vouchers)</value>
+  </data>
+  <data name="Sidebar_Customers" xml:space="preserve">
+    <value>Khách hàng thành viên</value>
+  </data>
+  <data name="Sidebar_Quick_Action" xml:space="preserve">
+    <value>Thao tác Nhanh</value>
+  </data>
+  <data name="Sidebar_Pos_Screen" xml:space="preserve">
+    <value>Màn hình POS</value>
+  </data>
+  <data name="Sidebar_Kds_Screen" xml:space="preserve">
+    <value>Màn hình KDS Bếp</value>
+  </data>
+  <data name="Sidebar_Logout" xml:space="preserve">
+    <value>Đăng xuất</value>
+  </data>
+  <data name="Admin_System_Title" xml:space="preserve">
+    <value>Hệ thống Quản trị BOH</value>
+  </data>
+  <data name="Header_Overview" xml:space="preserve">
+    <value>Tổng quan</value>
+  </data>
+  <data name="Header_Orders" xml:space="preserve">
+    <value>Đơn hàng</value>
+  </data>
+  <data name="Header_Reports" xml:space="preserve">
+    <value>Báo cáo</value>
+  </data>
+  <data name="Header_Search_Placeholder" xml:space="preserve">
+    <value>Tìm kiếm hệ thống...</value>
+  </data>
+  <data name="Language_Vietnamese" xml:space="preserve">
+    <value>Tiếng Việt</value>
+  </data>
+  <data name="Language_English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Dashboard_Header_Today" xml:space="preserve">
+    <value>Tổng quan hôm nay</value>
+  </data>
+  <data name="Dashboard_Header_Date" xml:space="preserve">
+    <value>Tổng quan ngày {0}</value>
+  </data>
+  <data name="Dashboard_Subtitle" xml:space="preserve">
+    <value>Theo dõi ca làm việc, doanh thu và tình trạng hoạt động nhà hàng</value>
+  </data>
+  <data name="Dashboard_Btn_Today" xml:space="preserve">
+    <value>Hôm nay</value>
+  </data>
+  <data name="Dashboard_Btn_Yesterday" xml:space="preserve">
+    <value>Hôm qua</value>
+  </data>
+  <data name="Dashboard_Tooltip_Refresh" xml:space="preserve">
+    <value>Làm mới dữ liệu</value>
+  </data>
+  <data name="Dashboard_Btn_Pos" xml:space="preserve">
+    <value>Bán hàng (POS)</value>
+  </data>
+  <data name="Dashboard_Stat_Revenue" xml:space="preserve">
+    <value>Doanh thu</value>
+  </data>
+  <data name="Dashboard_Stat_ActiveOrders" xml:space="preserve">
+    <value>Đơn hàng đang xử lý</value>
+  </data>
+  <data name="Dashboard_Stat_ActiveOrders_Sub" xml:space="preserve">
+    <value>Cần phục vụ / chế biến</value>
+  </data>
+  <data name="Dashboard_Stat_OccupiedTables" xml:space="preserve">
+    <value>Bàn đang phục vụ</value>
+  </data>
+  <data name="Dashboard_Stat_OccupancyRate" xml:space="preserve">
+    <value>Tỉ lệ lấp đầy {0}%</value>
+  </data>
+  <data name="Dashboard_Stat_LowStock" xml:space="preserve">
+    <value>Nguyên liệu cảnh báo</value>
+  </data>
+  <data name="Dashboard_Stat_LowStock_Sub" xml:space="preserve">
+    <value>Cần nhập hàng ngay</value>
+  </data>
+  <data name="Dashboard_Trend_Up" xml:space="preserve">
+    <value>Tăng</value>
+  </data>
+  <data name="Dashboard_Trend_Down" xml:space="preserve">
+    <value>Giảm</value>
+  </data>
+  <data name="Dashboard_Trend_Compared" xml:space="preserve">
+    <value>so với ngày trước</value>
+  </data>
+  <data name="Dashboard_Chart_Title" xml:space="preserve">
+    <value>Biểu đồ doanh thu theo giờ</value>
+  </data>
+  <data name="Dashboard_Chart_Total" xml:space="preserve">
+    <value>Tổng: {0}đ</value>
+  </data>
+  <data name="Dashboard_Chart_Loading" xml:space="preserve">
+    <value>Đang tải biểu đồ...</value>
+  </data>
+  <data name="Dashboard_Chart_Empty" xml:space="preserve">
+    <value>Chưa có doanh thu nào phát sinh trong ngày</value>
+  </data>
+  <data name="Dashboard_TopMovers_Title" xml:space="preserve">
+    <value>Món bán chạy</value>
+  </data>
+  <data name="Dashboard_TopMovers_ViewMenu" xml:space="preserve">
+    <value>Xem thực đơn</value>
+  </data>
+  <data name="Dashboard_TopMovers_Header_Rank" xml:space="preserve">
+    <value>Hạng</value>
+  </data>
+  <data name="Dashboard_TopMovers_Header_Name" xml:space="preserve">
+    <value>Tên món</value>
+  </data>
+  <data name="Dashboard_TopMovers_Header_Qty" xml:space="preserve">
+    <value>Số lượng bán</value>
+  </data>
+  <data name="Dashboard_TopMovers_Loading" xml:space="preserve">
+    <value>Đang tải dữ liệu...</value>
+  </data>
+  <data name="Dashboard_TopMovers_Empty" xml:space="preserve">
+    <value>Chưa có dữ liệu bán hàng hôm nay</value>
+  </data>
+  <data name="Dashboard_TopMovers_Unit" xml:space="preserve">
+    <value>phần</value>
+  </data>
+  <data name="Dashboard_Activity_Title" xml:space="preserve">
+    <value>Hoạt động gần nhất</value>
+  </data>
+  <data name="Dashboard_Activity_Refresh" xml:space="preserve">
+    <value>Làm mới</value>
+  </data>
+  <data name="Dashboard_Activity_Loading" xml:space="preserve">
+    <value>Đang tải dữ liệu...</value>
+  </data>
+  <data name="Dashboard_Activity_Empty" xml:space="preserve">
+    <value>Chưa có hoạt động nào phát sinh</value>
+  </data>
+  <data name="Dashboard_Activity_ViewAll" xml:space="preserve">
+    <value>Xem tất cả đơn hàng</value>
+  </data>
+  <data name="MenuItem_Management_Title" xml:space="preserve">
+    <value>Danh sách Món ăn (Menu Items)</value>
+  </data>
+  <data name="MenuItem_Add_Button" xml:space="preserve">
+    <value>Thêm Món ăn</value>
+  </data>
+  <data name="Modifier_Management_Title" xml:space="preserve">
+    <value>Quản lý Tùy chọn &amp; Topping</value>
+  </data>
+  <data name="Modifier_Add_Button" xml:space="preserve">
+    <value>Thêm Nhóm Tùy chọn</value>
+  </data>
+  <data name="Recipe_Management_Title" xml:space="preserve">
+    <value>Công thức Món ăn (BOM)</value>
+  </data>
+  <data name="Recipe_Add_Button" xml:space="preserve">
+    <value>Thêm Công thức</value>
+  </data>
+  <data name="Area_Management_Title" xml:space="preserve">
+    <value>Quản lý Khu vực</value>
+  </data>
+  <data name="Area_Add_Button" xml:space="preserve">
+    <value>Thêm Khu vực</value>
+  </data>
+  <data name="Table_Management_Title" xml:space="preserve">
+    <value>Quản lý Phòng bàn &amp; QR</value>
+  </data>
+  <data name="Table_Add_Button" xml:space="preserve">
+    <value>Thêm Bàn mới</value>
+  </data>
+  <data name="Order_History_Title" xml:space="preserve">
+    <value>Lịch sử Đơn hàng</value>
+  </data>
+  <data name="Staff_Management_Title" xml:space="preserve">
+    <value>Quản lý Nhân sự &amp; Tài khoản</value>
+  </data>
+  <data name="Staff_Add_Button" xml:space="preserve">
+    <value>Thêm Tài khoản</value>
+  </data>
+  <data name="Material_Management_Title" xml:space="preserve">
+    <value>Quản lý Nguyên vật liệu</value>
+  </data>
+  <data name="Material_Add_Button" xml:space="preserve">
+    <value>Thêm Nguyên liệu</value>
+  </data>
+  <data name="GoodsReceipt_Management_Title" xml:space="preserve">
+    <value>Quản lý Nhập kho</value>
+  </data>
+  <data name="GoodsReceipt_Add_Button" xml:space="preserve">
+    <value>Tạo Phiếu Nhập kho</value>
+  </data>
+  <data name="Stocktake_Management_Title" xml:space="preserve">
+    <value>Quản lý Kiểm kê kho</value>
+  </data>
+  <data name="Stocktake_Add_Button" xml:space="preserve">
+    <value>Tạo Phiếu Kiểm kê</value>
+  </data>
+  <data name="Supplier_Management_Title" xml:space="preserve">
+    <value>Quản lý Nhà cung cấp</value>
+  </data>
+  <data name="Supplier_Add_Button" xml:space="preserve">
+    <value>Thêm Nhà cung cấp</value>
+  </data>
+  <data name="Report_Revenue_Title" xml:space="preserve">
+    <value>Báo cáo Doanh thu Bán hàng</value>
+  </data>
+  <data name="Report_TopMovers_Title" xml:space="preserve">
+    <value>Báo cáo Món Bán chạy</value>
+  </data>
+  <data name="Report_InventoryLoss_Title" xml:space="preserve">
+    <value>Báo cáo Hao hụt Thất thoát</value>
+  </data>
+  <data name="Voucher_Management_Title" xml:space="preserve">
+    <value>Quản lý Mã giảm giá (Vouchers)</value>
+  </data>
+  <data name="Voucher_Add_Button" xml:space="preserve">
+    <value>Tạo Voucher mới</value>
+  </data>
+  <data name="Customer_Management_Title" xml:space="preserve">
+    <value>Quản lý Khách hàng Thành viên</value>
+  </data>
+  <data name="Customer_Add_Button" xml:space="preserve">
+    <value>Thêm Khách hàng</value>
+  </data>
+</root>
