@@ -118,13 +118,13 @@ public class MenuApiClient
     public async Task<List<ModifierGroupDto>> GetModifierGroupsAsync()
     {
         await SetAuthorizationHeaderAsync();
-        return await _httpClient.GetFromJsonAsync<List<ModifierGroupDto>>("/api/v1/modifiers") ?? new List<ModifierGroupDto>();
+        return await _httpClient.GetFromJsonAsync<List<ModifierGroupDto>>("/api/v1/modifiers/groups") ?? new List<ModifierGroupDto>();
     }
 
     public async Task<ModifierGroupDto?> CreateModifierGroupAsync(CreateModifierGroupRequest request)
     {
         await SetAuthorizationHeaderAsync();
-        var response = await _httpClient.PostAsJsonAsync("/api/v1/modifiers", request);
+        var response = await _httpClient.PostAsJsonAsync("/api/v1/modifiers/groups", request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<ModifierGroupDto>();
     }
@@ -132,7 +132,7 @@ public class MenuApiClient
     public async Task<ModifierGroupDto?> UpdateModifierGroupAsync(int id, UpdateModifierGroupRequest request)
     {
         await SetAuthorizationHeaderAsync();
-        var response = await _httpClient.PutAsJsonAsync($"/api/v1/modifiers/{id}", request);
+        var response = await _httpClient.PutAsJsonAsync($"/api/v1/modifiers/groups/{id}", request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<ModifierGroupDto>();
     }
@@ -140,7 +140,7 @@ public class MenuApiClient
     public async Task<bool> DeleteModifierGroupAsync(int id)
     {
         await SetAuthorizationHeaderAsync();
-        var response = await _httpClient.DeleteAsync($"/api/v1/modifiers/{id}");
+        var response = await _httpClient.DeleteAsync($"/api/v1/modifiers/groups/{id}");
         return response.IsSuccessStatusCode;
     }
 }

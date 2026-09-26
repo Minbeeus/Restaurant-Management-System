@@ -58,6 +58,7 @@ public class SepayWebhookPayload
 
 public class CancelOrderRequest
 {
+    public int OrderId { get; set; }
     public string Reason { get; set; } = string.Empty;
 }
 
@@ -67,6 +68,7 @@ public class ProcessCashPaymentRequest
     public decimal CashReceived { get; set; }
     public int? CustomerId { get; set; }
     public string? VoucherCode { get; set; }
+    public string? IdempotencyKey { get; set; }
 }
 
 public class CashPaymentResponse

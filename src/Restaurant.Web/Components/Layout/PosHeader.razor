@@ -1,0 +1,247 @@
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Globalization
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<header class="h-16 flex items-center justify-between px-6 bg-surface dark:bg-inverse-surface border-b border-outline-variant shrink-0 shadow-sm text-on-surface select-none z-30">
+    <!-- Left Section: Restaurant Name & Date/Time -->
+    <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-2xl font-bold">restaurant</span>
+            <span class="font-bold text-lg text-primary tracking-wide">Minbeeus Restaurant</span>
+        </div>
+        <div class="h-6 w-[1px] bg-outline-variant/60"></div>
+        <div class="flex items-center gap-2 text-xs font-medium text-on-surface-variant">
+            <span class="material-symbols-outlined text-[16px] text-primary">schedule</span>
+            <span>@_currentTime.ToString("HH:mm:ss")</span>
+            <span class="text-outline">|</span>
+            <span>@_currentTime.ToString("dd/MM/yyyy")</span>
+        </div>
+    </div>
+
+    <!-- Middle Section: Language Switcher & KDS Status -->
+    <div class="flex items-center gap-6">
+        <!-- Language Switcher -->
+        <div class="flex items-center bg-surface-high border border-outline-variant rounded-full p-1 text-xs font-bold">
+            <button class="px-3 py-1 rounded-full transition-all cursor-pointer @(IsVietnamese ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                    @onclick='() => ChangeLanguage("vi-VN")'>
+                🇻🇳 VI
+            </button>
+            <button class="px-3 py-1 rounded-full transition-all cursor-pointer @(!IsVietnamese ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                    @onclick='() => ChangeLanguage("en-US")'>
+                🇬🇧 EN
+            </button>
+        </div>
+
+        <!-- Cashier Tools Button -->
+        <button class="px-3.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-800 dark:text-amber-200 border border-amber-500/40 text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                @onclick="() => _showCashierToolsModal = true">
+            <span class="material-symbols-outlined text-base">point_of_sale</span>
+            <span>CÔNG CỤ THU NGÂN</span>
+        </button>
+
+        <!-- KDS Connection Status -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold @(IsKdsConnected ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400")">
+            <span class="relative flex h-2.5 w-2.5">
+                @if (IsKdsConnected)
+                {
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                }
+                else
+                {
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                }
+            </span>
+            <span>@(IsKdsConnected ? (IsVietnamese ? "Bếp: Đã kết nối" : "KDS: Connected") : (IsVietnamese ? "Bếp: Mất kết nối" : "KDS: Offline"))</span>
+        </div>
+    </div>
+
+    <!-- Right Section: Notification Bell & User Profile -->
+    <div class="flex items-center gap-4">
+        <!-- Notification Bell -->
+        <div class="relative">
+            <button class="relative p-2.5 rounded-full hover:bg-surface-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+                    @onclick="ToggleNotificationDrawer">
+                <span class="material-symbols-outlined text-[22px]">notifications</span>
+                @if (UnreadCount > 0)
+                {
+                    <span class="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-error text-on-error text-[10px] font-bold rounded-full border-2 border-surface animate-bounce">
+                        @(UnreadCount > 9 ? "9+" : UnreadCount.ToString())
+                    </span>
+                }
+            </button>
+
+            <!-- Notification Drawer Dropdown -->
+            @if (_showNotificationDrawer)
+            {
+                <div class="absolute right-0 mt-2 w-80 sm:w-96 bg-surface border border-outline-variant rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-outline-variant bg-surface-high/50">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-[20px]">notifications_active</span>
+                            <span class="font-bold text-sm">@(IsVietnamese ? "Thông báo mới" : "Notifications")</span>
+                        </div>
+                        @if (Notifications.Any())
+                        {
+                            <button class="text-xs text-primary font-semibold hover:underline" @onclick="ClearNotifications">
+                                @(IsVietnamese ? "Xóa tất cả" : "Clear all")
+                            </button>
+                        }
+                    </div>
+                    <div class="max-h-80 overflow-y-auto divide-y divide-outline-variant/40">
+                        @if (!Notifications.Any())
+                        {
+                            <div class="p-8 text-center text-on-surface-variant text-xs font-medium flex flex-col items-center gap-2">
+                                <span class="material-symbols-outlined text-3xl opacity-40">notifications_off</span>
+                                <span>@(IsVietnamese ? "Không có thông báo mới nào" : "No new notifications")</span>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var notif in Notifications.Take(10))
+                            {
+                                <div class="p-3.5 hover:bg-surface-high transition-colors flex items-start gap-3">
+                                    <div class="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                                        <span class="material-symbols-outlined text-[18px]">@notif.Icon</span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs font-bold text-on-surface truncate">@notif.Title</p>
+                                        <p class="text-xs text-on-surface-variant line-clamp-2 mt-0.5">@notif.Message</p>
+                                        <span class="text-[10px] text-outline mt-1 block">@notif.Timestamp.ToString("HH:mm:ss")</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="h-6 w-[1px] bg-outline-variant/60"></div>
+
+        <!-- User Avatar & Profile -->
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
+                LT
+            </div>
+            <div class="hidden md:flex flex-col">
+                <span class="text-xs font-bold leading-tight">Lê Thị Thu</span>
+                <span class="text-[10px] text-on-surface-variant leading-tight font-medium">Thu ngân (POS)</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+@if (_showCashierToolsModal)
+{
+    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal IsOpen="_showCashierToolsModal" IsOpenChanged="val => _showCashierToolsModal = val" />
+}
+
+@code {
+    [Parameter] public Action? OnNotificationClick { get; set; }
+
+    private bool _showCashierToolsModal = false;
+
+    private DateTime _currentTime = DateTime.Now;
+    private System.Threading.Timer? _timer;
+    private HubConnection? _hubConnection;
+    
+    public bool IsKdsConnected => _hubConnection?.State == HubConnectionState.Connected;
+    public bool IsVietnamese => CultureInfo.CurrentCulture.Name.StartsWith("vi", StringComparison.OrdinalIgnoreCase);
+
+    public class PosNotificationItem
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Icon { get; set; } = "info";
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+    }
+
+    public static List<PosNotificationItem> GlobalNotifications { get; } = new()
+    {
+        new PosNotificationItem { Title = "Đơn mới QR", Message = "Bàn 03 vừa gửi đơn gọi món mới", Icon = "qr_code_2", Timestamp = DateTime.Now.AddMinutes(-2) },
+        new PosNotificationItem { Title = "Bếp hoàn tất", Message = "Món Pizza Hải Sản - Bàn 01 đã sẵn sàng", Icon = "soup_kitchen", Timestamp = DateTime.Now.AddMinutes(-5) }
+    };
+
+    public List<PosNotificationItem> Notifications => GlobalNotifications;
+    public int UnreadCount => Notifications.Count;
+
+    private bool _showNotificationDrawer = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _timer = new System.Threading.Timer(_ =>
+        {
+            _currentTime = DateTime.Now;
+            _ = InvokeAsync(StateHasChanged);
+        }, null, 0, 1000);
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<string, string>("NewQrOrderReceived", (tableId, tableName) =>
+        {
+            GlobalNotifications.Insert(0, new PosNotificationItem
+            {
+                Title = "Đơn mới QR",
+                Message = $"Bàn {tableName} vừa tạo order mới",
+                Icon = "qr_code_2",
+                Timestamp = DateTime.Now
+            });
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<int, int>("KitchenItemStatusChanged", (orderItemId, status) =>
+        {
+            if (status == 2)
+            {
+                GlobalNotifications.Insert(0, new PosNotificationItem
+                {
+                    Title = "Bếp hoàn thành món",
+                    Message = $"Món ăn #{orderItemId} đã chế biến xong!",
+                    Icon = "soup_kitchen",
+                    Timestamp = DateTime.Now
+                });
+                _ = InvokeAsync(StateHasChanged);
+            }
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch { }
+    }
+
+    private void ToggleNotificationDrawer()
+    {
+        _showNotificationDrawer = !_showNotificationDrawer;
+        OnNotificationClick?.Invoke();
+    }
+
+    private void ClearNotifications()
+    {
+        GlobalNotifications.Clear();
+        _showNotificationDrawer = false;
+    }
+
+    private void ChangeLanguage(string cultureCode)
+    {
+        var uri = new Uri(Navigation.Uri).PathAndQuery;
+        var cultureEscaped = Uri.EscapeDataString(cultureCode);
+        var uriEscaped = Uri.EscapeDataString(uri);
+        Navigation.NavigateTo($"/Culture/SetCulture?culture={cultureEscaped}&redirectUri={uriEscaped}", forceLoad: true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _timer?.Dispose();
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

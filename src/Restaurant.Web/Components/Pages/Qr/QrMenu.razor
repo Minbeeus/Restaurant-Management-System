@@ -57,7 +57,7 @@
             {
                 <button class="whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all @(ActiveCategoryId == cat.Id ? "bg-primary text-on-primary shadow-xs" : "bg-surface-low text-on-surface-variant")"
                         @onclick="() => ActiveCategoryId = cat.Id">
-                    @cat.Name
+                    @cat.DisplayName
                 </button>
             }
         </div>
@@ -72,8 +72,8 @@
                         <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/placeholder.png" : item.ImageUrl)" class="w-24 h-24 rounded-xl object-cover bg-surface-low shrink-0" />
                         <div class="flex-1 flex flex-col justify-between py-0.5">
                             <div>
-                                <h3 class="font-bold text-on-surface text-base leading-tight">@item.Name</h3>
-                                <p class="text-xs text-on-surface-variant mt-1 line-clamp-2">@item.Description</p>
+                                <h3 class="font-bold text-on-surface text-base leading-tight">@item.DisplayName</h3>
+                                <p class="text-xs text-on-surface-variant mt-1 line-clamp-2">@item.DisplayDescription</p>
                             </div>
                             <div class="flex justify-between items-end mt-2">
                                 <span class="font-bold text-primary text-base">@item.Price.ToString("N0")đ</span>

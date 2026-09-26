@@ -4,7 +4,11 @@ public class CategoryDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
+    public string? DisplayDescription => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(DescriptionEn)) ? DescriptionEn : Description;
     public string? ImageUrl { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
@@ -13,7 +17,9 @@ public class CategoryDto
 public class CreateCategoryRequest
 {
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
     public string? ImageUrl { get; set; }
     public int SortOrder { get; set; }
 }
@@ -28,6 +34,8 @@ public class ModifierOptionDto
     public int Id { get; set; }
     public int ModifierGroupId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
     public decimal ExtraPrice { get; set; }
     public bool IsDefault { get; set; }
     public int SortOrder { get; set; }
@@ -37,6 +45,7 @@ public class ModifierOptionDto
 public class CreateModifierOptionRequest
 {
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public decimal ExtraPrice { get; set; }
     public bool IsDefault { get; set; }
     public int SortOrder { get; set; }
@@ -51,6 +60,8 @@ public class ModifierGroupDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
     public bool IsRequired { get; set; }
     public int MinSelections { get; set; }
     public int MaxSelections { get; set; }
@@ -61,6 +72,7 @@ public class ModifierGroupDto
 public class CreateModifierGroupRequest
 {
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public bool IsRequired { get; set; }
     public int MinSelections { get; set; }
     public int MaxSelections { get; set; } = 1;
@@ -78,7 +90,11 @@ public class MenuItemDto
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
+    public string? DisplayDescription => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(DescriptionEn)) ? DescriptionEn : Description;
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
     public bool IsSoldOut { get; set; }
@@ -92,7 +108,9 @@ public class CreateMenuItemRequest
 {
     public int CategoryId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
     public bool IsCombo { get; set; }

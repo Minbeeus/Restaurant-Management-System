@@ -46,7 +46,14 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<ILoyaltyService, LoyaltyService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IApprovalService, ApprovalService>();
+builder.Services.AddScoped<ICashMovementService, CashMovementService>();
+builder.Services.AddScoped<IBillViewerService, BillViewerService>();
+builder.Services.AddScoped<IReconciliationService, ReconciliationService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IPosPolicyService, PosPolicyService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IRestaurantNotificationService, RestaurantNotificationService>();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Restaurant.Infrastructure.Services.InventoryService).Assembly));
 builder.Services.AddHostedService<KitchenSlaMonitoringWorker>();
@@ -103,9 +110,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseCors("AllowAll");
 
 var supportedCultures = new[] { "vi", "en" };
 var localizationOptions = new RequestLocalizationOptions()
@@ -131,9 +150,14 @@ app.MapHub<RestaurantHub>("/hubs/restaurant");
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (dbContext.Database.CanConnect())
+    try
     {
+        await dbContext.Database.EnsureCreatedAsync();
         await DbInitializer.SeedAsync(dbContext);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"DB Initializer Exception: {ex.Message}");
     }
 }
 

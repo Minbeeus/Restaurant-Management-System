@@ -13,8 +13,23 @@ public class ConfigurationConfigurations :
     IEntityTypeConfiguration<SepayWebhookLog>,
     IEntityTypeConfiguration<Customer>,
     IEntityTypeConfiguration<Payment>,
-    IEntityTypeConfiguration<VoidLog>
+    IEntityTypeConfiguration<Refund>,
+    IEntityTypeConfiguration<VoidLog>,
+    IEntityTypeConfiguration<ApprovalRequest>,
+    IEntityTypeConfiguration<CashMovement>,
+    IEntityTypeConfiguration<AuditLogEntry>,
+    IEntityTypeConfiguration<PaymentReconciliation>,
+    IEntityTypeConfiguration<Register>
 {
+    public void Configure(EntityTypeBuilder<Register> builder)
+    {
+        builder.HasIndex(r => r.Code).IsUnique();
+        builder.HasMany(r => r.Shifts)
+            .WithOne(s => s.Register)
+            .HasForeignKey(s => s.RegisterId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
     public void Configure(EntityTypeBuilder<User> builder)
     {
         builder.HasIndex(u => u.Username).IsUnique();
@@ -39,9 +54,24 @@ public class ConfigurationConfigurations :
 
     public void Configure(EntityTypeBuilder<Payment> builder)
     {
+        builder.HasIndex(p => p.IdempotencyKey).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
+
         builder.HasOne(p => p.Shift)
             .WithMany()
             .HasForeignKey(p => p.ShiftId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public void Configure(EntityTypeBuilder<Refund> builder)
+    {
+        builder.HasOne(r => r.Order)
+            .WithMany()
+            .HasForeignKey(r => r.OrderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(r => r.RefundedByUser)
+            .WithMany()
+            .HasForeignKey(r => r.RefundedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 
@@ -55,6 +85,65 @@ public class ConfigurationConfigurations :
         builder.HasOne(vl => vl.OrderItem)
             .WithMany()
             .HasForeignKey(vl => vl.OrderItemId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public void Configure(EntityTypeBuilder<ApprovalRequest> builder)
+    {
+        builder.Property(a => a.RowVersion).IsRowVersion();
+
+        builder.HasOne(a => a.RequestedByUser)
+            .WithMany()
+            .HasForeignKey(a => a.RequestedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(a => a.ApprovedByUser)
+            .WithMany()
+            .HasForeignKey(a => a.ApprovedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(a => a.RejectedByUser)
+            .WithMany()
+            .HasForeignKey(a => a.RejectedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public void Configure(EntityTypeBuilder<CashMovement> builder)
+    {
+        builder.HasOne(cm => cm.Shift)
+            .WithMany()
+            .HasForeignKey(cm => cm.ShiftId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(cm => cm.CreatedByUser)
+            .WithMany()
+            .HasForeignKey(cm => cm.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(cm => cm.ApprovalRequest)
+            .WithMany()
+            .HasForeignKey(cm => cm.ApprovalRequestId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public void Configure(EntityTypeBuilder<AuditLogEntry> builder)
+    {
+        builder.HasOne(al => al.User)
+            .WithMany()
+            .HasForeignKey(al => al.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public void Configure(EntityTypeBuilder<PaymentReconciliation> builder)
+    {
+        builder.HasOne(pr => pr.Shift)
+            .WithMany()
+            .HasForeignKey(pr => pr.ShiftId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(pr => pr.ReconciledByUser)
+            .WithMany()
+            .HasForeignKey(pr => pr.ReconciledByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 

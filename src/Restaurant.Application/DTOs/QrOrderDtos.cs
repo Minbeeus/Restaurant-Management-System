@@ -4,7 +4,11 @@ public class PublicCategoryDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
+    public string? DisplayDescription => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(DescriptionEn)) ? DescriptionEn : Description;
     public string? ImageUrl { get; set; }
     public int SortOrder { get; set; }
     public List<PublicMenuItemDto> MenuItems { get; set; } = new();
@@ -16,7 +20,11 @@ public class PublicMenuItemDto
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
+    public string? DisplayDescription => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(DescriptionEn)) ? DescriptionEn : Description;
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
     public bool IsSoldOut { get; set; }
@@ -42,6 +50,8 @@ public class CartItemValidateRequest
 {
     public int MenuItemId { get; set; }
     public int Quantity { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal? CustomUnitPrice { get; set; }
     public List<int> SelectedModifiers { get; set; } = new();
     public List<int> SelectedComboItems { get; set; } = new();
     public string? Note { get; set; }

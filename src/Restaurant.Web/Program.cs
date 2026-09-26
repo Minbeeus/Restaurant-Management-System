@@ -38,6 +38,7 @@ builder.Services.AddCascadingAuthenticationState();
 
 // HttpClients
 builder.Services.AddHttpClient("Api", client => client.BaseAddress = new Uri("http://localhost:5011/"));
+builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));
 builder.Services.AddHttpClient<IAuthApiClient, AuthApiClient>(client => client.BaseAddress = new Uri("http://localhost:5011/"));
 
 builder.Services.AddScoped<DashboardApiClient>();

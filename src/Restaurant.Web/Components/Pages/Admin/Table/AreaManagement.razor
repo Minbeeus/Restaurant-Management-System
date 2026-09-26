@@ -6,9 +6,9 @@
 @inject TableApiClient ApiClient
 
 <div class="flex justify-between items-center mb-6">
-    <h2 class="text-2xl font-headline-sm text-primary">Quản lý Khu vực (Areas)</h2>
+    <h2 class="text-2xl font-headline-sm text-primary">@L["Area_Management_Title"]</h2>
     <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors" @onclick="OpenAddModal">
-        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> Thêm Khu vực
+        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> @L["Area_Add_Button"]
     </button>
 </div>
 
@@ -24,45 +24,51 @@ else
         <table class="w-full text-left border-collapse">
             <thead class="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-bold">
                 <tr>
-                    <th class="p-4 font-semibold text-center w-16">ID</th>
-                    <th class="p-4 font-semibold">Tên Khu vực</th>
-                    <th class="p-4 font-semibold text-center w-32">Số lượng Bàn</th>
-                    <th class="p-4 font-semibold text-center w-24">Sắp xếp</th>
-                    <th class="p-4 font-semibold text-center w-32">Trạng thái</th>
-                    <th class="p-4 font-semibold text-center w-32">Hành động</th>
+                    <th class="p-4 font-semibold text-center w-16">@L["Area_Header_ID"]</th>
+                    <th class="p-4 font-semibold">@L["Area_Header_Name"]</th>
+                    <th class="p-4 font-semibold text-center w-32">@L["Area_Header_TableCount"]</th>
+                    <th class="p-4 font-semibold text-center w-24">@L["Area_Header_Sort"]</th>
+                    <th class="p-4 font-semibold text-center w-32">@L["Area_Header_Status"]</th>
+                    <th class="p-4 font-semibold text-center w-32">@L["Area_Header_Actions"]</th>
                 </tr>
             </thead>
             <tbody>
                 @if (!_areas.Any())
                 {
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-on-surface-variant">Chưa có khu vực nào.</td>
+                        <td colspan="6" class="p-8 text-center text-on-surface-variant">@L["Area_No_Data"]</td>
                     </tr>
                 }
                 @foreach (var area in _areas)
                 {
                     <tr class="border-b border-outline-variant/20 last:border-0 hover:bg-surface-low/50 transition-colors">
                         <td class="p-4 text-center text-on-surface-variant">#@area.Id</td>
-                        <td class="p-4 font-label-bold text-on-background text-base">@area.Name</td>
+                        <td class="p-4 font-label-bold text-on-background text-base">
+                            <div>@area.DisplayName</div>
+                            @if (!string.IsNullOrEmpty(area.NameEn) && System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName != "en")
+                            {
+                                <div class="text-xs text-on-surface-variant/70 italic">EN: @area.NameEn</div>
+                            }
+                        </td>
                         <td class="p-4 text-center">
-                            <span class="px-2 py-1 bg-surface-container rounded text-sm font-bold text-primary">@area.TableCount Bàn</span>
+                            <span class="px-2 py-1 bg-surface-container rounded text-sm font-bold text-primary">@area.TableCount @L["Area_Tables_Unit"]</span>
                         </td>
                         <td class="p-4 text-center">@area.SortOrder</td>
                         <td class="p-4 text-center">
                             @if (area.IsActive)
                             {
-                                <span class="px-2 py-1 bg-success-green/10 text-success-green rounded text-xs font-bold border border-success-green/20">Hoạt động</span>
+                                <span class="px-2 py-1 bg-success-green/10 text-success-green rounded text-xs font-bold border border-success-green/20">@L["Category_Active"]</span>
                             }
                             else
                             {
-                                <span class="px-2 py-1 bg-on-surface-variant/10 text-on-surface-variant rounded text-xs font-bold border border-on-surface-variant/20">Tạm ẩn</span>
+                                <span class="px-2 py-1 bg-on-surface-variant/10 text-on-surface-variant rounded text-xs font-bold border border-on-surface-variant/20">@L["Category_Inactive"]</span>
                             }
                         </td>
                         <td class="p-4 text-center space-x-1">
-                            <button class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Sửa" @onclick="() => OpenEditModal(area)">
+                            <button class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="@L["Common_Edit"]" @onclick="() => OpenEditModal(area)">
                                 <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
                             </button>
-                            <button class="text-error hover:bg-error-container p-2 rounded-full transition-colors" title="Xóa" @onclick="() => ConfirmDelete(area)">
+                            <button class="text-error hover:bg-error-container p-2 rounded-full transition-colors" title="@L["Common_Delete"]" @onclick="() => ConfirmDelete(area)">
                                 <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
                             </button>
                         </td>
@@ -79,7 +85,7 @@ else
     <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-md flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
-                <h3 class="font-headline-sm text-on-background m-0">@(_isEditing ? "Cập nhật Khu vực" : "Thêm Khu vực mới")</h3>
+                <h3 class="font-headline-sm text-on-background m-0">@(_isEditing ? L["Area_Modal_Update"] : L["Area_Modal_Create"])</h3>
                 <button class="text-on-surface-variant hover:text-error transition-colors" @onclick="CloseModal">
                     <span class="material-symbols-outlined" data-icon="close">close</span>
                 </button>
@@ -90,13 +96,18 @@ else
                     <DataAnnotationsValidator />
                     
                     <div class="mb-4">
-                        <label class="block text-sm font-label-bold text-on-surface mb-1">Tên Khu vực (VD: Tầng 1, Sân Vườn) <span class="text-error">*</span></label>
-                        <InputText @bind-Value="_model.Name" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" placeholder="Tên khu vực" />
+                        <label class="block text-sm font-label-bold text-on-surface mb-1">@L["Area_Name_Label"] <span class="text-error">*</span></label>
+                        <InputText @bind-Value="_model.Name" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" placeholder="@L["Area_Name_Placeholder"]" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-label-bold text-on-surface mb-1">Tên Tiếng Anh (English Name)</label>
+                        <InputText @bind-Value="_model.NameEn" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" placeholder="e.g. 1st Floor Main Hall" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div>
-                            <label class="block text-sm font-label-bold text-on-surface mb-1">Thứ tự hiển thị</label>
+                            <label class="block text-sm font-label-bold text-on-surface mb-1">@L["Category_SortOrder_Label"]</label>
                             <InputNumber @bind-Value="_model.SortOrder" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" />
                         </div>
                         @if (_isEditing)
@@ -104,7 +115,7 @@ else
                             <div class="flex items-center pt-6">
                                 <label class="flex items-center cursor-pointer">
                                     <InputCheckbox @bind-Value="_model.IsActive" class="w-4 h-4 text-primary bg-surface-container border-outline rounded focus:ring-primary focus:ring-2" />
-                                    <span class="ml-2 text-sm text-on-surface font-bold">Đang hoạt động</span>
+                                    <span class="ml-2 text-sm text-on-surface font-bold">@L["Category_IsActive_Label"]</span>
                                 </label>
                             </div>
                         }
@@ -118,16 +129,16 @@ else
                     }
 
                     <div class="flex justify-end gap-3 pt-4 border-t border-outline-variant/30">
-                        <button type="button" class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded transition-colors font-label-bold" @onclick="CloseModal">Hủy</button>
+                        <button type="button" class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded transition-colors font-label-bold" @onclick="CloseModal">@L["Common_Cancel"]</button>
                         <button type="submit" class="px-4 py-2 bg-primary text-on-primary rounded shadow-sm hover:bg-primary/90 transition-colors font-label-bold flex items-center" disabled="@_isSaving">
                             @if (_isSaving)
                             {
                                 <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
-                                <span>Đang lưu...</span>
+                                <span>@L["Common_Saving"]</span>
                             }
                             else
                             {
-                                <span>Lưu thay đổi</span>
+                                <span>@L["Common_Save_Changes"]</span>
                             }
                         </button>
                     </div>
@@ -146,8 +157,8 @@ else
                 <div class="w-16 h-16 rounded-full bg-error-container text-error mx-auto flex items-center justify-center mb-4">
                     <span class="material-symbols-outlined text-3xl" data-icon="warning">warning</span>
                 </div>
-                <h3 class="text-xl font-bold text-on-background mb-2">Xác nhận xóa?</h3>
-                <p class="text-on-surface-variant text-sm mb-6">Bạn có chắc chắn muốn xóa khu vực <strong>@_areaToDelete?.Name</strong> không? Hành động này không thể hoàn tác.</p>
+                <h3 class="text-xl font-bold text-on-background mb-2">@L["Category_Delete_Confirm_Title"]</h3>
+                <p class="text-on-surface-variant text-sm mb-6">@string.Format(L["Area_Delete_Confirm"], _areaToDelete?.Name)</p>
                 
                 @if (!string.IsNullOrEmpty(_deleteErrorMessage))
                 {
@@ -157,13 +168,13 @@ else
                 }
 
                 <div class="flex justify-center gap-3">
-                    <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">Hủy</button>
+                    <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">@L["Common_Cancel"]</button>
                     <button class="px-4 py-2 bg-error text-white rounded hover:bg-error/90 transition-colors font-label-bold flex-1 flex items-center justify-center gap-2" @onclick="ExecuteDelete" disabled="@_isDeleting">
                         @if (_isDeleting)
                         {
                             <span class="material-symbols-outlined animate-spin text-sm" data-icon="progress_activity">progress_activity</span>
                         }
-                        Xóa ngay
+                        @L["Category_Delete_Now_Btn"]
                     </button>
                 </div>
             </div>
@@ -237,6 +248,7 @@ else
         _model = new AreaFormModel
         {
             Name = area.Name,
+            NameEn = area.NameEn,
             SortOrder = area.SortOrder,
             IsActive = area.IsActive
         };
@@ -267,6 +279,7 @@ else
                 var request = new UpdateAreaRequest
                 {
                     Name = _model.Name,
+                    NameEn = _model.NameEn,
                     SortOrder = _model.SortOrder,
                     IsActive = _model.IsActive
                 };
@@ -277,6 +290,7 @@ else
                 var request = new CreateAreaRequest
                 {
                     Name = _model.Name,
+                    NameEn = _model.NameEn,
                     SortOrder = _model.SortOrder
                 };
                 await ApiClient.CreateAreaAsync(request);
@@ -330,6 +344,7 @@ else
     public class AreaFormModel
     {
         public string Name { get; set; } = string.Empty;
+        public string? NameEn { get; set; }
         public int SortOrder { get; set; }
         public bool IsActive { get; set; } = true;
     }

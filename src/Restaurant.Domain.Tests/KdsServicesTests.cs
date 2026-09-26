@@ -52,7 +52,7 @@ public class KdsServicesTests
             OrderCode = "ORD-001",
             ShiftId = 1,
             CreatedByUserId = 1,
-            Status = (int)OrderStatus.Confirmed,
+            Status = (int)OrderStatus.InPreparation,
             Table = table
         };
         var item1 = new OrderItem
@@ -112,7 +112,7 @@ public class KdsServicesTests
             OrderCode = "ORD-SLA",
             ShiftId = 1,
             CreatedByUserId = 1,
-            Status = (int)OrderStatus.Confirmed,
+            Status = (int)OrderStatus.InPreparation,
             CreatedAt = DateTime.UtcNow.AddMinutes(-20) // Created 20 mins ago
         };
         var item = new OrderItem

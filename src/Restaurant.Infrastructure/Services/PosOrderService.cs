@@ -36,7 +36,7 @@ public class PosOrderService : IPosOrderService
 
         var activeOrders = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.TableId != null && o.Status != (int)OrderStatus.Paid && o.Status != (int)OrderStatus.Cancelled)
+            .Where(o => o.TableId != null && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
             .ToListAsync();
 
         var result = new List<TableStatusOverviewDto>();
@@ -55,7 +55,12 @@ public class PosOrderService : IPosOrderService
                 CurrentOrderId = activeOrd?.Id,
                 CurrentOrderCode = activeOrd?.OrderCode,
                 TotalAmount = activeOrd?.TotalAmount ?? 0,
-                OrderCreatedAt = activeOrd?.CreatedAt
+                OrderCreatedAt = activeOrd?.CreatedAt,
+                PositionX = t.PositionX,
+                PositionY = t.PositionY,
+                Width = t.Width,
+                Height = t.Height,
+                Shape = t.Shape
             });
         }
 
@@ -75,7 +80,7 @@ public class PosOrderService : IPosOrderService
 
             if (order == null || order.Status == (int)OrderStatus.Cancelled) return false;
 
-            order.Status = (int)OrderStatus.Confirmed;
+            order.Status = (int)OrderStatus.InPreparation;
             if (!string.IsNullOrWhiteSpace(note))
             {
                 order.Note = string.IsNullOrEmpty(order.Note) ? note : $"{order.Note} | {note}";
@@ -146,7 +151,7 @@ public class PosOrderService : IPosOrderService
             }
 
             var activeOrder = await _context.Orders
-                .FirstOrDefaultAsync(o => o.TableId == request.SourceTableId && o.Status != (int)OrderStatus.Paid && o.Status != (int)OrderStatus.Cancelled);
+                .FirstOrDefaultAsync(o => o.TableId == request.SourceTableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled);
 
             if (activeOrder != null)
             {
@@ -185,7 +190,7 @@ public class PosOrderService : IPosOrderService
 
             var targetOrder = await _context.Orders
                 .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.TableId == request.TargetTableId && o.Status != (int)OrderStatus.Paid && o.Status != (int)OrderStatus.Cancelled);
+                .FirstOrDefaultAsync(o => o.TableId == request.TargetTableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled);
 
             if (targetOrder == null)
             {
@@ -200,7 +205,7 @@ public class PosOrderService : IPosOrderService
                     TableId = request.TargetTableId,
                     ShiftId = activeShift?.Id ?? 1,
                     CreatedByUserId = activeShift?.UserId ?? 1,
-                    Status = (int)OrderStatus.Confirmed,
+                    Status = (int)OrderStatus.InPreparation,
                     SubTotal = 0,
                     DiscountAmount = 0,
                     TotalAmount = 0,
@@ -214,7 +219,7 @@ public class PosOrderService : IPosOrderService
             // Batch Query Source Orders & Tables in a single SQL query each
             var sourceOrders = await _context.Orders
                 .Include(o => o.OrderItems)
-                .Where(o => request.SourceTableIds.Contains(o.TableId ?? 0) && o.TableId != request.TargetTableId && o.Status != (int)OrderStatus.Paid && o.Status != (int)OrderStatus.Cancelled)
+                .Where(o => request.SourceTableIds.Contains(o.TableId ?? 0) && o.TableId != request.TargetTableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
                 .ToListAsync();
 
             var sourceTables = await _context.Tables
@@ -275,22 +280,31 @@ public class PosOrderService : IPosOrderService
 
     public async Task<SubmitPosOrderResponse> SubmitPosOrderAsync(SubmitPosOrderRequest request)
     {
+        if (request.Items == null || !request.Items.Any() || request.Items.All(i => i.Quantity <= 0))
+        {
+            throw new InvalidOperationException("Giỏ hàng đang trống hoặc số lượng món không hợp lệ.");
+        }
+
         using var dbTransaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            var table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == request.TableId);
-            if (table == null)
+            Table? table = null;
+            if (request.TableId.HasValue && request.TableId.Value > 0)
             {
-                throw new InvalidOperationException("Bàn không tồn tại.");
-            }
-            if (table.Status == (int)TableStatus.Billing)
-            {
-                throw new InvalidOperationException(_localizer["TABLE_IS_BILLING"]);
+                table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == request.TableId.Value);
+                if (table != null && table.Status == (int)TableStatus.Billing)
+                {
+                    throw new InvalidOperationException(_localizer["TABLE_IS_BILLING"]);
+                }
             }
 
-            var activeOrder = await _context.Orders
-                .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.TableId == request.TableId && (o.Status == (int)OrderStatus.Draft || o.Status == (int)OrderStatus.Confirmed || o.Status == (int)OrderStatus.Completed));
+            Order? activeOrder = null;
+            if (table != null)
+            {
+                activeOrder = await _context.Orders
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.TableId == table.Id && (o.Status == (int)OrderStatus.Draft || o.Status == (int)OrderStatus.Pending || o.Status == (int)OrderStatus.InPreparation || o.Status == (int)OrderStatus.Ready));
+            }
 
             Order targetOrder;
             if (activeOrder != null)
@@ -304,14 +318,15 @@ public class PosOrderService : IPosOrderService
                 var shiftId = activeShift?.Id ?? 1;
                 var createdUserId = activeShift?.UserId ?? 1;
 
+                var isTakeaway = table == null;
                 targetOrder = new Order
                 {
-                    OrderCode = $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{request.TableId}",
-                    OrderType = 0,
-                    TableId = request.TableId,
+                    OrderCode = isTakeaway ? $"#TAK-{DateTime.UtcNow.Ticks % 100000}" : $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{request.TableId}",
+                    OrderType = isTakeaway ? (int)OrderType.Pickup : (int)OrderType.DineIn,
+                    TableId = table?.Id,
                     ShiftId = shiftId,
                     CreatedByUserId = createdUserId,
-                    Status = (int)OrderStatus.Confirmed,
+                    Status = isTakeaway ? (int)OrderStatus.Pending : (int)OrderStatus.InPreparation,
                     SubTotal = 0,
                     DiscountAmount = 0,
                     TotalAmount = 0,
@@ -323,17 +338,18 @@ public class PosOrderService : IPosOrderService
                 await _context.SaveChangesAsync();
             }
 
-            decimal addedAmount = 0;
+            decimal addedSubTotal = 0;
+            decimal addedDiscount = 0;
             var newItemsForKitchen = new List<OrderItem>();
             
             foreach (var itemReq in request.Items)
             {
+                if (itemReq.Quantity <= 0) continue;
+
                 var menuItem = await _context.MenuItems.FirstOrDefaultAsync(m => m.Id == itemReq.MenuItemId);
                 if (menuItem == null) continue;
                 
-                // For simplicity in POS submission, we assume frontend validated prices
-                // In production, backend should re-validate prices. We will fetch price from DB
-                decimal unitPrice = menuItem.Price;
+                decimal baseUnitPrice = menuItem.Price;
                 var selectedOptions = new List<ModifierOption>();
                 
                 if (itemReq.SelectedModifiers != null && itemReq.SelectedModifiers.Any())
@@ -342,15 +358,29 @@ public class PosOrderService : IPosOrderService
                         .Where(o => itemReq.SelectedModifiers.Contains(o.Id))
                         .ToListAsync();
                         
-                    unitPrice += selectedOptions.Sum(o => o.ExtraPrice);
+                    baseUnitPrice += selectedOptions.Sum(o => o.ExtraPrice);
                 }
+
+                // Backend pricing validation: Item discount calculation
+                decimal itemDiscount = 0;
+                if (itemReq.DiscountAmount > 0)
+                {
+                    itemDiscount = Math.Min(baseUnitPrice, Math.Max(0, itemReq.DiscountAmount));
+                }
+                else if (itemReq.CustomUnitPrice.HasValue && itemReq.CustomUnitPrice.Value < baseUnitPrice)
+                {
+                    itemDiscount = Math.Max(0, baseUnitPrice - itemReq.CustomUnitPrice.Value);
+                }
+
+                decimal finalUnitPrice = Math.Max(0, baseUnitPrice - itemDiscount);
 
                 var orderItem = new OrderItem
                 {
                     OrderId = targetOrder.Id,
                     MenuItemId = menuItem.Id,
                     MenuItemName = menuItem.Name,
-                    UnitPrice = unitPrice,
+                    UnitPrice = finalUnitPrice,
+                    DiscountAmount = itemDiscount * itemReq.Quantity,
                     Quantity = itemReq.Quantity,
                     Note = itemReq.Note,
                     KitchenStatus = (int)KitchenStatus.Pending,
@@ -379,16 +409,15 @@ public class PosOrderService : IPosOrderService
                     await _context.SaveChangesAsync();
                 }
 
-                addedAmount += (unitPrice * itemReq.Quantity);
+                addedSubTotal += (baseUnitPrice * itemReq.Quantity);
+                addedDiscount += (itemDiscount * itemReq.Quantity);
             }
 
-            targetOrder.SubTotal += addedAmount;
-            targetOrder.TotalAmount += addedAmount;
+            targetOrder.SubTotal += addedSubTotal;
+            targetOrder.DiscountAmount += addedDiscount;
+            targetOrder.TotalAmount = Math.Max(0, targetOrder.SubTotal - targetOrder.DiscountAmount);
             
-            // Mark Order as Confirmed when submitting from POS
-            targetOrder.Status = (int)OrderStatus.Confirmed;
-            
-            if (table.Status == (int)TableStatus.Available || table.Status == (int)TableStatus.NewOrder)
+            if (table != null && (table.Status == (int)TableStatus.Available || table.Status == (int)TableStatus.NewOrder))
             {
                 table.Status = (int)TableStatus.Occupied;
                 await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Occupied");
@@ -405,7 +434,7 @@ public class PosOrderService : IPosOrderService
                     OrderId = targetOrder.Id,
                     OrderCode = targetOrder.OrderCode,
                     TableId = targetOrder.TableId,
-                    TableName = table.Name,
+                    TableName = table?.Name ?? "Mang đi",
                     CreatedAt = DateTime.UtcNow,
                     Items = newItemsForKitchen.Select(oi => new KitchenItemDto
                     {
@@ -458,5 +487,87 @@ public class PosOrderService : IPosOrderService
         }
 
         return true;
+    }
+
+    public async Task<List<TakeawayOrderDto>> GetTakeawayOrdersAsync()
+    {
+        var orders = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Customer)
+            .Include(o => o.CreatedByUser)
+            .Include(o => o.Payments)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.OrderItemModifiers)
+            .Where(o => o.OrderType == (int)OrderType.Pickup || o.TableId == null)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+
+        return orders.Select(MapToTakeawayDto).ToList();
+    }
+
+    public async Task<TakeawayOrderDto?> GetTakeawayOrderByIdAsync(int orderId)
+    {
+        var order = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Customer)
+            .Include(o => o.CreatedByUser)
+            .Include(o => o.Payments)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.OrderItemModifiers)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+
+        return order == null ? null : MapToTakeawayDto(order);
+    }
+
+    private static TakeawayOrderDto MapToTakeawayDto(Order o)
+    {
+        var isPaid = o.PaymentStatus == (int)PaymentStatus.Paid || o.Payments.Any(p => p.Status == (int)PaymentStatus.Paid);
+        var mainStatusName = o.Status switch
+        {
+            (int)OrderStatus.Draft => "Chờ xác nhận",
+            (int)OrderStatus.Pending => "Chờ xử lý",
+            (int)OrderStatus.InPreparation => "Đang chuẩn bị",
+            (int)OrderStatus.Ready => "Sẵn sàng giao",
+            (int)OrderStatus.Completed => "Hoàn thành",
+            (int)OrderStatus.Cancelled => "Đã huỷ",
+            _ => "Chờ xử lý"
+        };
+
+        var channel = "Thu ngân";
+        if (o.Note != null && o.Note.Contains("QR"))
+        {
+            channel = "QR";
+        }
+        else if (o.CreatedByUser != null && !string.IsNullOrEmpty(o.CreatedByUser.FullName))
+        {
+            channel = o.CreatedByUser.FullName;
+        }
+
+        return new TakeawayOrderDto
+        {
+            OrderId = o.Id,
+            OrderCode = string.IsNullOrEmpty(o.OrderCode) ? $"#TAK-{o.Id}" : o.OrderCode,
+            CustomerName = o.Customer?.FullName ?? "Khách mang về",
+            CustomerPhone = o.Customer?.PhoneNumber ?? string.Empty,
+            CreatedAt = o.CreatedAt,
+            SubTotal = o.SubTotal,
+            DiscountAmount = o.DiscountAmount,
+            TotalAmount = o.TotalAmount,
+            OrderChannel = channel,
+            IsQrOrder = channel == "QR",
+            Status = o.Status,
+            MainStatusName = mainStatusName,
+            IsPaid = isPaid,
+            Items = o.OrderItems.Select(oi => new TakeawayOrderItemDto
+            {
+                OrderItemId = oi.Id,
+                MenuItemId = oi.MenuItemId,
+                MenuItemName = oi.MenuItemName,
+                Quantity = oi.Quantity,
+                UnitPrice = oi.UnitPrice,
+                Note = oi.Note,
+                Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList()
+            }).ToList()
+        };
     }
 }

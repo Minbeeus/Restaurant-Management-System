@@ -26,9 +26,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<OrderItemModifier> OrderItemModifiers => Set<OrderItemModifier>();
     public DbSet<VoidLog> VoidLogs => Set<VoidLog>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<SepayWebhookLog> SepayWebhookLogs => Set<SepayWebhookLog>();
+    public DbSet<Register> Registers => Set<Register>();
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<Voucher> Vouchers => Set<Voucher>();
+    public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+    public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+    public DbSet<PaymentReconciliation> PaymentReconciliations => Set<PaymentReconciliation>();
 
     public DbSet<CustomerTier> CustomerTiers => Set<CustomerTier>();
     public DbSet<Customer> Customers => Set<Customer>();

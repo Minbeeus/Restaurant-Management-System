@@ -1,0 +1,566 @@
+@page "/pos/tables"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.PosLayout
+@using Restaurant.Web.Components.Layout
+@using Restaurant.Web.Components.UI.Cards
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Components.Pages.Pos.Components
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@implements IAsyncDisposable
+
+<div class="flex flex-col h-full bg-background overflow-hidden">
+    <!-- Top Nav Bar -->
+    <PosHeader />
+
+    <!-- Main Workspace: 90% / 10% Layout -->
+    <div class="flex flex-1 overflow-hidden bg-surface-low p-4 gap-4">
+        
+        <!-- Left Section (~90% width): Areas & Table Floorplan Canvas / Grid -->
+        <main class="w-full lg:w-[90%] flex flex-col bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm overflow-hidden">
+            <!-- Area Tabs & View Switcher -->
+            <div class="flex items-center justify-between gap-2 overflow-x-auto pb-3 mb-4 border-b border-outline-variant shrink-0">
+                <div class="flex items-center gap-2 overflow-x-auto">
+                    <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mr-2 shrink-0 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-base">map</span>
+                        Khu Vực:
+                    </span>
+                    <button class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedAreaId == 0 ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
+                            @onclick="() => SelectArea(0)">
+                        Tất Cả Bàn (@Tables.Count)
+                    </button>
+                    @foreach (var area in Areas)
+                    {
+                        var count = Tables.Count(t => t.AreaId == area.Id);
+                        <button class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedAreaId == area.Id ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
+                                @onclick="() => SelectArea(area.Id)">
+                            @area.DisplayName (@count)
+                        </button>
+                    }
+                </div>
+
+                <!-- Canvas vs Grid Switcher -->
+                <div class="flex items-center bg-surface-high p-1 border border-outline-variant rounded-xl text-xs font-bold shrink-0">
+                    <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Canvas" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                            @onclick='() => ViewMode = "Canvas"'>
+                        <span class="material-symbols-outlined text-[16px]">dashboard</span>
+                        <span>Sơ Đồ Canvas</span>
+                    </button>
+                    <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Grid" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                            @onclick='() => ViewMode = "Grid"'>
+                        <span class="material-symbols-outlined text-[16px]">grid_view</span>
+                        <span>Dạng Lưới</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 overflow-auto relative">
+                @if (IsLoading)
+                {
+                    <div class="flex items-center justify-center h-full gap-3 text-on-surface-variant">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <span class="font-medium text-sm">Đang tải sơ đồ bàn...</span>
+                    </div>
+                }
+                else if (!FilteredTables.Any())
+                {
+                    <div class="flex flex-col items-center justify-center h-full text-on-surface-variant py-12">
+                        <span class="material-symbols-outlined text-4xl mb-2 opacity-40">table_restaurant</span>
+                        <p class="text-sm font-medium">Không tìm thấy bàn nào trong khu vực này.</p>
+                    </div>
+                }
+                else if (ViewMode == "Canvas")
+                {
+                    <!-- 2D Interactive Canvas Floorplan matching Admin -->
+                    <div class="w-full h-full min-h-[520px] bg-surface-high/30 border border-outline-variant/40 rounded-2xl relative overflow-auto p-4 select-none"
+                         @onclick="DeselectTable">
+                        @foreach (var table in FilteredTables)
+                        {
+                            var isSelected = SelectedTable?.TableId == table.TableId;
+                            var shapeClass = table.Shape == 0 ? "rounded-full" : "rounded-2xl";
+                            var statusClass = GetStatusBadgeClass(table.Status);
+
+                            <div class="absolute select-none flex flex-col items-center justify-center cursor-pointer transition-all duration-150 transform hover:scale-105 shadow-md p-2 text-center border-2 @shapeClass @statusClass @(isSelected ? "ring-4 ring-primary ring-offset-2 z-20" : "z-10")"
+                                 style="left: 0; top: 0; transform: translate(@(table.PositionX > 0 ? table.PositionX : 20)px, @(table.PositionY > 0 ? table.PositionY : 20)px); width: @(table.Width > 0 ? table.Width : 100)px; height: @(table.Height > 0 ? table.Height : 90)px;"
+                                 @onclick="() => SelectTableCard(table)"
+                                 @onclick:stopPropagation="true"
+                                 @ondblclick="() => OpenTableOrder(table)">
+                                
+                                <span class="font-extrabold text-xs leading-tight truncate max-w-full">@table.TableName</span>
+                                <span class="text-[10px] font-semibold opacity-80 mt-0.5">👤 @table.Capacity người</span>
+                                
+                                @if (table.TotalAmount > 0)
+                                {
+                                    <span class="text-[11px] font-black text-primary bg-surface/90 px-1.5 py-0.5 rounded-md mt-1 border border-primary/20 shadow-xs">
+                                        @table.TotalAmount.ToString("N0")đ
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <!-- Grid View Mode -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pr-1"
+                         @onclick="DeselectTable">
+                        @foreach (var table in FilteredTables)
+                        {
+                            var isSelected = SelectedTable?.TableId == table.TableId;
+                            <div class="relative cursor-pointer transition-all duration-150 transform hover:-translate-y-0.5 @(isSelected ? "ring-2 ring-primary ring-offset-2 rounded-2xl" : "")"
+                                 @onclick="() => SelectTableCard(table)"
+                                 @onclick:stopPropagation="true">
+                                <TableCard 
+                                    TableName="@table.TableName" 
+                                    Capacity="@table.Capacity" 
+                                    Status="@table.StatusName" 
+                                    TotalAmount="@table.TotalAmount" 
+                                    OnClick="() => OpenTableOrder(table)" />
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </main>
+
+        <!-- Right Section (~10% width): Action Buttons & Back Button -->
+        <aside class="w-full lg:w-[10%] min-w-[120px] bg-surface rounded-2xl border border-outline-variant p-3 shadow-sm flex flex-col justify-between shrink-0">
+            <!-- Top Action Buttons -->
+            <div class="flex flex-col gap-3">
+                <button class="flex flex-col items-center justify-center p-3 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+                        disabled="@(SelectedTable?.CurrentOrderId == null)"
+                        @onclick="PrintPreBillAsync">
+                    <span class="material-symbols-outlined text-2xl text-primary group-hover:text-on-primary mb-1">print</span>
+                    <span class="text-xs font-bold">In Hóa Đơn</span>
+                </button>
+
+                <button class="flex flex-col items-center justify-center p-3 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-emerald-700 dark:text-emerald-400 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+                        disabled="@(SelectedTable?.CurrentOrderId == null)"
+                        @onclick="OpenPaymentModal">
+                    <span class="material-symbols-outlined text-2xl text-emerald-600 group-hover:text-white mb-1">payments</span>
+                    <span class="text-xs font-bold">Thanh Toán</span>
+                </button>
+
+                <button class="flex flex-col items-center justify-center p-2.5 bg-blue-500/10 hover:bg-blue-600 hover:text-white border border-blue-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-blue-700 dark:text-blue-400 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+                        disabled="@(SelectedTable?.CurrentOrderId == null)"
+                        @onclick="OpenMoveModal">
+                    <span class="material-symbols-outlined text-xl text-blue-600 group-hover:text-white mb-1">move_up</span>
+                    <span class="text-xs font-bold">Chuyển Bàn</span>
+                </button>
+
+                <button class="flex flex-col items-center justify-center p-2.5 bg-amber-500/10 hover:bg-amber-600 hover:text-white border border-amber-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-amber-800 dark:text-amber-300 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+                        disabled="@(SelectedTable?.CurrentOrderId == null)"
+                        @onclick="OpenMergeModal">
+                    <span class="material-symbols-outlined text-xl text-amber-600 group-hover:text-white mb-1">merge</span>
+                    <span class="text-xs font-bold">Gộp Bàn</span>
+                </button>
+
+                @if (SelectedTable != null)
+                {
+                    <button class="flex flex-col items-center justify-center p-2 bg-surface-high hover:bg-outline-variant/30 text-on-surface border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs mt-1"
+                            @onclick="DeselectTable">
+                        <span class="material-symbols-outlined text-lg mb-0.5">deselect</span>
+                        <span class="text-[11px] font-bold">Bỏ Chọn Bàn</span>
+                    </button>
+
+                    <button class="flex flex-col items-center justify-center p-3 bg-primary text-on-primary hover:bg-primary/90 rounded-xl transition-all cursor-pointer text-center group shadow-xs mt-1"
+                            @onclick="() => OpenTableOrder(SelectedTable)">
+                        <span class="material-symbols-outlined text-2xl mb-1">restaurant_menu</span>
+                        <span class="text-xs font-bold">Đặt Món (@SelectedTable.TableName)</span>
+                    </button>
+                }
+            </div>
+
+            <!-- Bottom Back Button -->
+            <div class="pt-3 border-t border-outline-variant">
+                <button class="w-full flex flex-col items-center justify-center p-3 bg-surface-high hover:bg-error hover:text-on-error border border-outline-variant rounded-xl transition-all cursor-pointer text-center group"
+                        @onclick='() => Navigation.NavigateTo("/pos")'>
+                    <span class="material-symbols-outlined text-2xl text-on-surface-variant group-hover:text-on-error mb-1">arrow_back</span>
+                    <span class="text-xs font-bold">Quay Lại</span>
+                </button>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- POS Payment Modal -->
+@if (ShowPaymentModalState && SelectedTable != null)
+{
+    <PosPaymentModal 
+        OrderId="@(SelectedTable.CurrentOrderId ?? 0)" 
+        TableId="@SelectedTable.TableId" 
+        TableName="@SelectedTable.TableName" 
+        OrderCode="@(SelectedTable.CurrentOrderCode ?? "N/A")" 
+        TotalAmount="@SelectedTable.TotalAmount" 
+        OnClose="() => ShowPaymentModalState = false" 
+        OnPaymentSuccess="HandlePaymentCompleted" />
+}
+
+<!-- Move Table Modal -->
+@if (ShowMoveModalState && SelectedTable != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-outline-variant p-6">
+            <h3 class="text-lg font-bold text-on-surface mb-2 flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-600">move_up</span>
+                Chuyển Bàn (@SelectedTable.TableName)
+            </h3>
+            <p class="text-xs text-on-surface-variant mb-4">Chọn bàn trống cần chuyển đơn hàng tới:</p>
+
+            <div class="max-h-60 overflow-y-auto space-y-2 mb-6 pr-1">
+                @foreach (var availableTable in Tables.Where(t => t.Status == 0 && t.TableId != SelectedTable.TableId))
+                {
+                    <div class="p-3 border rounded-xl cursor-pointer transition-all flex justify-between items-center @(TargetMoveTableId == availableTable.TableId ? "border-primary bg-primary/10 font-bold" : "border-outline-variant hover:bg-surface-high")"
+                         @onclick="() => TargetMoveTableId = availableTable.TableId">
+                        <span class="text-sm">@availableTable.TableName (@availableTable.AreaName)</span>
+                        <span class="text-xs opacity-70">👤 @availableTable.Capacity chỗ</span>
+                    </div>
+                }
+                @if (!Tables.Any(t => t.Status == 0 && t.TableId != SelectedTable.TableId))
+                {
+                    <p class="text-xs text-error text-center py-4">Không có bàn trống nào khả dụng để chuyển.</p>
+                }
+            </div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+                <button class="px-4 py-2 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high"
+                        @onclick="() => ShowMoveModalState = false">
+                    Hủy
+                </button>
+                <button class="px-5 py-2 text-xs font-bold bg-primary text-on-primary rounded-xl hover:bg-primary/90 disabled:opacity-50"
+                        disabled="@(TargetMoveTableId == 0)"
+                        @onclick="ConfirmMoveTableAsync">
+                    Xác Nhận Chuyển
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Merge Table Modal -->
+@if (ShowMergeModalState && SelectedTable != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-outline-variant p-6">
+            <h3 class="text-lg font-bold text-on-surface mb-2 flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-600">merge</span>
+                Gộp Bàn Vào (@SelectedTable.TableName)
+            </h3>
+            <p class="text-xs text-on-surface-variant mb-4">Chọn các bàn đang có khách cần gộp vào bàn @SelectedTable.TableName:</p>
+
+            <div class="max-h-60 overflow-y-auto space-y-2 mb-6 pr-1">
+                @foreach (var occupiedTable in Tables.Where(t => t.Status != 0 && t.TableId != SelectedTable.TableId))
+                {
+                    var isChecked = SelectedSourceMergeTableIds.Contains(occupiedTable.TableId);
+                    <div class="p-3 border rounded-xl cursor-pointer transition-all flex justify-between items-center @(isChecked ? "border-amber-500 bg-amber-500/10 font-bold" : "border-outline-variant hover:bg-surface-high")"
+                         @onclick="() => ToggleSourceMergeTable(occupiedTable.TableId)">
+                        <span class="text-sm">@occupiedTable.TableName (@occupiedTable.AreaName)</span>
+                        <span class="text-xs font-bold text-primary">@occupiedTable.TotalAmount.ToString("N0")đ</span>
+                    </div>
+                }
+                @if (!Tables.Any(t => t.Status != 0 && t.TableId != SelectedTable.TableId))
+                {
+                    <p class="text-xs text-error text-center py-4">Không có bàn đang có khách khác để gộp.</p>
+                }
+            </div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+                <button class="px-4 py-2 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high"
+                        @onclick="() => ShowMergeModalState = false">
+                    Hủy
+                </button>
+                <button class="px-5 py-2 text-xs font-bold bg-amber-600 text-white rounded-xl hover:bg-amber-700 disabled:opacity-50"
+                        disabled="@(!SelectedSourceMergeTableIds.Any())"
+                        @onclick="PromptMergeConfirmation">
+                    Tiếp Tục
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- POS-010: Merge Table Confirmation Modal -->
+@if (ShowMergeConfirmModalState && SelectedTable != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-amber-500/40 p-6">
+            <div class="flex items-center gap-3 text-amber-600 mb-3">
+                <span class="material-symbols-outlined text-3xl">warning</span>
+                <h3 class="text-lg font-black text-on-surface m-0">Xác Nhận Gộp Bàn</h3>
+            </div>
+            
+            <p class="text-sm text-on-surface mb-4">
+                Bạn có chắc chắn muốn gộp <strong>@SelectedSourceMergeTableIds.Count bàn</strong> đã chọn vào <strong>@SelectedTable.TableName</strong>?
+            </p>
+
+            <div class="bg-surface-high p-4 rounded-xl border border-outline-variant mb-6 space-y-2 text-xs">
+                <div class="flex justify-between font-bold text-on-surface pb-2 border-b border-outline-variant">
+                    <span>Bàn đích:</span>
+                    <span class="text-primary font-black">@SelectedTable.TableName (@SelectedTable.AreaName)</span>
+                </div>
+
+                <div class="font-bold text-on-surface-variant pt-1">Danh sách bàn nguồn sẽ gộp:</div>
+                <div class="space-y-1 pl-2">
+                    @foreach (var srcId in SelectedSourceMergeTableIds)
+                    {
+                        var srcTbl = Tables.FirstOrDefault(t => t.TableId == srcId);
+                        if (srcTbl != null)
+                        {
+                            <div class="flex justify-between text-on-surface">
+                                <span>• @srcTbl.TableName (@srcTbl.AreaName)</span>
+                                <span class="font-bold text-primary">@srcTbl.TotalAmount.ToString("N0")đ</span>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="flex justify-between font-black text-sm text-on-surface pt-2 border-t border-outline-variant mt-2">
+                    <span>Tổng tiền sau khi gộp:</span>
+                    <span class="text-emerald-600">
+                        @((SelectedTable.TotalAmount + Tables.Where(t => SelectedSourceMergeTableIds.Contains(t.TableId)).Sum(t => t.TotalAmount)).ToString("N0"))đ
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button class="px-5 py-2.5 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high cursor-pointer"
+                        @onclick="() => ShowMergeConfirmModalState = false">
+                    Hủy Bỏ
+                </button>
+                <button class="px-6 py-2.5 text-xs font-black bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                        @onclick="ConfirmMergeTablesAsync">
+                    <span class="material-symbols-outlined text-base">check_circle</span>
+                    Xác Nhận Gộp Bàn Ngay
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    protected List<AreaDto> Areas { get; set; } = new();
+    protected List<TableStatusOverviewDto> Tables { get; set; } = new();
+    protected int SelectedAreaId { get; set; } = 0;
+    protected TableStatusOverviewDto? SelectedTable { get; set; }
+    protected bool IsLoading { get; set; } = true;
+    protected bool ShowPaymentModalState { get; set; } = false;
+    protected bool ShowMoveModalState { get; set; } = false;
+    protected bool ShowMergeModalState { get; set; } = false;
+    protected int TargetMoveTableId { get; set; } = 0;
+    protected List<int> SelectedSourceMergeTableIds { get; set; } = new();
+    protected string ViewMode { get; set; } = "Canvas"; // Default to 2D Floorplan Canvas
+
+    private HubConnection? _hubConnection;
+
+    protected List<TableStatusOverviewDto> FilteredTables =>
+        SelectedAreaId == 0 ? Tables : Tables.Where(t => t.AreaId == SelectedAreaId).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<string, string>("TableStatusChanged", (tableId, status) =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadTablesAsync();
+                StateHasChanged();
+            });
+        });
+
+        try { await _hubConnection.StartAsync(); } catch { }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            var areasTask = Http.GetFromJsonAsync<List<AreaDto>>("api/v1/areas");
+            var tablesRespTask = Http.GetAsync("api/v1/pos/tables/overview");
+
+            await Task.WhenAll(areasTask, tablesRespTask);
+
+            Areas = await areasTask ?? new List<AreaDto>();
+            var tablesResp = await tablesRespTask;
+            if (tablesResp.IsSuccessStatusCode)
+            {
+                var tablesResult = await tablesResp.Content.ReadFromJsonAsync<ApiResponseWrapper<List<TableStatusOverviewDto>>>();
+                Tables = tablesResult?.Data ?? new List<TableStatusOverviewDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading tables data: {ex.Message}");
+        }
+        finally { IsLoading = false; }
+    }
+
+    private async Task LoadTablesAsync()
+    {
+        try
+        {
+            var tablesResp = await Http.GetAsync("api/v1/pos/tables/overview");
+            if (tablesResp.IsSuccessStatusCode)
+            {
+                var tablesResult = await tablesResp.Content.ReadFromJsonAsync<ApiResponseWrapper<List<TableStatusOverviewDto>>>();
+                Tables = tablesResult?.Data ?? new List<TableStatusOverviewDto>();
+                if (SelectedTable != null)
+                {
+                    SelectedTable = Tables.FirstOrDefault(t => t.TableId == SelectedTable.TableId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading tables: {ex.Message}");
+        }
+    }
+
+    private void SelectArea(int areaId) => SelectedAreaId = areaId;
+
+    private void SelectTableCard(TableStatusOverviewDto table)
+    {
+        SelectedTable = table;
+    }
+
+    private void OpenTableOrder(TableStatusOverviewDto table)
+    {
+        Navigation.NavigateTo($"/pos/order?tableId={table.TableId}");
+    }
+
+    private async Task PrintPreBillAsync()
+    {
+        if (SelectedTable == null || SelectedTable.CurrentOrderId == null) return;
+        try
+        {
+            var response = await Http.PostAsync($"api/v1/pos/orders/{SelectedTable.CurrentOrderId.Value}/print-temp-bill", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadTablesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error printing pre-bill: {ex.Message}");
+        }
+    }
+
+    private void OpenPaymentModal()
+    {
+        if (SelectedTable == null || SelectedTable.CurrentOrderId == null) return;
+        ShowPaymentModalState = true;
+    }
+
+    private void OpenMoveModal()
+    {
+        if (SelectedTable == null || SelectedTable.CurrentOrderId == null) return;
+        TargetMoveTableId = 0;
+        ShowMoveModalState = true;
+    }
+
+    private async Task ConfirmMoveTableAsync()
+    {
+        if (SelectedTable == null || TargetMoveTableId == 0) return;
+        try
+        {
+            var req = new MoveTableRequest { SourceTableId = SelectedTable.TableId, TargetTableId = TargetMoveTableId };
+            var res = await Http.PostAsJsonAsync("api/v1/pos/tables/move", req);
+            if (res.IsSuccessStatusCode)
+            {
+                ShowMoveModalState = false;
+                await LoadTablesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error moving table: {ex.Message}");
+        }
+    }
+
+    private void OpenMergeModal()
+    {
+        if (SelectedTable == null) return;
+        SelectedSourceMergeTableIds.Clear();
+        ShowMergeModalState = true;
+    }
+
+    private void ToggleSourceMergeTable(int tableId)
+    {
+        if (SelectedSourceMergeTableIds.Contains(tableId))
+            SelectedSourceMergeTableIds.Remove(tableId);
+        else
+            SelectedSourceMergeTableIds.Add(tableId);
+    }
+
+    protected bool ShowMergeConfirmModalState { get; set; } = false;
+
+    private void DeselectTable()
+    {
+        SelectedTable = null;
+    }
+
+    private void PromptMergeConfirmation()
+    {
+        if (SelectedTable == null || !SelectedSourceMergeTableIds.Any()) return;
+        ShowMergeModalState = false;
+        ShowMergeConfirmModalState = true;
+    }
+
+    private async Task ConfirmMergeTablesAsync()
+    {
+        if (SelectedTable == null || !SelectedSourceMergeTableIds.Any()) return;
+        try
+        {
+            var req = new MergeTableRequest { SourceTableIds = SelectedSourceMergeTableIds, TargetTableId = SelectedTable.TableId };
+            var res = await Http.PostAsJsonAsync("api/v1/pos/tables/merge", req);
+            if (res.IsSuccessStatusCode)
+            {
+                ShowMergeModalState = false;
+                ShowMergeConfirmModalState = false;
+                await LoadTablesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error merging tables: {ex.Message}");
+        }
+    }
+
+    private async Task HandlePaymentCompleted()
+    {
+        ShowPaymentModalState = false;
+        await LoadTablesAsync();
+    }
+
+    private string GetStatusBadgeClass(int status) => status switch
+    {
+        1 => "bg-amber-500/15 border-amber-500 text-amber-900 dark:text-amber-200", // Occupied
+        2 => "bg-purple-500/15 border-purple-500 text-purple-900 dark:text-purple-200", // NewOrder
+        3 => "bg-rose-500/15 border-rose-500 text-rose-900 dark:text-rose-200", // Billing
+        _ => "bg-emerald-500/10 border-emerald-500/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20" // Available
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+        public object? Error { get; set; }
+    }
+}

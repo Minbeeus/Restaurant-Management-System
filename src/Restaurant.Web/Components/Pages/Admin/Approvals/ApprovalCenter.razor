@@ -1,0 +1,193 @@
+@page "/admin/approvals"
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@inject HttpClient Http
+
+<div class="p-6 space-y-6 bg-background min-h-screen text-on-surface">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-4">
+        <div>
+            <h1 class="text-2xl font-black text-primary tracking-wide flex items-center gap-2 m-0">
+                <span class="material-symbols-outlined text-3xl">verified_user</span>
+                TRUNG TÂM PHÊ DUYỆT (APPROVAL CENTER)
+            </h1>
+            <p class="text-xs text-on-surface-variant mt-1">Phê duyệt hoặc từ chối các yêu cầu có rủi ro tài chính từ Thu ngân (Refund, Void, Till Out, Đóng ca chênh lệch)</p>
+        </div>
+
+        <button class="px-4 py-2 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                @onclick="LoadRequestsAsync">
+            <span class="material-symbols-outlined text-base">refresh</span>
+            <span>Tải Lại</span>
+        </button>
+    </div>
+
+    <!-- Status Tabs -->
+    <div class="flex border-b border-outline-variant gap-3 bg-surface p-1 rounded-2xl border">
+        <button class="px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 @(ActiveFilter == "Pending" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                @onclick='() => SetFilter("Pending")'>
+            <span class="material-symbols-outlined text-base">pending_actions</span>
+            <span>Chờ Phê Duyệt (@PendingRequests.Count)</span>
+        </button>
+        <button class="px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 @(ActiveFilter == "History" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                @onclick='() => SetFilter("History")'>
+            <span class="material-symbols-outlined text-base">history</span>
+            <span>Lịch Sử Phê Duyệt</span>
+        </button>
+    </div>
+
+    <!-- Main Content List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        @if (IsLoading)
+        {
+            <div class="col-span-full text-center py-12 text-on-surface-variant">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <span>Đang tải danh sách yêu cầu...</span>
+            </div>
+        }
+        else if (!DisplayedRequests.Any())
+        {
+            <div class="col-span-full text-center py-16 text-on-surface-variant bg-surface rounded-2xl border border-outline-variant">
+                <span class="material-symbols-outlined text-4xl mb-2 opacity-40">task_alt</span>
+                <p class="font-bold text-sm">Không có yêu cầu phê duyệt nào.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var req in DisplayedRequests)
+            {
+                <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+                    <div>
+                        <!-- Header badge -->
+                        <div class="flex justify-between items-start pb-2 border-b border-outline-variant">
+                            <div>
+                                <span class="text-xs font-black text-primary uppercase tracking-wider block">#@req.Id - @req.TypeName</span>
+                                <span class="text-[11px] text-on-surface-variant">Yêu cầu lúc @req.RequestedAt.ToString("HH:mm dd/MM")</span>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black @GetStatusBadge(req.Status)">
+                                @req.StatusName
+                            </span>
+                        </div>
+
+                        <!-- Amount & Info -->
+                        <div class="mt-3 space-y-1.5 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-on-surface-variant font-medium">Số tiền:</span>
+                                <span class="font-black text-base text-emerald-600">@req.Amount.ToString("N0") đ</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-on-surface-variant font-medium">Người yêu cầu:</span>
+                                <span class="font-bold text-on-surface">@req.RequestedByUserName</span>
+                            </div>
+                            <div class="pt-1">
+                                <span class="text-on-surface-variant font-medium">Lý do:</span>
+                                <p class="font-semibold text-on-surface bg-surface-high p-2 rounded-lg mt-1 text-[11px]">@req.Reason</p>
+                            </div>
+                            @if (!string.IsNullOrEmpty(req.Note))
+                            {
+                                <div class="text-[11px] text-on-surface-variant italic">Ghi chú: @req.Note</div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    @if (req.Status == 0) // Pending
+                    {
+                        <div class="flex gap-2 pt-3 border-t border-outline-variant">
+                            <button class="flex-1 py-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white text-rose-700 font-bold text-xs rounded-xl border border-rose-500/30 transition-all cursor-pointer"
+                                    @onclick="() => RejectAsync(req.Id)">
+                                Từ Chối
+                            </button>
+                            <button class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1"
+                                    @onclick="() => ApproveAsync(req.Id)">
+                                <span class="material-symbols-outlined text-sm">check</span>
+                                Phê Duyệt
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-[11px] text-on-surface-variant pt-2 border-t border-outline-variant flex justify-between">
+                            <span>Người xử lý: <strong>@(req.ApprovedByUserName ?? req.RejectedByUserName ?? "N/A")</strong></span>
+                            <span>@(req.ApprovedAt?.ToString("HH:mm dd/MM") ?? req.RejectedAt?.ToString("HH:mm dd/MM"))</span>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    protected string ActiveFilter { get; set; } = "Pending";
+    protected List<ApprovalRequestDto> PendingRequests { get; set; } = new();
+    protected List<ApprovalRequestDto> HistoryRequests { get; set; } = new();
+    protected bool IsLoading { get; set; } = true;
+
+    protected List<ApprovalRequestDto> DisplayedRequests => ActiveFilter == "Pending" ? PendingRequests : HistoryRequests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequestsAsync();
+    }
+
+    private async Task LoadRequestsAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            var pendingTask = Http.GetFromJsonAsync<ApiResponseWrapper<List<ApprovalRequestDto>>>("api/v1/approvals/pending");
+            var historyTask = Http.GetFromJsonAsync<ApiResponseWrapper<List<ApprovalRequestDto>>>("api/v1/approvals/history");
+
+            await Task.WhenAll(pendingTask, historyTask);
+
+            PendingRequests = (await pendingTask)?.Data ?? new List<ApprovalRequestDto>();
+            HistoryRequests = (await historyTask)?.Data ?? new List<ApprovalRequestDto>();
+        }
+        catch { }
+        finally { IsLoading = false; }
+    }
+
+    private void SetFilter(string filter) => ActiveFilter = filter;
+
+    private async Task ApproveAsync(int requestId)
+    {
+        try
+        {
+            var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = "Đã duyệt bởi Quản lý" };
+            var res = await Http.PostAsJsonAsync($"api/v1/approvals/{requestId}/approve", req);
+            if (res.IsSuccessStatusCode)
+            {
+                await LoadRequestsAsync();
+            }
+        }
+        catch { }
+    }
+
+    private async Task RejectAsync(int requestId)
+    {
+        try
+        {
+            var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = "Từ chối bởi Quản lý" };
+            var res = await Http.PostAsJsonAsync($"api/v1/approvals/{requestId}/reject", req);
+            if (res.IsSuccessStatusCode)
+            {
+                await LoadRequestsAsync();
+            }
+        }
+        catch { }
+    }
+
+    private string GetStatusBadge(int status) => status switch
+    {
+        0 => "bg-amber-500/15 text-amber-800 border border-amber-500/30",
+        1 => "bg-emerald-500/15 text-emerald-800 border border-emerald-500/30",
+        2 => "bg-rose-500/15 text-rose-800 border border-rose-500/30",
+        _ => "bg-gray-500/15 text-gray-800"
+    };
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+    }
+}

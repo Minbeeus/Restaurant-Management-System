@@ -65,7 +65,9 @@ public class MenuItemService : IMenuItemService
         {
             CategoryId = request.CategoryId,
             Name = request.Name.Trim(),
+            NameEn = request.NameEn?.Trim(),
             Description = request.Description,
+            DescriptionEn = request.DescriptionEn,
             Price = request.Price,
             ImageUrl = request.ImageUrl,
             IsCombo = request.IsCombo,
@@ -103,7 +105,9 @@ public class MenuItemService : IMenuItemService
 
         menuItem.CategoryId = request.CategoryId;
         menuItem.Name = request.Name.Trim();
+        menuItem.NameEn = request.NameEn?.Trim();
         menuItem.Description = request.Description;
+        menuItem.DescriptionEn = request.DescriptionEn;
         menuItem.Price = request.Price;
         menuItem.ImageUrl = request.ImageUrl;
         menuItem.IsCombo = request.IsCombo;
@@ -155,7 +159,9 @@ public class MenuItemService : IMenuItemService
             CategoryId = mi.CategoryId,
             CategoryName = mi.Category?.Name ?? string.Empty,
             Name = mi.Name,
+            NameEn = mi.NameEn,
             Description = mi.Description,
+            DescriptionEn = mi.DescriptionEn,
             Price = mi.Price,
             ImageUrl = mi.ImageUrl,
             IsSoldOut = mi.IsSoldOut,
@@ -166,6 +172,7 @@ public class MenuItemService : IMenuItemService
             {
                 Id = mmg.ModifierGroup.Id,
                 Name = mmg.ModifierGroup.Name,
+                NameEn = mmg.ModifierGroup.NameEn,
                 IsRequired = mmg.ModifierGroup.IsRequired,
                 MinSelections = mmg.ModifierGroup.MinSelections,
                 MaxSelections = mmg.ModifierGroup.MaxSelections,
@@ -175,6 +182,7 @@ public class MenuItemService : IMenuItemService
                     Id = o.Id,
                     ModifierGroupId = o.ModifierGroupId,
                     Name = o.Name,
+                    NameEn = o.NameEn,
                     ExtraPrice = o.ExtraPrice,
                     IsDefault = o.IsDefault,
                     SortOrder = o.SortOrder,

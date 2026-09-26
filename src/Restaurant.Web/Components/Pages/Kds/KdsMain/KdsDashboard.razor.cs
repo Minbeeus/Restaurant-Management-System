@@ -49,7 +49,7 @@ public partial class KdsDashboard : IAsyncDisposable
 
         // Hub Connection setup for Chefs
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/hubs/restaurant"))
+            .WithUrl("http://localhost:5011/hubs/restaurant")
             .WithAutomaticReconnect()
             .Build();
 

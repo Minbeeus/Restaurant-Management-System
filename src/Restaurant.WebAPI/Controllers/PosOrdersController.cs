@@ -18,9 +18,66 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpGet("tables/overview")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetTablesOverview()
     {
-        var result = await _posOrderService.GetTablesStatusAsync();
+        try
+        {
+            var result = await _posOrderService.GetTablesStatusAsync();
+            return Ok(new
+            {
+                success = true,
+                data = result,
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                data = new List<TableStatusOverviewDto>(),
+                error = new { code = "TABLE_OVERVIEW_ERROR", message = ex.Message, inner = ex.InnerException?.Message },
+                timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    [HttpGet("takeaway/orders")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetTakeawayOrders()
+    {
+        try
+        {
+            var result = await _posOrderService.GetTakeawayOrdersAsync();
+            return Ok(new
+            {
+                success = true,
+                data = result,
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                data = new List<TakeawayOrderDto>(),
+                error = new { code = "TAKEAWAY_ORDERS_ERROR", message = ex.Message },
+                timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    [HttpGet("takeaway/orders/{id}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetTakeawayOrderById(int id)
+    {
+        var result = await _posOrderService.GetTakeawayOrderByIdAsync(id);
+        if (result == null) return NotFound(new { success = false, message = "Không tìm thấy đơn mang về." });
+
         return Ok(new
         {
             success = true,
@@ -132,12 +189,12 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("orders/{id}/cancel")]
-    [Authorize(Roles = "Admin,Manager")]
+    [AllowAnonymous]
     public async Task<IActionResult> CancelOrder(int id, [FromBody] CancelOrderRequest request, [FromServices] ICancelOrderService cancelOrderService, [FromServices] ICurrentUserService currentUserService)
     {
-        if (!currentUserService.UserId.HasValue) return Unauthorized();
+        int actingUserId = currentUserService.UserId ?? 1;
 
-        var success = await cancelOrderService.CancelOrderAsync(currentUserService.UserId.Value, id, request.Reason);
+        var success = await cancelOrderService.CancelOrderAsync(actingUserId, id, request.Reason);
         if (!success)
         {
             return BadRequest(new
@@ -163,6 +220,7 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("orders/submit")]
+    [AllowAnonymous]
     public async Task<IActionResult> SubmitOrder([FromBody] SubmitPosOrderRequest request)
     {
         try

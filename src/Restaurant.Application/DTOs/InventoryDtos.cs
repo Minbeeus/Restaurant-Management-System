@@ -6,6 +6,8 @@ public class MaterialDto
     public int UnitOfMeasureId { get; set; }
     public string UnitName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
     public decimal CurrentStock { get; set; }
     public decimal MinStockLevel { get; set; }
     public decimal CostPerUnit { get; set; }
@@ -17,6 +19,7 @@ public class CreateMaterialRequest
 {
     public int UnitOfMeasureId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public decimal MinStockLevel { get; set; }
     public decimal CostPerUnit { get; set; }
 }

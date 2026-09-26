@@ -4,6 +4,8 @@ public class AreaDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
+    public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
     public int TableCount { get; set; }
@@ -12,6 +14,7 @@ public class AreaDto
 public class CreateAreaRequest
 {
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public int SortOrder { get; set; }
 }
 

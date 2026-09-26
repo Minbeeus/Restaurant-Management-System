@@ -1,139 +1,185 @@
 @page "/pos"
 @rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.PosLayout
-@using Restaurant.Web.Components.UI.Cards
-@using Restaurant.Web.Components.UI.Buttons
+@using Restaurant.Web.Components.Layout
 @using Restaurant.Application.DTOs
-@using Microsoft.AspNetCore.SignalR.Client
-@implements IAsyncDisposable
 
-<div class="flex flex-col h-full bg-background">
-    <!-- Header -->
-    <header class="h-16 flex items-center justify-between px-6 bg-surface border-b border-outline-variant shrink-0 shadow-sm">
-        <div class="flex flex-col justify-center">
-            <h1 class="font-headline-sm text-headline-sm font-bold text-primary m-0 leading-tight">Thu Ngân (POS)</h1>
-            <span class="text-xs text-on-surface-variant leading-tight">Quản lý Bàn & Đơn Hàng</span>
-        </div>
-        <div class="flex items-center gap-3">
-            <button class="px-3 py-2 text-on-surface border border-outline-variant hover:bg-surface-high rounded-lg transition-colors font-label-bold flex items-center gap-1 text-sm"
-                    @onclick="OpenMoveModal">
-                <span class="material-symbols-outlined text-[18px]">swap_horiz</span>
-                Chuyển Bàn
-            </button>
-            <button class="px-3 py-2 text-on-surface border border-outline-variant hover:bg-surface-high rounded-lg transition-colors font-label-bold flex items-center gap-1 text-sm"
-                    @onclick="OpenMergeModal">
-                <span class="material-symbols-outlined text-[18px]">call_merge</span>
-                Gộp Bàn
-            </button>
-            <button class="px-3 py-2 text-primary hover:bg-primary/10 rounded-lg transition-colors font-label-bold flex items-center gap-1 text-sm"
-                    @onclick='() => Navigation.NavigateTo("/admin/orders")'>
-                <span class="material-symbols-outlined text-[18px]">history</span>
-                Lịch Sử Đơn
-            </button>
-            <button class="px-4 py-2 bg-primary text-on-primary hover:bg-primary-container rounded-lg transition-colors font-label-bold flex items-center gap-2 text-sm shadow-sm"
-                    @onclick="CreateTakeawayOrder">
-                <span class="material-symbols-outlined text-[18px]">takeout_dining</span>
-                Tạo Đơn Mang Về
-            </button>
-        </div>
-    </header>
+<div class="flex flex-col h-full bg-background overflow-hidden">
+    <!-- Top Nav Bar -->
+    <PosHeader />
 
-    <!-- Main Workspace -->
-    <div class="flex flex-1 overflow-hidden">
-        <!-- Sidebar Areas -->
-        <aside class="w-[240px] bg-surface border-r border-outline-variant p-4 flex flex-col gap-2 shrink-0 overflow-y-auto">
-            <h3 class="font-label-bold text-xs text-on-surface-variant mb-2 px-2 uppercase tracking-wider font-bold">Khu Vực</h3>
-            <button class="text-left px-4 py-3 rounded-xl font-bold transition-all text-sm cursor-pointer @(SelectedAreaId == 0 ? "bg-primary text-on-primary shadow-sm" : "text-on-surface hover:bg-surface-high")"
-                    @onclick="() => SelectArea(0)">
-                Tất Cả Bàn (@Tables.Count)
-            </button>
-            @foreach (var area in Areas)
-            {
-                var tableCountInArea = Tables.Count(t => t.AreaId == area.Id);
-                <button class="text-left px-4 py-3 rounded-xl font-bold transition-all text-sm cursor-pointer @(SelectedAreaId == area.Id ? "bg-primary text-on-primary shadow-sm" : "text-on-surface hover:bg-surface-high")"
-                        @onclick="() => SelectArea(area.Id)">
-                    @area.Name (@tableCountInArea)
+    <!-- Main Workspace: 70% / 30% Layout -->
+    <div class="flex flex-1 overflow-hidden p-6 gap-6 bg-surface-low">
+        
+        <!-- Left Section (~70% width) -->
+        <section class="w-full lg:w-[70%] flex flex-col justify-between bg-surface rounded-2xl border border-outline-variant p-8 shadow-sm relative overflow-hidden">
+            <div>
+                <!-- Welcome Title -->
+                <div class="mb-8 border-b border-outline-variant/60 pb-6">
+                    <h1 class="text-2xl font-extrabold text-primary flex items-center gap-3">
+                        <span class="material-symbols-outlined text-3xl">storefront</span>
+                        Màn Hình Chức Năng Thu Ngân (POS)
+                    </h1>
+                    <p class="text-sm text-on-surface-variant mt-1">
+                        Chọn tác vụ làm việc bên dưới hoặc truy cập nhanh sơ đồ bàn để phục vụ khách hàng.
+                    </p>
+                </div>
+
+                <!-- 3 Primary Action Buttons/Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Button 1: Bàn (Floor Map) -->
+                    <button class="group flex flex-col items-center justify-center p-8 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-2xl shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer transform hover:-translate-y-1 text-center"
+                            @onclick='() => Navigation.NavigateTo("/pos/tables")'>
+                        <div class="w-16 h-16 rounded-2xl bg-primary/10 group-hover:bg-on-primary/20 flex items-center justify-center text-primary group-hover:text-on-primary mb-4 transition-colors">
+                            <span class="material-symbols-outlined text-3xl">table_restaurant</span>
+                        </div>
+                        <h2 class="text-lg font-bold group-hover:text-on-primary">Sơ Đồ Bàn</h2>
+                        <span class="text-xs text-on-surface-variant group-hover:text-on-primary/80 mt-1 font-medium">Quản lý bàn & Phục vụ tại chỗ</span>
+                    </button>
+
+                    <!-- Button 2: Mang đi (Takeaway) -->
+                    <button class="group flex flex-col items-center justify-center p-8 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-2xl shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer transform hover:-translate-y-1 text-center"
+                            @onclick='() => Navigation.NavigateTo("/pos/takeaway")'>
+                        <div class="w-16 h-16 rounded-2xl bg-primary/10 group-hover:bg-on-primary/20 flex items-center justify-center text-primary group-hover:text-on-primary mb-4 transition-colors">
+                            <span class="material-symbols-outlined text-3xl">takeout_dining</span>
+                        </div>
+                        <h2 class="text-lg font-bold group-hover:text-on-primary">Đơn Mang Về</h2>
+                        <span class="text-xs text-on-surface-variant group-hover:text-on-primary/80 mt-1 font-medium">Quản lý & tạo order mang đi</span>
+                    </button>
+
+                    <!-- Button 3: Công cụ thu ngân (Cashier Tools) -->
+                    <button class="group flex flex-col items-center justify-center p-8 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-2xl shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer transform hover:-translate-y-1 text-center"
+                            @onclick="OpenCashierToolsModal">
+                        <div class="w-16 h-16 rounded-2xl bg-primary/10 group-hover:bg-on-primary/20 flex items-center justify-center text-primary group-hover:text-on-primary mb-4 transition-colors">
+                            <span class="material-symbols-outlined text-3xl">point_of_sale</span>
+                        </div>
+                        <h2 class="text-lg font-bold group-hover:text-on-primary">Công Cụ Thu Ngân</h2>
+                        <span class="text-xs text-on-surface-variant group-hover:text-on-primary/80 mt-1 font-medium">Quản lý ca, két tiền & doanh thu</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom-Right Logout Button inside 70% Area -->
+            <div class="flex justify-end pt-6 border-t border-outline-variant/60 mt-8">
+                <button class="px-6 py-3 bg-error/10 hover:bg-error text-error hover:text-on-error border border-error/30 rounded-xl font-bold text-sm flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-xs"
+                        @onclick="HandleLogout">
+                    <span class="material-symbols-outlined text-[20px]">logout</span>
+                    Đăng Xuất Thu Ngân
                 </button>
-            }
-        </aside>
+            </div>
+        </section>
 
-        <!-- Table Grid -->
-        <main class="flex-1 overflow-y-auto p-6 bg-surface-low">
-            @if (IsLoading)
-            {
-                <div class="flex items-center justify-center h-full gap-3 text-on-surface-variant">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span class="font-medium text-sm">Đang tải sơ đồ bàn...</span>
+        <!-- Right Section (~30% width): 10 Latest Notifications Panel -->
+        <aside class="w-full lg:w-[30%] bg-surface rounded-2xl border border-outline-variant p-6 shadow-sm flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between pb-4 mb-3 border-b border-outline-variant">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-xl">notifications_active</span>
+                    <h2 class="font-bold text-base text-on-surface">10 Thông Báo Mới Nhất</h2>
                 </div>
-            }
-            else if (!FilteredTables.Any())
-            {
-                <div class="flex flex-col items-center justify-center h-full text-on-surface-variant py-12">
-                    <span class="material-symbols-outlined text-4xl mb-2">table_restaurant</span>
-                    <p class="text-sm font-medium">Không tìm thấy bàn nào trong khu vực này.</p>
-                </div>
-            }
-            else
-            {
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    @foreach (var table in FilteredTables)
+                <span class="px-2 py-0.5 bg-primary/10 text-primary text-xs font-bold rounded-full">
+                    @PosHeader.GlobalNotifications.Count
+                </span>
+            </div>
+
+            <!-- Notifications List -->
+            <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+                @if (!PosHeader.GlobalNotifications.Any())
+                {
+                    <div class="flex flex-col items-center justify-center h-48 text-on-surface-variant text-xs gap-2">
+                        <span class="material-symbols-outlined text-4xl opacity-30">notifications_none</span>
+                        <span>Hiện chưa có thông báo nào mới</span>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var notif in PosHeader.GlobalNotifications.Take(10))
                     {
-                        <TableCard 
-                            TableName="@table.TableName" 
-                            Capacity="@table.Capacity" 
-                            Status="@table.StatusName" 
-                            TotalAmount="@table.TotalAmount" 
-                            OnClick="() => HandleTableClick(table)" />
+                        <div class="p-3.5 bg-surface-high rounded-xl border border-outline-variant/60 hover:border-primary/40 transition-all flex items-start gap-3">
+                            <div class="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">@notif.Icon</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-1">
+                                    <h3 class="text-xs font-bold text-on-surface truncate">@notif.Title</h3>
+                                    <span class="text-[10px] font-medium text-outline shrink-0">@notif.Timestamp.ToString("HH:mm")</span>
+                                </div>
+                                <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">@notif.Message</p>
+                            </div>
+                        </div>
                     }
-                </div>
-            }
-        </main>
+                }
+            </div>
+        </aside>
     </div>
 </div>
 
-<!-- Move / Merge Table Modal -->
-@if (ShowMoveMergeModal)
+<!-- Cashier Tools Modal -->
+@if (_showCashierToolsModal)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-outline-variant p-6 space-y-4">
-            <h3 class="font-bold text-lg text-on-surface">@(IsMergeMode ? "Gộp Bàn" : "Chuyển Bàn")</h3>
-            
-            <div>
-                <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Bàn Nguồn (Có Khách)</label>
-                <select class="w-full p-2 text-sm border rounded-lg" @bind="SourceTableId">
-                    <option value="0">-- Chọn Bàn --</option>
-                    @foreach (var t in Tables.Where(x => x.Status != 0)) // Occupied/Billing
-                    {
-                        <option value="@t.TableId">@t.TableName (@t.TotalAmount.ToString("N0")đ)</option>
-                    }
-                </select>
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-outline-variant p-6 space-y-5">
+            <div class="flex items-center justify-between border-b border-outline-variant pb-4">
+                <h3 class="font-bold text-lg text-on-surface flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">point_of_sale</span>
+                    Công Cụ Quản Lý Thu Ngân
+                </h3>
+                <button class="p-1 rounded-lg hover:bg-surface-high text-on-surface-variant cursor-pointer"
+                        @onclick="() => _showCashierToolsModal = false">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Bàn Đích</label>
-                <select class="w-full p-2 text-sm border rounded-lg" @bind="TargetTableId">
-                    <option value="0">-- Chọn Bàn --</option>
-                    @foreach (var t in Tables)
-                    {
-                        if (t.TableId != SourceTableId)
-                        {
-                            <option value="@t.TableId">@t.TableName (@t.StatusName)</option>
-                        }
-                    }
-                </select>
-            </div>
-
-            @if (!string.IsNullOrEmpty(ModalErrorMessage))
-            {
-                <div class="text-xs text-error font-medium bg-error-container/20 p-2 rounded">
-                    @ModalErrorMessage
+            <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 bg-surface-high rounded-xl border border-outline-variant/60">
+                    <span class="text-xs text-on-surface-variant block font-medium">Ca làm việc</span>
+                    <span class="text-sm font-bold text-primary block mt-1">Ca Sáng (08:00 - 16:00)</span>
                 </div>
-            }
+                <div class="p-4 bg-surface-high rounded-xl border border-outline-variant/60">
+                    <span class="text-xs text-on-surface-variant block font-medium">Tiền đầu ca</span>
+                    <span class="text-sm font-bold text-emerald-600 block mt-1">2,000,000 VNĐ</span>
+                </div>
+            </div>
 
-            <div class="flex justify-end gap-3 pt-2">
-                <button class="px-4 py-2 border rounded-xl font-bold text-sm" @onclick="() => ShowMoveMergeModal = false">Hủy</button>
-                <button class="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-sm" @onclick="ExecuteMoveMergeAsync">Xác Nhận</button>
+            <div class="space-y-3">
+                <button class="w-full p-3 bg-surface-high hover:bg-primary/10 text-on-surface border border-outline-variant rounded-xl font-bold text-sm flex items-center justify-between transition-colors cursor-pointer"
+                        @onclick='() => Navigation.NavigateTo("/admin/orders")'>
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">history</span>
+                        <span>Xem Lịch Sử Giao Dịch & Đơn Hàng</span>
+                    </div>
+                    <span class="material-symbols-outlined text-xs">arrow_forward_ios</span>
+                </button>
+
+                <button class="w-full p-3 bg-surface-high hover:bg-primary/10 text-on-surface border border-outline-variant rounded-xl font-bold text-sm flex items-center justify-between transition-colors cursor-pointer"
+                        @onclick='() => Navigation.NavigateTo("/admin/inventory/goods-receipt")'>
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">inventory_2</span>
+                        <span>Kiểm Tra Tồn Kho Nguyên Liệu</span>
+                    </div>
+                    <span class="material-symbols-outlined text-xs">arrow_forward_ios</span>
+                </button>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-outline-variant">
+                <button class="px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm cursor-pointer shadow-xs"
+                        @onclick="() => _showCashierToolsModal = false">
+                    Đóng
+                </button>
             </div>
         </div>
     </div>
+}
+
+@code {
+    private bool _showCashierToolsModal = false;
+
+    private void OpenCashierToolsModal()
+    {
+        _showCashierToolsModal = true;
+    }
+
+    private void HandleLogout()
+    {
+        Navigation.NavigateTo("/pos/login", forceLoad: true);
+    }
 }

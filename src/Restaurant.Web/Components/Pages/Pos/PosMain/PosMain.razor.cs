@@ -13,6 +13,7 @@ public partial class PosMain : IAsyncDisposable
     [Inject] public HttpClient Http { get; set; } = default!;
 
     [SupplyParameterFromQuery] public string TableId { get; set; } = default!;
+    [SupplyParameterFromQuery] public string OrderId { get; set; } = default!;
     [SupplyParameterFromQuery] public bool IsTakeaway { get; set; } = false;
 
     protected string CurrentTableName { get; set; } = "Chọn bàn...";
@@ -39,6 +40,15 @@ public partial class PosMain : IAsyncDisposable
 
     protected bool ShowPaymentModal { get; set; } = false;
 
+    // 5 Action Toolbar Modals & States
+    protected bool ShowMemberModal { get; set; } = false;
+    protected CustomerDto? SelectedMember { get; set; }
+
+    protected bool ShowDiscountModal { get; set; } = false;
+    protected bool ShowCancelOrderModal { get; set; } = false;
+
+    protected bool IsProcessing { get; set; } = false;
+
     private HubConnection? _hubConnection;
 
     protected List<MenuItemDto> FilteredMenuItems =>
@@ -48,7 +58,12 @@ public partial class PosMain : IAsyncDisposable
 
     protected override async Task OnInitializedAsync()
     {
-        if (IsTakeaway)
+        if (!string.IsNullOrEmpty(OrderId) && int.TryParse(OrderId, out int parsedOrderId))
+        {
+            IsTakeaway = true;
+            await LoadExistingTakeawayOrderAsync(parsedOrderId);
+        }
+        else if (IsTakeaway)
         {
             CurrentTableName = "Đơn Mang Về";
             CurrentOrderCode = $"#TAK-{DateTime.Now.Ticks % 10000}";
@@ -79,7 +94,7 @@ public partial class PosMain : IAsyncDisposable
 
         // Hub Connection setup
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/hubs/restaurant"))
+            .WithUrl("http://localhost:5011/hubs/restaurant")
             .WithAutomaticReconnect()
             .Build();
 
@@ -187,12 +202,94 @@ public partial class PosMain : IAsyncDisposable
     protected void HandleCartQuantityChanged(OrderCartItemLocal item) { }
     protected void HandleCartItemRemoved(OrderCartItemLocal item) => CartItems.Remove(item);
 
+    // 1. Action Toolbar: Member Confirmation
+    protected void HandleMemberConfirmed(CustomerDto member)
+    {
+        SelectedMember = member;
+        ToastMessage = $"Đã xác nhận thành viên {member.FullName} ({member.TierName}) cho đơn!";
+    }
+
+    // 2. Action Toolbar: Discount Confirmation
+    protected void HandleDiscountConfirmed(PosDiscountModal.DiscountAppliedEventArgs args)
+    {
+        foreach (var item in CartItems.Where(i => args.ItemIds.Contains(i.MenuItemId)))
+        {
+            if (args.Type == "Percent")
+            {
+                item.Price = Math.Round(item.Price * (1 - (args.Value / 100m)));
+            }
+            else
+            {
+                item.Price = Math.Max(0, item.Price - args.Value);
+            }
+        }
+        ToastMessage = "Đã áp dụng giảm giá cho đơn hàng!";
+    }
+
+    // 3. Action Toolbar: Print Pre-Bill
+    protected void HandlePrintPreBill()
+    {
+        ToastMessage = $"Đang gửi lệnh in hóa đơn tạm tính cho {CurrentTableName}...";
+    }
+
+    // 4. Action Toolbar: Cancel Order Confirmation
+    protected async Task HandleOrderCancelledAsync(string reason)
+    {
+        try
+        {
+            if (ActiveOrderId > 0)
+            {
+                var request = new CancelOrderRequest { OrderId = ActiveOrderId, Reason = reason };
+                await Http.PostAsJsonAsync("api/v1/pos/orders/cancel", request);
+            }
+            CartItems.Clear();
+            ToastMessage = "Đã hủy đơn hàng thành công!";
+            await Task.Delay(1000);
+            Navigation.NavigateTo("/pos/tables");
+        }
+        catch (Exception ex)
+        {
+            ToastMessage = $"Không thể hủy đơn: {ex.Message}";
+        }
+    }
+
+    // 5. Action Toolbar: Done (Save, Send to Kitchen & Return)
+    protected async Task HandleDoneAsync()
+    {
+        if (IsProcessing) return;
+        IsProcessing = true;
+
+        try
+        {
+            if (CartItems.Any())
+            {
+                await HandleSendToKitchenAsync();
+            }
+            if (IsTakeaway)
+            {
+                Navigation.NavigateTo("/pos/takeaway");
+            }
+            else
+            {
+                Navigation.NavigateTo("/pos/tables");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastMessage = $"Lỗi hoàn tất: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
     protected async Task HandleSendToKitchenAsync()
     {
         if (!CartItems.Any()) return;
 
-        int parsedTableId = 1;
-        if (!string.IsNullOrEmpty(TableId) && int.TryParse(TableId, out int tId))
+        int? parsedTableId = null;
+        if (!IsTakeaway && !string.IsNullOrEmpty(TableId) && int.TryParse(TableId, out int tId))
         {
             parsedTableId = tId;
         }
@@ -259,8 +356,8 @@ public partial class PosMain : IAsyncDisposable
         {
             CartItems.Clear();
             ToastMessage = "Thanh toán thành công! Đang trở về sơ đồ bàn...";
-            await Task.Delay(1500);
-            Navigation.NavigateTo("/pos");
+            await Task.Delay(1200);
+            Navigation.NavigateTo("/pos/tables");
         }
     }
 
@@ -269,6 +366,35 @@ public partial class PosMain : IAsyncDisposable
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private async Task LoadExistingTakeawayOrderAsync(int orderId)
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResponseWrapper<TakeawayOrderDto>>($"api/v1/pos/takeaway/orders/{orderId}");
+            if (resp?.Data != null)
+            {
+                var order = resp.Data;
+                ActiveOrderId = order.OrderId;
+                CurrentOrderCode = order.OrderCode;
+                CurrentTableName = $"Đơn Mang Về ({order.OrderCode})";
+
+                CartItems = order.Items.Select(i => new OrderCartItemLocal
+                {
+                    MenuItemId = i.MenuItemId,
+                    Name = i.MenuItemName,
+                    Price = i.UnitPrice,
+                    Quantity = i.Quantity,
+                    Note = i.Note,
+                    SelectedModifiers = new List<int>()
+                }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading takeaway order {orderId}: {ex.Message}");
         }
     }
 

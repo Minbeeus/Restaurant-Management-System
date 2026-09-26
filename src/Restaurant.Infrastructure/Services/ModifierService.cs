@@ -24,6 +24,7 @@ public class ModifierService : IModifierService
             {
                 Id = mg.Id,
                 Name = mg.Name,
+                NameEn = mg.NameEn,
                 IsRequired = mg.IsRequired,
                 MinSelections = mg.MinSelections,
                 MaxSelections = mg.MaxSelections,
@@ -33,6 +34,7 @@ public class ModifierService : IModifierService
                     Id = o.Id,
                     ModifierGroupId = o.ModifierGroupId,
                     Name = o.Name,
+                    NameEn = o.NameEn,
                     ExtraPrice = o.ExtraPrice,
                     IsDefault = o.IsDefault,
                     SortOrder = o.SortOrder,
@@ -54,6 +56,7 @@ public class ModifierService : IModifierService
         {
             Id = mg.Id,
             Name = mg.Name,
+            NameEn = mg.NameEn,
             IsRequired = mg.IsRequired,
             MinSelections = mg.MinSelections,
             MaxSelections = mg.MaxSelections,
@@ -63,6 +66,7 @@ public class ModifierService : IModifierService
                 Id = o.Id,
                 ModifierGroupId = o.ModifierGroupId,
                 Name = o.Name,
+                NameEn = o.NameEn,
                 ExtraPrice = o.ExtraPrice,
                 IsDefault = o.IsDefault,
                 SortOrder = o.SortOrder,
@@ -79,6 +83,7 @@ public class ModifierService : IModifierService
         var group = new ModifierGroup
         {
             Name = request.Name.Trim(),
+            NameEn = request.NameEn?.Trim(),
             IsRequired = request.IsRequired,
             MinSelections = request.MinSelections,
             MaxSelections = request.MaxSelections,
@@ -86,6 +91,7 @@ public class ModifierService : IModifierService
             ModifierOptions = request.Options.Select(o => new ModifierOption
             {
                 Name = o.Name.Trim(),
+                NameEn = o.NameEn?.Trim(),
                 ExtraPrice = o.ExtraPrice,
                 IsDefault = o.IsDefault,
                 SortOrder = o.SortOrder,
@@ -108,6 +114,7 @@ public class ModifierService : IModifierService
         if (group == null) return null;
 
         group.Name = request.Name.Trim();
+        group.NameEn = request.NameEn?.Trim();
         group.IsRequired = request.IsRequired;
         group.MinSelections = request.MinSelections;
         group.MaxSelections = request.MaxSelections;
@@ -136,6 +143,7 @@ public class ModifierService : IModifierService
         {
             ModifierGroupId = groupId,
             Name = request.Name.Trim(),
+            NameEn = request.NameEn?.Trim(),
             ExtraPrice = request.ExtraPrice,
             IsDefault = request.IsDefault,
             SortOrder = request.SortOrder,
@@ -150,6 +158,7 @@ public class ModifierService : IModifierService
             Id = option.Id,
             ModifierGroupId = option.ModifierGroupId,
             Name = option.Name,
+            NameEn = option.NameEn,
             ExtraPrice = option.ExtraPrice,
             IsDefault = option.IsDefault,
             SortOrder = option.SortOrder,
@@ -166,6 +175,7 @@ public class ModifierService : IModifierService
         if (option == null) return null;
 
         option.Name = request.Name.Trim();
+        option.NameEn = request.NameEn?.Trim();
         option.ExtraPrice = request.ExtraPrice;
         option.IsDefault = request.IsDefault;
         option.SortOrder = request.SortOrder;
@@ -178,6 +188,7 @@ public class ModifierService : IModifierService
             Id = option.Id,
             ModifierGroupId = option.ModifierGroupId,
             Name = option.Name,
+            NameEn = option.NameEn,
             ExtraPrice = option.ExtraPrice,
             IsDefault = option.IsDefault,
             SortOrder = option.SortOrder,

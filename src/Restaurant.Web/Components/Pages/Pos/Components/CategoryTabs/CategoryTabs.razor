@@ -13,7 +13,7 @@
             {
                 <button class="pos-category-tabs__btn @(ActiveCategoryId == cat.Id ? "pos-category-tabs__btn--active" : "")"
                         @onclick="() => HandleTabClick(cat.Id)">
-                    @cat.Name
+                    @cat.DisplayName
                 </button>
             }
         </div>

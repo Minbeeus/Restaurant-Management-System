@@ -97,7 +97,9 @@ public class QrOrderService : IQrOrderService
             {
                 Id = c.Id,
                 Name = c.Name,
+                NameEn = c.NameEn,
                 Description = c.Description,
+                DescriptionEn = c.DescriptionEn,
                 ImageUrl = c.ImageUrl,
                 SortOrder = c.SortOrder,
                 MenuItems = c.MenuItems
@@ -108,7 +110,9 @@ public class QrOrderService : IQrOrderService
                         CategoryId = m.CategoryId,
                         CategoryName = c.Name,
                         Name = m.Name,
+                        NameEn = m.NameEn,
                         Description = m.Description,
+                        DescriptionEn = m.DescriptionEn,
                         Price = m.Price,
                         ImageUrl = m.ImageUrl,
                         IsSoldOut = m.IsSoldOut,
@@ -149,6 +153,7 @@ public class QrOrderService : IQrOrderService
             {
                 Id = mmg.ModifierGroup.Id,
                 Name = mmg.ModifierGroup.Name,
+                NameEn = mmg.ModifierGroup.NameEn,
                 IsRequired = mmg.ModifierGroup.IsRequired,
                 MinSelections = mmg.ModifierGroup.MinSelections,
                 MaxSelections = mmg.ModifierGroup.MaxSelections,
@@ -160,6 +165,7 @@ public class QrOrderService : IQrOrderService
                         Id = o.Id,
                         ModifierGroupId = o.ModifierGroupId,
                         Name = o.Name,
+                        NameEn = o.NameEn,
                         ExtraPrice = o.ExtraPrice,
                         IsDefault = o.IsDefault,
                         SortOrder = o.SortOrder,
@@ -173,7 +179,9 @@ public class QrOrderService : IQrOrderService
             CategoryId = menuItem.CategoryId,
             CategoryName = menuItem.Category?.Name ?? string.Empty,
             Name = menuItem.Name,
+            NameEn = menuItem.NameEn,
             Description = menuItem.Description,
+            DescriptionEn = menuItem.DescriptionEn,
             Price = menuItem.Price,
             ImageUrl = menuItem.ImageUrl,
             IsSoldOut = menuItem.IsSoldOut,
@@ -343,7 +351,7 @@ public class QrOrderService : IQrOrderService
 
             var activeOrder = await _context.Orders
                 .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.TableId == request.TableId && (o.Status == (int)OrderStatus.Draft || o.Status == (int)OrderStatus.Confirmed || o.Status == (int)OrderStatus.Completed));
+                .FirstOrDefaultAsync(o => o.TableId == request.TableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Cancelled);
 
             Order targetOrder;
             if (activeOrder != null)

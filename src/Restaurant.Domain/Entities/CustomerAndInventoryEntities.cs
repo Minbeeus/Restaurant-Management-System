@@ -52,6 +52,7 @@ public class Material : FullAuditableEntity, IHasRowVersion
     public int UnitOfMeasureId { get; set; }
     public UnitOfMeasure UnitOfMeasure { get; set; } = null!;
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public decimal CurrentStock { get; set; }
     public decimal MinStockLevel { get; set; }
     public decimal CostPerUnit { get; set; }

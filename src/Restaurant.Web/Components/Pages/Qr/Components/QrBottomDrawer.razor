@@ -24,8 +24,8 @@
                     <div class="flex items-center gap-4 bg-surface-low p-3 rounded-2xl border border-outline-variant">
                         <img src="@(string.IsNullOrEmpty(Item.ImageUrl) ? "/placeholder.png" : Item.ImageUrl)" class="w-20 h-20 rounded-xl object-cover bg-surface-high shrink-0" />
                         <div>
-                            <div class="font-bold text-lg text-on-surface leading-tight">@Item.Name</div>
-                            <div class="text-sm text-on-surface-variant line-clamp-1 mt-0.5">@Item.Description</div>
+                            <div class="font-bold text-lg text-on-surface leading-tight">@Item.DisplayName</div>
+                            <div class="text-sm text-on-surface-variant line-clamp-1 mt-0.5">@Item.DisplayDescription</div>
                             <div class="text-primary font-bold text-base mt-1">@Item.Price.ToString("N0")đ</div>
                         </div>
                     </div>
@@ -44,7 +44,7 @@
                         {
                             <div class="space-y-2">
                                 <div class="font-bold text-sm text-on-surface flex justify-between items-center">
-                                    <span>@group.Name</span>
+                                    <span>@group.DisplayName</span>
                                     @if (group.MinSelections > 0)
                                     {
                                         <span class="text-xs text-error font-normal bg-error-container/20 px-2 py-0.5 rounded">Bắt buộc</span>
@@ -63,7 +63,7 @@
                                                         <span class="material-symbols-outlined text-[14px] text-white">check</span>
                                                     }
                                                 </div>
-                                                <span class="text-sm font-medium text-on-surface">@opt.Name</span>
+                                                <span class="text-sm font-medium text-on-surface">@opt.DisplayName</span>
                                             </div>
                                             @if (opt.ExtraPrice > 0)
                                             {

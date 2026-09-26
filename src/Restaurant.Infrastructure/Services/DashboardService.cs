@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Restaurant.Application.DTOs.Dashboard;
 using Restaurant.Application.Interfaces;
+using Restaurant.Domain.Enums;
 using Restaurant.Infrastructure.Persistence;
 
 namespace Restaurant.Infrastructure.Services;
@@ -20,13 +21,13 @@ public class DashboardService : IDashboardService
         var nextDate = targetDate.AddDays(1);
         var prevDate = targetDate.AddDays(-1);
 
-        // 1. Revenue
+        // 1. Revenue (Paid orders)
         var todayRevenue = await _context.Orders
-            .Where(o => o.Status == 3 && o.CreatedAt >= targetDate && o.CreatedAt < nextDate) // 3 = Completed
+            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= targetDate && o.CreatedAt < nextDate)
             .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
         var yesterdayRevenue = await _context.Orders
-            .Where(o => o.Status == 3 && o.CreatedAt >= prevDate && o.CreatedAt < targetDate)
+            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= prevDate && o.CreatedAt < targetDate)
             .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
         decimal trend = 0;
@@ -39,14 +40,14 @@ public class DashboardService : IDashboardService
             trend = 100; // 100% increase if yesterday was 0 and today > 0
         }
 
-        // 2. Active Orders
+        // 2. Active Orders (Not completed & Not cancelled)
         var activeOrders = await _context.Orders
-            .Where(o => o.Status == 0 || o.Status == 1 || o.Status == 2) // Pending, InProgress, Ready
+            .Where(o => o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
             .CountAsync();
 
         // 3. Tables
         var totalTables = await _context.Tables.CountAsync();
-        var occupiedTables = await _context.Tables.CountAsync(t => t.Status == 1); // 1 = Occupied
+        var occupiedTables = await _context.Tables.CountAsync(t => t.Status == (int)TableStatus.Occupied);
 
         // 4. Low Stock
         var lowStock = await _context.Materials
@@ -71,7 +72,7 @@ public class DashboardService : IDashboardService
         var nextDate = targetDate.AddDays(1);
 
         var orders = await _context.Orders
-            .Where(o => o.Status == 3 && o.CreatedAt >= targetDate && o.CreatedAt < nextDate)
+            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= targetDate && o.CreatedAt < nextDate)
             .Select(o => new { o.CreatedAt.Hour, o.TotalAmount })
             .ToListAsync();
 
@@ -104,7 +105,7 @@ public class DashboardService : IDashboardService
         var nextDate = targetDate.AddDays(1);
 
         var topMovers = await _context.OrderItems
-            .Where(oi => oi.Order.Status == 3 && oi.Order.CreatedAt >= targetDate && oi.Order.CreatedAt < nextDate)
+            .Where(oi => oi.Order.PaymentStatus == (int)PaymentStatus.Paid && oi.Order.CreatedAt >= targetDate && oi.Order.CreatedAt < nextDate)
             .GroupBy(oi => new { oi.MenuItemId, oi.MenuItemName })
             .Select(g => new TopMoverDto
             {
@@ -123,7 +124,7 @@ public class DashboardService : IDashboardService
     {
         // For activity feed, we'll combine recent completed orders and recent inventory transactions
         var recentOrders = await _context.Orders
-            .Where(o => o.Status == 3)
+            .Where(o => o.Status == (int)OrderStatus.Completed || o.PaymentStatus == (int)PaymentStatus.Paid)
             .OrderByDescending(o => o.UpdatedAt)
             .Take(limit)
             .Select(o => new ActivityFeedItemDto

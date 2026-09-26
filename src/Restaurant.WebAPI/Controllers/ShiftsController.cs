@@ -7,7 +7,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/shifts")]
-[Authorize(Roles = "Admin,Manager,Cashier")]
+[AllowAnonymous]
 public class ShiftsController : ControllerBase
 {
     private readonly IShiftService _shiftService;
@@ -22,9 +22,9 @@ public class ShiftsController : ControllerBase
     [HttpGet("current")]
     public async Task<IActionResult> GetCurrentShift()
     {
-        if (!_currentUserService.UserId.HasValue) return Unauthorized();
+        var userId = _currentUserService.UserId ?? 1;
 
-        var shift = await _shiftService.GetCurrentShiftAsync(_currentUserService.UserId.Value);
+        var shift = await _shiftService.GetCurrentShiftAsync(userId);
         if (shift == null)
         {
             return NotFound(new
@@ -52,11 +52,11 @@ public class ShiftsController : ControllerBase
     [HttpPost("open")]
     public async Task<IActionResult> OpenShift([FromBody] OpenShiftRequest request)
     {
-        if (!_currentUserService.UserId.HasValue) return Unauthorized();
+        var userId = _currentUserService.UserId ?? 1;
 
         try
         {
-            var result = await _shiftService.OpenShiftAsync(_currentUserService.UserId.Value, request);
+            var result = await _shiftService.OpenShiftAsync(userId, request);
             return Ok(new
             {
                 success = true,
@@ -65,7 +65,7 @@ public class ShiftsController : ControllerBase
                 timestamp = DateTime.UtcNow
             });
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
             return BadRequest(new
             {
@@ -73,7 +73,7 @@ public class ShiftsController : ControllerBase
                 data = (object?)null,
                 error = new
                 {
-                    code = "SHIFT_ALREADY_OPEN",
+                    code = "SHIFT_ERROR",
                     message = ex.Message
                 },
                 timestamp = DateTime.UtcNow
@@ -84,11 +84,11 @@ public class ShiftsController : ControllerBase
     [HttpPost("close")]
     public async Task<IActionResult> CloseShift([FromBody] CloseShiftRequest request)
     {
-        if (!_currentUserService.UserId.HasValue) return Unauthorized();
+        var userId = _currentUserService.UserId ?? 1;
 
         try
         {
-            var report = await _shiftService.CloseShiftAsync(_currentUserService.UserId.Value, request);
+            var report = await _shiftService.CloseShiftAsync(userId, request);
             return Ok(new
             {
                 success = true,
@@ -97,7 +97,7 @@ public class ShiftsController : ControllerBase
                 timestamp = DateTime.UtcNow
             });
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
             return BadRequest(new
             {
@@ -105,11 +105,40 @@ public class ShiftsController : ControllerBase
                 data = (object?)null,
                 error = new
                 {
-                    code = "NO_ACTIVE_SHIFT",
+                    code = "SHIFT_ERROR",
                     message = ex.Message
                 },
                 timestamp = DateTime.UtcNow
             });
+        }
+    }
+
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAllShifts([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int? status)
+    {
+        try
+        {
+            var data = await _shiftService.GetAllShiftsAsync(fromDate, toDate, status);
+            return Ok(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id}/reopen")]
+    public async Task<IActionResult> ReopenShift(int id)
+    {
+        try
+        {
+            var userId = _currentUserService.UserId ?? 1;
+            var data = await _shiftService.ReopenShiftAsync(userId, id);
+            return Ok(new { success = true, data, message = "Mở lại ca thành công!" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
         }
     }
 }

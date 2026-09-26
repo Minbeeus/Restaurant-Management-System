@@ -1,0 +1,132 @@
+@using Restaurant.Web.Services
+@inject IAuthApiClient AuthApiClient
+
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md border border-outline-variant overflow-hidden flex flex-col p-6 space-y-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+                <h3 class="font-bold text-lg text-error flex items-center gap-2">
+                    <span class="material-symbols-outlined">cancel</span>
+                    Hủy Đơn Hàng @TableName
+                </h3>
+                <button class="p-1 rounded-lg hover:bg-surface-high text-on-surface-variant cursor-pointer"
+                        @onclick="Close">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Reason & Manager PIN Step -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Lý do hủy đơn hàng (*)</label>
+                    <textarea class="w-full p-2.5 bg-surface-high border border-outline-variant rounded-xl text-sm focus:outline-none focus:border-primary resize-none h-24"
+                              placeholder="Nhập chi tiết lý do hủy đơn (Khách đổi ý, nhầm món...)..."
+                              @bind="CancelReason"></textarea>
+                </div>
+
+                <div class="p-3 bg-error/10 border border-error/20 rounded-xl text-error text-xs font-medium flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">admin_panel_settings</span>
+                    <span>Hủy đơn yêu cầu nhập mã PIN của Quản lý ca hoặc Nhà hàng để xác nhận.</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Mã PIN Quản Lý (6 Chữ Số)</label>
+                    <input type="password" maxlength="6"
+                           class="w-full p-3 text-center tracking-widest text-lg font-bold bg-surface-high border border-outline-variant rounded-xl focus:outline-none focus:border-primary"
+                           placeholder="******"
+                           @bind="ManagerPin" @bind:event="oninput" @onkeyup="HandlePinKeyUp" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <p class="text-xs text-error font-medium text-center">@ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+                <button class="px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold hover:bg-surface-high cursor-pointer"
+                        @onclick="Close">Quay Lại</button>
+                <button class="px-6 py-2 bg-error text-on-error rounded-xl text-xs font-bold hover:bg-error/90 cursor-pointer flex items-center gap-2"
+                        @onclick="ConfirmCancelOrderWithPin" disabled="@IsCancelling">
+                    @if (IsCancelling)
+                    {
+                        <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-on-error"></span>
+                    }
+                    <span>Xác Nhận Hủy Đơn</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string TableName { get; set; } = string.Empty;
+    [Parameter] public int OrderId { get; set; }
+    [Parameter] public EventCallback<string> OnOrderCancelled { get; set; }
+
+    private string CancelReason { get; set; } = string.Empty;
+    private string ManagerPin { get; set; } = string.Empty;
+    private bool IsCancelling { get; set; } = false;
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private async Task HandlePinKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && ManagerPin.Length == 6)
+        {
+            await ConfirmCancelOrderWithPin();
+        }
+    }
+
+    private async Task ConfirmCancelOrderWithPin()
+    {
+        if (string.IsNullOrWhiteSpace(CancelReason))
+        {
+            ErrorMessage = "Vui lòng nhập lý do hủy đơn hàng.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ManagerPin) || ManagerPin.Length != 6)
+        {
+            ErrorMessage = "Vui lòng nhập đủ 6 chữ số mã PIN Quản lý.";
+            return;
+        }
+
+        IsCancelling = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var isValid = await AuthApiClient.VerifyManagerPinAsync(ManagerPin);
+            if (!isValid)
+            {
+                ErrorMessage = "Mã PIN Quản lý không chính xác.";
+                return;
+            }
+
+            await OnOrderCancelled.InvokeAsync(CancelReason);
+            await Close();
+        }
+        catch
+        {
+            ErrorMessage = "Không thể hủy đơn hàng. Vui lòng thử lại.";
+        }
+        finally
+        {
+            IsCancelling = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        CancelReason = string.Empty;
+        ManagerPin = string.Empty;
+        ErrorMessage = string.Empty;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

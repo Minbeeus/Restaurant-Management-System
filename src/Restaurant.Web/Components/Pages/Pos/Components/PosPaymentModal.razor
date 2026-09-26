@@ -247,11 +247,35 @@
         }
     }
 
-    private void ApplyVoucher()
+    private async Task ApplyVoucher()
     {
         if (string.IsNullOrWhiteSpace(_voucherCode)) return;
-        // Mock 10% voucher discount or preset discount
-        _discountAmount = SubTotal * 0.1m;
+        _errorMessage = string.Empty;
+        try
+        {
+            var res = await Http.GetAsync($"api/v1/vouchers/validate?code={Uri.EscapeDataString(_voucherCode.Trim())}&orderAmount={SubTotal}");
+            if (res.IsSuccessStatusCode)
+            {
+                var valResult = await res.Content.ReadFromJsonAsync<VoucherValidationResponseDto>();
+                if (valResult != null && valResult.IsValid)
+                {
+                    _discountAmount = valResult.DiscountAmount;
+                }
+                else
+                {
+                    _discountAmount = 0;
+                    _errorMessage = valResult?.Message ?? "Mã giảm giá không hợp lệ.";
+                }
+            }
+            else
+            {
+                _errorMessage = "Không thể kiểm tra mã giảm giá.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
     }
 
     private async Task GenerateQrCodeAsync()

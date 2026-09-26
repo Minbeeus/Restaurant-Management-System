@@ -24,6 +24,7 @@ public class AreaService : IAreaService
             {
                 Id = a.Id,
                 Name = a.Name,
+                NameEn = a.NameEn,
                 SortOrder = a.SortOrder,
                 IsActive = a.IsActive,
                 TableCount = a.Tables.Count
@@ -43,6 +44,7 @@ public class AreaService : IAreaService
         {
             Id = area.Id,
             Name = area.Name,
+            NameEn = area.NameEn,
             SortOrder = area.SortOrder,
             IsActive = area.IsActive,
             TableCount = area.Tables.Count
@@ -57,6 +59,7 @@ public class AreaService : IAreaService
         var area = new Area
         {
             Name = request.Name.Trim(),
+            NameEn = request.NameEn?.Trim(),
             SortOrder = request.SortOrder,
             IsActive = true
         };
@@ -68,6 +71,7 @@ public class AreaService : IAreaService
         {
             Id = area.Id,
             Name = area.Name,
+            NameEn = area.NameEn,
             SortOrder = area.SortOrder,
             IsActive = area.IsActive,
             TableCount = 0
@@ -86,6 +90,7 @@ public class AreaService : IAreaService
         if (area == null) return null;
 
         area.Name = request.Name.Trim();
+        area.NameEn = request.NameEn?.Trim();
         area.SortOrder = request.SortOrder;
         area.IsActive = request.IsActive;
 
@@ -95,6 +100,7 @@ public class AreaService : IAreaService
         {
             Id = area.Id,
             Name = area.Name,
+            NameEn = area.NameEn,
             SortOrder = area.SortOrder,
             IsActive = area.IsActive,
             TableCount = area.Tables.Count

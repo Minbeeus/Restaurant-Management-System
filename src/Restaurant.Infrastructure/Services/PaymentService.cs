@@ -22,6 +22,7 @@ public class PaymentService : IPaymentService
     private readonly IMediator _mediator;
     private readonly IConfiguration _configuration;
     private readonly IStringLocalizer<SharedResources> _localizer;
+    private readonly IAuditService _auditService;
 
     public PaymentService(
         ApplicationDbContext context,
@@ -30,7 +31,8 @@ public class PaymentService : IPaymentService
         ILoyaltyService loyaltyService,
         IMediator mediator,
         IConfiguration configuration,
-        IStringLocalizer<SharedResources> localizer)
+        IStringLocalizer<SharedResources> localizer,
+        IAuditService auditService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
@@ -39,6 +41,7 @@ public class PaymentService : IPaymentService
         _mediator = mediator;
         _configuration = configuration;
         _localizer = localizer;
+        _auditService = auditService;
     }
 
     public async Task<VietQrResponse> GenerateVietQrAsync(GenerateVietQrRequest request)
@@ -141,7 +144,7 @@ public class PaymentService : IPaymentService
             }
 
             // Conflict Check: If Order is ALREADY Paid by Cash or completed earlier
-            if (order.Status == (int)OrderStatus.Paid)
+            if (order.PaymentStatus == (int)PaymentStatus.Paid)
             {
                 existingLog.ErrorLog = $"Conflict: Order ID {order.Id} is already paid. Manual refund required for SePay transaction {payload.id}.";
                 existingLog.IsProcessed = true;
@@ -184,7 +187,7 @@ public class PaymentService : IPaymentService
                 ShiftId = activeShift?.Id ?? 1,
                 Amount = payload.transferAmount,
                 PaymentMethod = (int)PaymentMethod.BankTransfer,
-                Status = (int)PaymentStatus.Completed,
+                Status = (int)PaymentStatus.Paid,
                 TransactionRef = payload.referenceCode,
                 CompletedAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
@@ -192,7 +195,8 @@ public class PaymentService : IPaymentService
 
             _context.Payments.Add(payment);
 
-            order.Status = (int)OrderStatus.Paid;
+            order.PaymentStatus = (int)PaymentStatus.Paid;
+            order.Status = (int)OrderStatus.Completed;
             if (order.Table != null)
             {
                 order.Table.Status = (int)TableStatus.Available;
@@ -231,6 +235,37 @@ public class PaymentService : IPaymentService
 
     public async Task<CashPaymentResponse> ProcessCashPaymentAsync(ProcessCashPaymentRequest request)
     {
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            var existingKeyPayment = await _context.Payments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.IdempotencyKey == request.IdempotencyKey && p.Status == (int)PaymentStatus.Paid);
+
+            if (existingKeyPayment != null)
+            {
+                var ord = await _context.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == existingKeyPayment.OrderId);
+                return new CashPaymentResponse
+                {
+                    OrderId = existingKeyPayment.OrderId,
+                    OrderCode = ord?.OrderCode ?? string.Empty,
+                    TotalAmount = existingKeyPayment.Amount,
+                    CashReceived = existingKeyPayment.CashReceived ?? existingKeyPayment.Amount,
+                    ChangeAmount = existingKeyPayment.ChangeAmount ?? 0,
+                    CompletedAt = existingKeyPayment.CompletedAt ?? DateTime.UtcNow
+                };
+            }
+        }
+
+        // 1. Double Payment Protection Check before opening transaction
+        var existingCompletedPayment = await _context.Payments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.OrderId == request.OrderId && p.Status == (int)PaymentStatus.Paid);
+
+        if (existingCompletedPayment != null)
+        {
+            throw new InvalidOperationException("Đơn hàng này đã được thanh toán.");
+        }
+
         using var dbTransaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -244,9 +279,9 @@ public class PaymentService : IPaymentService
                 throw new ArgumentException(_localizer["ORDER_NOT_FOUND"] ?? "Đơn hàng không tồn tại.");
             }
 
-            if (order.Status == (int)OrderStatus.Paid)
+            if (order.PaymentStatus == (int)PaymentStatus.Paid)
             {
-                throw new InvalidOperationException("Đơn hàng này đã được thanh toán trước đó.");
+                throw new InvalidOperationException("Đơn hàng này đã được thanh toán.");
             }
 
             if (order.Status == (int)OrderStatus.Cancelled)
@@ -254,6 +289,7 @@ public class PaymentService : IPaymentService
                 throw new InvalidOperationException("Không thể thanh toán đơn hàng đã bị hủy.");
             }
 
+            // POS-005 Strict Amount Validation
             if (request.CashReceived < order.TotalAmount)
             {
                 throw new InvalidOperationException($"Số tiền khách đưa ({request.CashReceived:N0}đ) chưa đủ thanh toán tổng tiền ({order.TotalAmount:N0}đ).");
@@ -271,15 +307,17 @@ public class PaymentService : IPaymentService
                 Amount = order.TotalAmount,
                 CashReceived = request.CashReceived,
                 ChangeAmount = changeAmount,
+                IdempotencyKey = request.IdempotencyKey,
                 PaymentMethod = (int)PaymentMethod.Cash,
-                Status = (int)PaymentStatus.Completed,
+                Status = (int)PaymentStatus.Paid,
                 CompletedAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.Payments.Add(payment);
 
-            order.Status = (int)OrderStatus.Paid;
+            order.PaymentStatus = (int)PaymentStatus.Paid;
+            order.Status = (int)OrderStatus.Completed;
             if (order.Table != null)
             {
                 order.Table.Status = (int)TableStatus.Available;
@@ -291,6 +329,8 @@ public class PaymentService : IPaymentService
             }
 
             await _context.SaveChangesAsync();
+
+            await _auditService.LogAsync(order.CreatedByUserId, "Payment.CashCompleted", "Payment", payment.Id.ToString(), $"Thanh toán tiền mặt thành công đơn {order.OrderCode} số tiền {order.TotalAmount:N0}đ", activeShift?.RegisterId, activeShift?.Id);
 
             // Loyalty Points Accumulation
             if (order.CustomerId.HasValue)
@@ -316,6 +356,11 @@ public class PaymentService : IPaymentService
                 ChangeAmount = changeAmount,
                 CompletedAt = payment.CompletedAt ?? DateTime.UtcNow
             };
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await dbTransaction.RollbackAsync();
+            throw new InvalidOperationException("Đơn hàng đã được thanh toán hoặc đang được thao tác bởi một nhân viên khác.");
         }
         catch
         {

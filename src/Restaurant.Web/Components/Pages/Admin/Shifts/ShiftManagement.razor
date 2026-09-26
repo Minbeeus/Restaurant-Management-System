@@ -1,0 +1,130 @@
+@page "/admin/shifts"
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@inject HttpClient Http
+
+<div class="p-6 space-y-6 bg-background min-h-screen text-on-surface">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-4">
+        <div>
+            <h1 class="text-2xl font-black text-primary tracking-wide flex items-center gap-2 m-0">
+                <span class="material-symbols-outlined text-3xl">badge</span>
+                QUẢN LÝ CA LÀM VIỆC (SHIFT MANAGEMENT)
+            </h1>
+            <p class="text-xs text-on-surface-variant mt-1">Theo dõi danh sách ca làm việc, đối soát doanh thu, chênh lệch két và mở lại ca khi cần thiết</p>
+        </div>
+
+        <button class="px-4 py-2 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                @onclick="LoadShiftsAsync">
+            <span class="material-symbols-outlined text-base">refresh</span>
+            <span>Tải Lại</span>
+        </button>
+    </div>
+
+    <!-- Shift Table List -->
+    <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-4">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="bg-surface-high border-b border-outline-variant text-on-surface-variant uppercase font-bold text-[11px]">
+                        <th class="p-3">Mã Ca</th>
+                        <th class="p-3">Thu Ngân Phụ Trách</th>
+                        <th class="p-3">Giờ Mở / Đóng</th>
+                        <th class="p-3">Trạng Thái</th>
+                        <th class="p-3">Tiền Đầu Ca</th>
+                        <th class="p-3">Kỳ Vọng</th>
+                        <th class="p-3">Thực Tế</th>
+                        <th class="p-3">Chênh Lệch</th>
+                        <th class="p-3 text-right">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline-variant/60">
+                    @if (!ShiftList.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center p-8 text-on-surface-variant">Chưa có lịch sử ca làm việc nào.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var s in ShiftList)
+                        {
+                            <tr class="hover:bg-surface-high/40 transition-colors">
+                                <td class="p-3 font-extrabold text-primary">#@s.ShiftId</td>
+                                <td class="p-3 font-bold">@s.StaffName</td>
+                                <td class="p-3 text-on-surface-variant">
+                                    <div>Mở: @s.StartTime.ToString("dd/MM HH:mm")</div>
+                                    @if (s.EndTime.HasValue)
+                                    {
+                                        <div>Đóng: @s.EndTime.Value.ToString("dd/MM HH:mm")</div>
+                                    }
+                                </td>
+                                <td class="p-3">
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-black @(s.Status == 0 ? "bg-emerald-500/15 text-emerald-800" : s.Status == 2 ? "bg-amber-500/15 text-amber-800" : "bg-gray-500/15 text-gray-800")">
+                                        @s.StatusName
+                                    </span>
+                                </td>
+                                <td class="p-3 font-bold">@s.InitialCash.ToString("N0")đ</td>
+                                <td class="p-3 font-bold text-primary">@s.ExpectedCash.ToString("N0")đ</td>
+                                <td class="p-3 font-bold text-emerald-600">@s.ActualCash.ToString("N0")đ</td>
+                                <td class="p-3 font-black @(s.Difference == 0 ? "text-emerald-600" : "text-rose-600")">
+                                    @(s.Difference > 0 ? $"+{s.Difference:N0}đ" : $"{s.Difference:N0}đ")
+                                </td>
+                                <td class="p-3 text-right">
+                                    @if (s.Status == 1 || s.Status == 2)
+                                    {
+                                        <button class="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-600 hover:text-white border border-amber-500/30 rounded-lg font-bold text-[11px] transition-all cursor-pointer text-amber-800"
+                                                @onclick="() => ReopenShiftAsync(s.ShiftId)">
+                                            Mở Lại Ca
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected List<ShiftReportDto> ShiftList { get; set; } = new();
+    protected bool IsLoading { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadShiftsAsync();
+    }
+
+    private async Task LoadShiftsAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<List<ShiftReportDto>>>("api/v1/shifts/all");
+            ShiftList = res?.Data ?? new List<ShiftReportDto>();
+        }
+        catch { }
+        finally { IsLoading = false; }
+    }
+
+    private async Task ReopenShiftAsync(int shiftId)
+    {
+        try
+        {
+            var res = await Http.PostAsync($"api/v1/shifts/{shiftId}/reopen", null);
+            if (res.IsSuccessStatusCode)
+            {
+                await LoadShiftsAsync();
+            }
+        }
+        catch { }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+    }
+}

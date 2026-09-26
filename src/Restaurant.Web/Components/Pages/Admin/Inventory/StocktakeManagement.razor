@@ -7,30 +7,30 @@
 
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
     <div>
-        <h2 class="text-2xl font-headline-sm text-primary m-0">Kiểm kê Kho Nguyên liệu (Stocktake)</h2>
-        <p class="text-on-surface-variant text-sm mt-1">Đếm số lượng thực tế trong kho, tính toán chênh lệch hao hụt và tự động điều chỉnh tồn kho.</p>
+        <h2 class="text-2xl font-headline-sm text-primary m-0">@L["Stocktake_Management_Title"]</h2>
+        <p class="text-on-surface-variant text-sm mt-1">@L["Stocktake_Sub"]</p>
     </div>
     <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center" @onclick="OpenStartAuditModal">
-        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="fact_check">fact_check</span> Bắt đầu Đợt Kiểm kê
+        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="fact_check">fact_check</span> @L["Stocktake_Start"]
     </button>
 </div>
 
 <!-- Lịch sử Đợt kiểm kê -->
 <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
     <div class="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
-        <h3 class="font-bold text-on-surface text-base m-0">Lịch sử Đợt Kiểm kê gần đây</h3>
+        <h3 class="font-bold text-on-surface text-base m-0">@L["Stocktake_History_Title"]</h3>
         <span class="text-xs text-on-surface-variant">Tháng 09/2026</span>
     </div>
 
     <table class="w-full text-left border-collapse">
         <thead class="bg-surface-container-low text-xs font-bold text-on-surface-variant uppercase">
             <tr>
-                <th class="p-4">Mã Đợt</th>
-                <th class="p-4">Người Thực hiện</th>
-                <th class="p-4 text-center">Thời gian</th>
-                <th class="p-4 text-right">Tổng Món kiểm</th>
-                <th class="p-4 text-right">Chênh lệch Hụt kho</th>
-                <th class="p-4 text-center">Trạng thái</th>
+                <th class="p-4">@L["Stocktake_Col_Code"]</th>
+                <th class="p-4">@L["Stocktake_Col_Staff"]</th>
+                <th class="p-4 text-center">@L["Stocktake_Col_Time"]</th>
+                <th class="p-4 text-right">@L["Stocktake_Col_TotalCount"]</th>
+                <th class="p-4 text-right">@L["Stocktake_Col_Variance"]</th>
+                <th class="p-4 text-center">@L["Stocktake_Col_Status"]</th>
             </tr>
         </thead>
         <tbody>
@@ -41,7 +41,7 @@
                 <td class="p-4 text-right font-mono font-bold">12 nguyên liệu</td>
                 <td class="p-4 text-right font-mono font-bold text-error">- 2.400.000đ</td>
                 <td class="p-4 text-center">
-                    <span class="px-2.5 py-1 bg-success-green/10 text-success-green rounded-full text-xs font-bold border border-success-green/20">Hoàn tất Cân bằng</span>
+                    <span class="px-2.5 py-1 bg-success-green/10 text-success-green rounded-full text-xs font-bold border border-success-green/20">@L["Stocktake_Status_Done"]</span>
                 </td>
             </tr>
         </tbody>
@@ -54,7 +54,7 @@
     <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low shrink-0">
-                <h3 class="font-bold text-on-background m-0">Thực hiện Kiểm kê Tồn kho Thực tế</h3>
+                <h3 class="font-bold text-on-background m-0">@L["Stocktake_Modal_Title"]</h3>
                 <button class="text-on-surface-variant hover:text-error" @onclick="CloseModal">
                     <span class="material-symbols-outlined" data-icon="close">close</span>
                 </button>
@@ -62,18 +62,18 @@
 
             <div class="p-6 overflow-y-auto flex-1 space-y-4">
                 <div class="bg-primary-container/10 p-3 rounded-lg border border-primary/20 text-xs text-on-background">
-                    💡 <strong>Hướng dẫn:</strong> Nhập số lượng đếm thực tế của từng nguyên liệu. Hệ thống sẽ tính toán chênh lệch so với tồn lý thuyết hiện tại.
+                    💡 @L["Stocktake_Guide"]
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-surface-container-low text-xs font-bold text-on-surface-variant uppercase">
                             <tr>
-                                <th class="p-3">Nguyên liệu</th>
-                                <th class="p-3 text-right">Tồn Lý thuyết</th>
-                                <th class="p-3 text-right">Đếm Thực tế</th>
-                                <th class="p-3 text-right">Chênh lệch</th>
-                                <th class="p-3">Lý do chênh lệch</th>
+                                <th class="p-3">@L["Material_Col_Name"]</th>
+                                <th class="p-3 text-right">@L["Stocktake_Col_SystemStock"]</th>
+                                <th class="p-3 text-right">@L["Stocktake_Col_ActualStock"]</th>
+                                <th class="p-3 text-right">@L["Stocktake_Col_Diff"]</th>
+                                <th class="p-3">@L["Stocktake_Col_Reason"]</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -100,16 +100,16 @@
             </div>
 
             <div class="px-6 py-4 border-t border-outline-variant/30 flex justify-end gap-3 bg-surface-container-low shrink-0">
-                <button class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded text-sm font-bold" @onclick="CloseModal">Hủy</button>
+                <button class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded text-sm font-bold" @onclick="CloseModal">@L["Common_Cancel"]</button>
                 <button class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-bold shadow-sm hover:bg-primary/90 flex items-center" disabled="@_isSaving" @onclick="SubmitAudit">
                     @if (_isSaving)
                     {
                         <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
-                        <span>Đang cân bằng kho...</span>
+                        <span>@L["Common_Saving"]</span>
                     }
                     else
                     {
-                        <span>Hoàn tất &amp; Điều chỉnh Tồn kho</span>
+                        <span>@L["Stocktake_Submit_Btn"]</span>
                     }
                 </button>
             </div>

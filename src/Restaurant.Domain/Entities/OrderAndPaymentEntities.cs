@@ -10,11 +10,14 @@ public class Order : AuditableEntity, IHasRowVersion
     public Table? Table { get; set; }
     public int? CustomerId { get; set; }
     public Customer? Customer { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerPhone { get; set; }
     public int ShiftId { get; set; }
     public Shift Shift { get; set; } = null!;
     public int CreatedByUserId { get; set; }
     public User CreatedByUser { get; set; } = null!;
     public int Status { get; set; }
+    public int PaymentStatus { get; set; } = (int)Enums.PaymentStatus.Unpaid;
     public decimal SubTotal { get; set; }
     public decimal DiscountAmount { get; set; }
     public int LoyaltyPointsUsed { get; set; }
@@ -37,13 +40,27 @@ public class OrderItem : AuditableEntity
     public MenuItem MenuItem { get; set; } = null!;
     public string MenuItemName { get; set; } = string.Empty;
     public decimal UnitPrice { get; set; }
+    public decimal DiscountAmount { get; set; }
     public int Quantity { get; set; } = 1;
     public string? Note { get; set; }
+    public int Status { get; set; } = (int)Enums.OrderItemStatus.Active;
     public int KitchenStatus { get; set; }
     public DateTime? SentToKitchenAt { get; set; }
     public DateTime? CompletedAt { get; set; }
 
     public ICollection<OrderItemModifier> OrderItemModifiers { get; set; } = new List<OrderItemModifier>();
+}
+
+public class Refund : AuditableEntity
+{
+    public int OrderId { get; set; }
+    public Order Order { get; set; } = null!;
+    public int? PaymentId { get; set; }
+    public Payment? Payment { get; set; }
+    public decimal Amount { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public int RefundedByUserId { get; set; }
+    public User RefundedByUser { get; set; } = null!;
 }
 
 public class OrderItemModifier
@@ -88,6 +105,7 @@ public class Payment
     public decimal? ChangeAmount { get; set; }
     public string? TransactionRef { get; set; }
     public string? SepayContent { get; set; }
+    public string? IdempotencyKey { get; set; }
     public int Status { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -115,6 +133,8 @@ public class Shift : IHasRowVersion
     public int Id { get; set; }
     public int UserId { get; set; }
     public User User { get; set; } = null!;
+    public int? RegisterId { get; set; }
+    public Register? Register { get; set; }
     public decimal OpeningBalance { get; set; }
     public decimal? ClosingBalance { get; set; }
     public decimal? ActualCashCounted { get; set; }

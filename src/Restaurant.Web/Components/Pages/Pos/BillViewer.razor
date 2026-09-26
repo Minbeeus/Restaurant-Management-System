@@ -1,0 +1,148 @@
+@page "/pos/bills"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.PosLayout
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Components.Layout
+@using Restaurant.Web.Components.Pages.Pos.Components
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="flex flex-col h-full bg-background overflow-hidden select-none">
+    <PosHeader />
+
+    <div class="flex-1 overflow-auto p-6 space-y-6">
+        <!-- Top Toolbar -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-surface p-5 rounded-2xl border border-outline-variant shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-3xl">receipt_long</span>
+                <div>
+                    <h1 class="text-xl font-black text-on-surface m-0 tracking-wide">TRA CỨU & XEM HÓA ĐƠN (BILL VIEWER)</h1>
+                    <p class="text-xs text-on-surface-variant mt-0.5">Tìm kiếm hóa đơn theo mã đơn, sđt, khách hàng, phương thức thanh toán và in lại hóa đơn K80</p>
+                </div>
+            </div>
+
+            <button class="px-5 py-2.5 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2"
+                    @onclick='() => Navigation.NavigateTo("/pos")'>
+                <span class="material-symbols-outlined text-base">arrow_back</span>
+                <span>Quay Lại POS</span>
+            </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="relative flex-1">
+                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-xl">search</span>
+                    <input type="text" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-outline-variant bg-surface-high text-sm font-medium"
+                           placeholder="Nhập mã đơn (HD...), số điện thoại, tên khách hàng..." @bind="SearchKeyword" @onkeyup="HandleSearchKeyUp" />
+                </div>
+                <button class="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl shadow-xs hover:bg-primary/90 cursor-pointer"
+                        @onclick="SearchBillsAsync">
+                    TÌM KIẾM HÓA ĐƠN
+                </button>
+            </div>
+
+            <!-- Bill List -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="bg-surface-high border-b border-outline-variant text-on-surface-variant uppercase font-bold text-[11px]">
+                            <th class="p-3">Mã Đơn</th>
+                            <th class="p-3">Bàn / Loại</th>
+                            <th class="p-3">Khách Hàng</th>
+                            <th class="p-3">Thời Gian</th>
+                            <th class="p-3">Tổng Tiền</th>
+                            <th class="p-3">Phương Thức</th>
+                            <th class="p-3 text-right">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant/60">
+                        @if (!BillList.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center p-8 text-on-surface-variant">Chưa tìm thấy hóa đơn nào.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var bill in BillList)
+                            {
+                                <tr class="hover:bg-surface-high/40 transition-colors">
+                                    <td class="p-3 font-extrabold text-primary">@bill.OrderCode</td>
+                                    <td class="p-3 font-bold">@bill.TableName</td>
+                                    <td class="p-3">@bill.CustomerName (@(string.IsNullOrEmpty(bill.CustomerPhone) ? "Khách lẻ" : bill.CustomerPhone))</td>
+                                    <td class="p-3 text-on-surface-variant">@bill.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="p-3 font-black text-emerald-600">@bill.TotalAmount.ToString("N0")đ</td>
+                                    <td class="p-3 font-semibold">@bill.PaymentMethodName</td>
+                                    <td class="p-3 text-right">
+                                        <button class="px-3 py-1.5 bg-surface-high hover:bg-primary hover:text-white border border-outline-variant rounded-lg font-bold text-[11px] transition-all cursor-pointer"
+                                                @onclick="() => OpenBillDetail(bill.OrderId)">
+                                            Xem & In Lại Bill
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Thermal K80 Modal -->
+    @if (SelectedBillK80 != null)
+    {
+        <K80ReceiptModal IsOpen="true" IsOpenChanged="() => SelectedBillK80 = null" OrderData="SelectedBillK80" />
+    }
+</div>
+
+@code {
+    protected string SearchKeyword { get; set; } = string.Empty;
+    protected List<BillDetailDto> BillList { get; set; } = new();
+    protected K80ReceiptDto? SelectedBillK80 { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SearchBillsAsync();
+    }
+
+    private async Task HandleSearchKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchBillsAsync();
+        }
+    }
+
+    private async Task SearchBillsAsync()
+    {
+        try
+        {
+            var req = new BillQueryRequest { SearchKeyword = SearchKeyword, Page = 1, PageSize = 50 };
+            var res = await Http.PostAsJsonAsync("api/v1/bills/query", req);
+            if (res.IsSuccessStatusCode)
+            {
+                var wrapper = await res.Content.ReadFromJsonAsync<ApiResponseWrapper<List<BillDetailDto>>>();
+                BillList = wrapper?.Data ?? new List<BillDetailDto>();
+            }
+        }
+        catch { }
+    }
+
+    private async Task OpenBillDetail(int orderId)
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{orderId}/k80");
+            SelectedBillK80 = res?.Data;
+        }
+        catch { }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+    }
+}

@@ -83,6 +83,66 @@ public class AuthController : ControllerBase
         });
     }
 
+    [HttpPost("pin-login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PinLogin([FromBody] PinLoginRequest request)
+    {
+        try
+        {
+            var response = await _identityService.PinLoginAsync(request);
+            if (response == null)
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "INVALID_PIN",
+                        message = "Mã PIN không đúng, vui lòng thử lại."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                data = response,
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(429, new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "PIN_LOCKED",
+                    message = ex.Message
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    [HttpPost("verify-manager-pin")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyManagerPin([FromBody] VerifyPinRequest request)
+    {
+        var isValid = await _identityService.VerifyManagerPinAsync(request.PinCode);
+        return Ok(new
+        {
+            success = isValid,
+            data = new { isValid },
+            error = isValid ? null : new { code = "INVALID_PIN", message = "Mã PIN Quản lý không đúng." },
+            timestamp = DateTime.UtcNow
+        });
+    }
+
     [HttpPost("logout")]
     [Authorize]
     public IActionResult Logout()

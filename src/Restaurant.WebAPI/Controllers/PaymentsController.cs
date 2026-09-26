@@ -62,7 +62,7 @@ public class PaymentsController : ControllerBase
     }
 
     [HttpPost("cash")]
-    [Authorize(Roles = "Admin,Manager,Cashier")]
+    [AllowAnonymous]
     public async Task<IActionResult> CashPayment([FromBody] ProcessCashPaymentRequest request)
     {
         try

@@ -1,0 +1,196 @@
+@using Restaurant.Application.DTOs
+@inject IJSRuntime JS
+
+@if (IsOpen && OrderData != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in no-print-bg">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-outline-variant flex flex-col max-h-[90vh]">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-primary text-on-primary flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2 font-bold text-lg">
+                    <span class="material-symbols-outlined">receipt_long</span>
+                    <span>Xem Trước Hóa Đơn (K80 - 80mm)</span>
+                </div>
+                <button class="hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer" @onclick="CloseAsync">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
+
+            <!-- Receipt Preview (Scrollable inside modal) -->
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-100 dark:bg-slate-900 flex justify-center">
+                
+                <!-- Printable Thermal Receipt Area -->
+                <div id="k80-receipt" class="k80-print-container bg-white text-black p-4 rounded-md shadow-md text-xs font-mono leading-tight w-[80mm] min-h-[400px]">
+                    
+                    <!-- Header -->
+                    <div class="text-center pb-3 border-b border-dashed border-black/40 mb-3">
+                        <div class="font-extrabold text-base uppercase tracking-wider">NHÀ HÀNG MINBEEUS</div>
+                        <div class="text-[11px] mt-0.5">ĐC: 123 Nguyễn Văn Linh, Q.7, TP.HCM</div>
+                        <div class="text-[11px]">Hotline: 0901.234.567</div>
+                        <div class="text-[10px] italic opacity-80 mt-1">Wifi: Minbeeus_Guest / Pass: 88888888</div>
+                    </div>
+
+                    <!-- Title -->
+                    <div class="text-center font-black text-sm uppercase my-2">HÓA ĐƠN THANH TOÁN</div>
+
+                    <!-- Order Info -->
+                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-3">
+                        <div class="flex justify-between">
+                            <span>Mã đơn:</span>
+                            <span class="font-bold">@OrderData.OrderCode</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Thời gian:</span>
+                            <span>@OrderData.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Bàn / Loại:</span>
+                            <span class="font-bold">@(string.IsNullOrEmpty(OrderData.TableName) ? "Mang Về (Takeaway)" : OrderData.TableName)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Thu ngân:</span>
+                            <span>@OrderData.CashierName</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Khách hàng:</span>
+                            <span>@(string.IsNullOrEmpty(OrderData.CustomerName) ? "Khách lẻ" : OrderData.CustomerName)</span>
+                        </div>
+                    </div>
+
+                    <!-- Items Table Header -->
+                    <div class="grid grid-cols-12 font-bold pb-1 border-b border-black text-[11px] mb-2">
+                        <div class="col-span-6">Tên món</div>
+                        <div class="col-span-2 text-center">SL</div>
+                        <div class="col-span-4 text-right">Thành tiền</div>
+                    </div>
+
+                    <!-- Items List -->
+                    <div class="space-y-2 pb-3 border-b border-dashed border-black/40 mb-3 text-[11px]">
+                        @foreach (var item in OrderData.Items)
+                        {
+                            <div>
+                                <div class="grid grid-cols-12 font-bold">
+                                    <div class="col-span-6 leading-tight">@item.MenuItemName</div>
+                                    <div class="col-span-2 text-center">@item.Quantity</div>
+                                    <div class="col-span-4 text-right">@item.TotalPrice.ToString("N0")đ</div>
+                                </div>
+                                <div class="text-[10px] text-gray-600">
+                                    Đơn giá: @item.UnitPrice.ToString("N0")đ
+                                    @if (item.DiscountAmount > 0)
+                                    {
+                                        <span> (-@item.DiscountAmount.ToString("N0")đ)</span>
+                                    }
+                                </div>
+                                @if (item.Modifiers != null && item.Modifiers.Any())
+                                {
+                                    <div class="text-[10px] text-gray-500 italic pl-2">
+                                        + @string.Join(", ", item.Modifiers)
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Financial Summary -->
+                    <div class="space-y-1.5 text-[11px] pb-3 border-b border-black mb-3">
+                        <div class="flex justify-between">
+                            <span>Tạm tính món:</span>
+                            <span>@OrderData.SubTotal.ToString("N0") đ</span>
+                        </div>
+                        @if (OrderData.DiscountAmount > 0)
+                        {
+                            <div class="flex justify-between font-bold">
+                                <span>Giảm giá / Voucher:</span>
+                                <span>-@OrderData.DiscountAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+                        <div class="flex justify-between font-black text-sm pt-1 border-t border-dashed border-black/40">
+                            <span>TỔNG THANH TOÁN:</span>
+                            <span>@OrderData.TotalAmount.ToString("N0") đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Payment Information -->
+                    <div class="space-y-1 text-[11px] pb-3 border-b border-dashed border-black/40 mb-3">
+                        <div class="flex justify-between">
+                            <span>Phương thức:</span>
+                            <span class="font-bold">@OrderData.PaymentMethod</span>
+                        </div>
+                        @if (OrderData.CashReceived > 0)
+                        {
+                            <div class="flex justify-between">
+                                <span>Tiền khách đưa:</span>
+                                <span>@OrderData.CashReceived.ToString("N0") đ</span>
+                            </div>
+                            <div class="flex justify-between font-bold">
+                                <span>Tiền thừa trả khách:</span>
+                                <span>@OrderData.ChangeAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="text-center space-y-1 pt-1">
+                        <div class="font-bold text-[11px]">CẢM ƠN QUÝ KHÁCH & HẸN GẶP LẠI!</div>
+                        <div class="text-[10px] text-gray-500">Vui lòng kiểm tra lại hóa đơn trước khi rời quầy</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 bg-surface border-t border-outline-variant flex justify-between items-center shrink-0">
+                <button class="px-5 py-2.5 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high cursor-pointer"
+                        @onclick="CloseAsync">
+                    Đóng
+                </button>
+                <button class="px-6 py-2.5 text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+                        @onclick="PrintReceiptAsync">
+                    <span class="material-symbols-outlined text-lg">print</span>
+                    IN HÓA ĐƠN K80
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Media Styling -->
+    <style>
+        @@media print {
+            body * {
+                visibility: hidden !important;
+            }
+            #k80-receipt, #k80-receipt * {
+                visibility: visible !important;
+            }
+            #k80-receipt {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 80mm !important;
+                margin: 0 !important;
+                padding: 4mm !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+        }
+    </style>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public K80ReceiptDto? OrderData { get; set; }
+
+    private async Task PrintReceiptAsync()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

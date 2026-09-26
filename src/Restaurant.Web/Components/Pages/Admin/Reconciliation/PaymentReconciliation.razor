@@ -1,0 +1,138 @@
+@page "/admin/reconciliation"
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@inject HttpClient Http
+
+<div class="p-6 space-y-6 bg-background min-h-screen text-on-surface">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-4">
+        <div>
+            <h1 class="text-2xl font-black text-primary tracking-wide flex items-center gap-2 m-0">
+                <span class="material-symbols-outlined text-3xl">fact_check</span>
+                ĐỐI SOÁT THANH TOÁN & BÁO CÁO SALES (RECONCILIATION)
+            </h1>
+            <p class="text-xs text-on-surface-variant mt-1">Đối soát tiền mặt & chuyển khoản thực tế với hệ thống, báo cáo doanh thu toàn cửa hàng</p>
+        </div>
+
+        <button class="px-4 py-2 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                @onclick="LoadDataAsync">
+            <span class="material-symbols-outlined text-base">refresh</span>
+            <span>Tải Lại</span>
+        </button>
+    </div>
+
+    <!-- Top KPI Sales Cards -->
+    @if (SalesSummary != null)
+    {
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
+                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Tổng Doanh Thu Gốc (Gross)</span>
+                <span class="text-2xl font-black text-primary">@SalesSummary.GrossSales.ToString("N0") đ</span>
+            </div>
+            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
+                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Tổng Giảm Giá / Voucher</span>
+                <span class="text-2xl font-black text-rose-600">-@SalesSummary.TotalDiscounts.ToString("N0") đ</span>
+            </div>
+            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
+                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Doanh Thu Thu Thực (Net)</span>
+                <span class="text-2xl font-black text-emerald-600">@SalesSummary.NetSales.ToString("N0") đ</span>
+            </div>
+            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
+                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Số Đơn Hàng / Giá Trị TB</span>
+                <span class="text-2xl font-black text-blue-600">@SalesSummary.TotalOrders đơn (@SalesSummary.AverageOrderValue.ToString("N0")đ/đơn)</span>
+            </div>
+        </div>
+    }
+
+    <!-- Payment Reconciliation Table -->
+    <div class="bg-surface rounded-2xl border border-outline-variant p-6 shadow-sm space-y-4 max-w-4xl">
+        <h3 class="font-extrabold text-base text-primary pb-2 border-b border-outline-variant flex items-center gap-2 m-0">
+            <span class="material-symbols-outlined">balance</span>
+            ĐỐI SOÁT PHƯƠNG THỨC THANH TOÁN HỆ THỐNG VS THỰC TẾ
+        </h3>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead>
+                    <tr class="bg-surface-high border-b border-outline-variant text-on-surface-variant uppercase font-bold text-[11px]">
+                        <th class="p-3">Phương Thức</th>
+                        <th class="p-3">Hệ Thống Tính</th>
+                        <th class="p-3">Thực Tế Đếm Được</th>
+                        <th class="p-3">Chênh Lệch</th>
+                        <th class="p-3">Ghi Chú Đối Soát</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline-variant/60">
+                    @foreach (var item in ReconciliationItems)
+                    {
+                        <tr>
+                            <td class="p-3 font-extrabold text-sm">@item.PaymentMethodName</td>
+                            <td class="p-3 font-bold text-primary text-sm">@item.SystemAmount.ToString("N0")đ</td>
+                            <td class="p-3">
+                                <input type="number" class="w-36 p-2 rounded-lg border border-outline-variant font-bold text-sm bg-surface-high"
+                                       @bind="item.ActualAmount" step="10000" />
+                            </td>
+                            <td class="p-3 font-black text-sm @(item.Difference == 0 ? "text-emerald-600" : "text-rose-600")">
+                                @(item.Difference > 0 ? $"+{item.Difference:N0}đ" : $"{item.Difference:N0}đ")
+                            </td>
+                            <td class="p-3">
+                                <input type="text" class="w-full p-2 rounded-lg border border-outline-variant text-xs bg-surface-high"
+                                       placeholder="Ghi chú chênh lệch..." @bind="item.Note" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex justify-end pt-3">
+            <button class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                    @onclick="SaveReconciliationAsync">
+                <span class="material-symbols-outlined text-base">save</span>
+                LƯU ĐỐI SOÁT THANH TOÁN
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected StoreSalesSummaryDto? SalesSummary { get; set; }
+    protected List<PaymentReconciliationItemDto> ReconciliationItems { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            var summaryTask = Http.GetFromJsonAsync<ApiResponseWrapper<StoreSalesSummaryDto>>("api/v1/reconciliation/sales-summary");
+            var reconTask = Http.GetFromJsonAsync<ApiResponseWrapper<List<PaymentReconciliationItemDto>>>("api/v1/reconciliation/preview/1");
+
+            await Task.WhenAll(summaryTask, reconTask);
+
+            SalesSummary = (await summaryTask)?.Data;
+            ReconciliationItems = (await reconTask)?.Data ?? new List<PaymentReconciliationItemDto>();
+        }
+        catch { }
+    }
+
+    private async Task SaveReconciliationAsync()
+    {
+        try
+        {
+            var req = new SaveReconciliationRequest { ShiftId = 1, Items = ReconciliationItems };
+            await Http.PostAsJsonAsync("api/v1/reconciliation/save", req);
+            await LoadDataAsync();
+        }
+        catch { }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+    }
+}

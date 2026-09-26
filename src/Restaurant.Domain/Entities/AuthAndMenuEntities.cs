@@ -26,6 +26,7 @@ public class User : FullAuditableEntity
 public class Area : FullAuditableEntity
 {
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
     public ICollection<Table> Tables { get; set; } = new List<Table>();
@@ -53,7 +54,9 @@ public class Table : FullAuditableEntity, IHasRowVersion
 public class Category : FullAuditableEntity
 {
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
     public string? ImageUrl { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
@@ -65,7 +68,9 @@ public class MenuItem : FullAuditableEntity
     public int CategoryId { get; set; }
     public Category Category { get; set; } = null!;
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
     public bool IsSoldOut { get; set; }
@@ -79,6 +84,7 @@ public class MenuItem : FullAuditableEntity
 public class ModifierGroup : AuditableEntity
 {
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public bool IsRequired { get; set; }
     public int MinSelections { get; set; }
     public int MaxSelections { get; set; } = 1;
@@ -92,6 +98,7 @@ public class ModifierOption : AuditableEntity
     public int ModifierGroupId { get; set; }
     public ModifierGroup ModifierGroup { get; set; } = null!;
     public string Name { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public decimal ExtraPrice { get; set; }
     public bool IsDefault { get; set; }
     public int SortOrder { get; set; }

@@ -41,6 +41,7 @@ public class InventoryService : IInventoryService
             UnitOfMeasureId = m.UnitOfMeasureId,
             UnitName = m.UnitOfMeasure?.Name ?? string.Empty,
             Name = m.Name,
+            NameEn = m.NameEn,
             CurrentStock = m.CurrentStock,
             MinStockLevel = m.MinStockLevel,
             CostPerUnit = m.CostPerUnit,
@@ -54,6 +55,7 @@ public class InventoryService : IInventoryService
         {
             UnitOfMeasureId = request.UnitOfMeasureId,
             Name = request.Name,
+            NameEn = request.NameEn?.Trim(),
             CurrentStock = 0,
             MinStockLevel = request.MinStockLevel,
             CostPerUnit = request.CostPerUnit,
@@ -70,6 +72,7 @@ public class InventoryService : IInventoryService
             UnitOfMeasureId = material.UnitOfMeasureId,
             UnitName = unit?.Name ?? string.Empty,
             Name = material.Name,
+            NameEn = material.NameEn,
             CurrentStock = material.CurrentStock,
             MinStockLevel = material.MinStockLevel,
             CostPerUnit = material.CostPerUnit,

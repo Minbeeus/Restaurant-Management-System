@@ -89,16 +89,29 @@ public static class DbInitializer
 
         await context.SaveChangesAsync();
 
+        // 2.1 Registers
+        if (!await context.Registers.AnyAsync())
+        {
+            var defaultRegister = new Register
+            {
+                Code = "REG01",
+                Name = "Máy POS Thu Ngân 01",
+                IsActive = true
+            };
+            await context.Registers.AddAsync(defaultRegister);
+            await context.SaveChangesAsync();
+        }
+
         // 3. Categories
         if (!await context.Categories.AnyAsync())
         {
             var categories = new List<Category>
             {
-                new Category { Name = "Khai vị (Appetizers)", Description = "Món ăn nhẹ khởi đầu bữa tiệc", SortOrder = 1, IsActive = true },
-                new Category { Name = "Pizza Ý Thượng hạng", Description = "Pizza nướng lò củi bột ủ 48 giờ", SortOrder = 2, IsActive = true },
-                new Category { Name = "Mì Ý (Pasta)", Description = "Mì Ý tươi xào sốt truyền thống", SortOrder = 3, IsActive = true },
-                new Category { Name = "Đồ uống & Tráng miệng", Description = "Trà tươi, Cà phê & Bánh ngọt Ý", SortOrder = 4, IsActive = true },
-                new Category { Name = "Combo Ưu đãi", Description = "Set đồ ăn tiết kiệm cho gia đình & nhóm", SortOrder = 5, IsActive = true }
+                new Category { Name = "Khai vị (Appetizers)", NameEn = "Appetizers", Description = "Món ăn nhẹ khởi đầu bữa tiệc", DescriptionEn = "Light appetizers to start your meal", SortOrder = 1, IsActive = true },
+                new Category { Name = "Pizza Ý Thượng hạng", NameEn = "Premium Italian Pizza", Description = "Pizza nướng lò củi bột ủ 48 giờ", DescriptionEn = "Wood-fired pizza with 48h fermented dough", SortOrder = 2, IsActive = true },
+                new Category { Name = "Mì Ý (Pasta)", NameEn = "Italian Pasta", Description = "Mì Ý tươi xào sốt truyền thống", DescriptionEn = "Fresh pasta tossed in traditional sauces", SortOrder = 3, IsActive = true },
+                new Category { Name = "Đồ uống & Tráng miệng", NameEn = "Drinks & Desserts", Description = "Trà tươi, Cà phê & Bánh ngọt Ý", DescriptionEn = "Fresh tea, coffee & Italian desserts", SortOrder = 4, IsActive = true },
+                new Category { Name = "Combo Ưu đãi", NameEn = "Special Combos", Description = "Set đồ ăn tiết kiệm cho gia đình & nhóm", DescriptionEn = "Value meal sets for families & groups", SortOrder = 5, IsActive = true }
             };
             await context.Categories.AddRangeAsync(categories);
             await context.SaveChangesAsync();
@@ -115,12 +128,12 @@ public static class DbInitializer
 
             var menuItems = new List<MenuItem>
             {
-                new MenuItem { CategoryId = catPizza?.Id ?? 1, Name = "Pizza Margherita Mozzarella", Description = "Phô mai Mozzarella tươi, sốt cà chua San Marzano, lá Basil", Price = 180000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=500" },
-                new MenuItem { CategoryId = catPizza?.Id ?? 1, Name = "Pizza Pepperoni Xúc xích Ý", Description = "Xúc xích Pepperoni cay nồng, lớp phô mai nung chảy", Price = 210000, SortOrder = 2, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=500" },
-                new MenuItem { CategoryId = catPasta?.Id ?? 1, Name = "Mì Ý Bolognese Thịt bò Băm", Description = "Mì Spagheti sốt bò băm đút lò kiểu Ý", Price = 145000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=500" },
-                new MenuItem { CategoryId = catKhaiVi?.Id ?? 1, Name = "Salad Caesar Gà Nướng", Description = "Rau xà lách Romaine, gà nướng tiêu đen, sốt Caesar", Price = 115000, SortOrder = 1, IsActive = true },
-                new MenuItem { CategoryId = catDrink?.Id ?? 1, Name = "Trà Vải Khiếm Thị Đào Basil", Description = "Trà đen thanh mát kết hợp quả vải ngọt ngào & lá Basil tươi", Price = 45000, SortOrder = 1, IsActive = true },
-                new MenuItem { CategoryId = catCombo?.Id ?? 1, Name = "Combo Gia Đình Pizza & Pasta", Description = "1 Pizza Margherita + 1 Mì Ý Bolognese + 2 Trà Vải", Price = 349000, IsCombo = true, SortOrder = 1, IsActive = true }
+                new MenuItem { CategoryId = catPizza?.Id ?? 1, Name = "Pizza Margherita Mozzarella", NameEn = "Margherita Mozzarella Pizza", Description = "Phô mai Mozzarella tươi, sốt cà chua San Marzano, lá Basil", DescriptionEn = "Fresh Mozzarella, San Marzano tomato sauce, fresh Basil", Price = 180000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=500" },
+                new MenuItem { CategoryId = catPizza?.Id ?? 1, Name = "Pizza Pepperoni Xúc xích Ý", NameEn = "Italian Pepperoni Pizza", Description = "Xúc xích Pepperoni cay nồng, lớp phô mai nung chảy", DescriptionEn = "Spicy Pepperoni sausage with melted cheese", Price = 210000, SortOrder = 2, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=500" },
+                new MenuItem { CategoryId = catPasta?.Id ?? 1, Name = "Mì Ý Bolognese Thịt bò Băm", NameEn = "Spaghetti Bolognese", Description = "Mì Spagheti sốt bò băm đút lò kiểu Ý", DescriptionEn = "Classic Italian minced beef spaghetti", Price = 145000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=500" },
+                new MenuItem { CategoryId = catKhaiVi?.Id ?? 1, Name = "Salad Caesar Gà Nướng", NameEn = "Grilled Chicken Caesar Salad", Description = "Rau xà lách Romaine, gà nướng tiêu đen, sốt Caesar", DescriptionEn = "Romaine lettuce, black pepper grilled chicken, Caesar dressing", Price = 115000, SortOrder = 1, IsActive = true },
+                new MenuItem { CategoryId = catDrink?.Id ?? 1, Name = "Trà Vải Khiếm Thị Đào Basil", NameEn = "Lychee Peach Basil Tea", Description = "Trà đen thanh mát kết hợp quả vải ngọt ngào & lá Basil tươi", DescriptionEn = "Refreshing black tea blended with sweet lychee & fresh basil", Price = 45000, SortOrder = 1, IsActive = true },
+                new MenuItem { CategoryId = catCombo?.Id ?? 1, Name = "Combo Gia Đình Pizza & Pasta", NameEn = "Family Pizza & Pasta Combo", Description = "1 Pizza Margherita + 1 Mì Ý Bolognese + 2 Trà Vải", DescriptionEn = "1 Margherita Pizza + 1 Spaghetti Bolognese + 2 Lychee Teas", Price = 349000, IsCombo = true, SortOrder = 1, IsActive = true }
             };
 
             await context.MenuItems.AddRangeAsync(menuItems);
@@ -130,18 +143,18 @@ public static class DbInitializer
         // 5. ModifierGroups & ModifierOptions
         if (!await context.ModifierGroups.AnyAsync())
         {
-            var sizeGroup = new ModifierGroup { Name = "Chọn Kích thước Pizza", IsRequired = true, MinSelections = 1, MaxSelections = 1, SortOrder = 1 };
-            var toppingGroup = new ModifierGroup { Name = "Thêm Topping", IsRequired = false, MinSelections = 0, MaxSelections = 3, SortOrder = 2 };
+            var sizeGroup = new ModifierGroup { Name = "Chọn Kích thước Pizza", NameEn = "Select Pizza Size", IsRequired = true, MinSelections = 1, MaxSelections = 1, SortOrder = 1 };
+            var toppingGroup = new ModifierGroup { Name = "Thêm Topping", NameEn = "Extra Toppings", IsRequired = false, MinSelections = 0, MaxSelections = 3, SortOrder = 2 };
 
             await context.ModifierGroups.AddRangeAsync(sizeGroup, toppingGroup);
             await context.SaveChangesAsync();
 
             var options = new List<ModifierOption>
             {
-                new ModifierOption { ModifierGroupId = sizeGroup.Id, Name = "Size M (25cm)", ExtraPrice = 0, IsDefault = true, SortOrder = 1, IsActive = true },
-                new ModifierOption { ModifierGroupId = sizeGroup.Id, Name = "Size L (30cm)", ExtraPrice = 45000, IsDefault = false, SortOrder = 2, IsActive = true },
-                new ModifierOption { ModifierGroupId = toppingGroup.Id, Name = "Thêm Phô mai Mozzarella", ExtraPrice = 30000, SortOrder = 1, IsActive = true },
-                new ModifierOption { ModifierGroupId = toppingGroup.Id, Name = "Thêm Xúc xích Ý", ExtraPrice = 35000, SortOrder = 2, IsActive = true }
+                new ModifierOption { ModifierGroupId = sizeGroup.Id, Name = "Size M (25cm)", NameEn = "Medium Size (25cm)", ExtraPrice = 0, IsDefault = true, SortOrder = 1, IsActive = true },
+                new ModifierOption { ModifierGroupId = sizeGroup.Id, Name = "Size L (30cm)", NameEn = "Large Size (30cm)", ExtraPrice = 45000, IsDefault = false, SortOrder = 2, IsActive = true },
+                new ModifierOption { ModifierGroupId = toppingGroup.Id, Name = "Thêm Phô mai Mozzarella", NameEn = "Extra Mozzarella Cheese", ExtraPrice = 30000, SortOrder = 1, IsActive = true },
+                new ModifierOption { ModifierGroupId = toppingGroup.Id, Name = "Thêm Xúc xích Ý", NameEn = "Extra Italian Pepperoni", ExtraPrice = 35000, SortOrder = 2, IsActive = true }
             };
 
             await context.ModifierOptions.AddRangeAsync(options);
@@ -151,20 +164,32 @@ public static class DbInitializer
         // 6. Areas & Tables
         if (!await context.Areas.AnyAsync())
         {
-            var area1 = new Area { Name = "Tầng 1 - Sảnh Chính", SortOrder = 1, IsActive = true };
-            var area2 = new Area { Name = "Tầng 2 - Sân Thượng", SortOrder = 2, IsActive = true };
-            var area3 = new Area { Name = "Sân Vườn VIP", SortOrder = 3, IsActive = true };
-
-            await context.Areas.AddRangeAsync(area1, area2, area3);
+            var areaList = new List<Area>
+            {
+                new Area { Name = "Tầng 1 - Sảnh Chính", NameEn = "1st Floor - Main Hall", SortOrder = 1, IsActive = true },
+                new Area { Name = "Tầng 2 - Sân Thượng", NameEn = "2nd Floor - Rooftop", SortOrder = 2, IsActive = true },
+                new Area { Name = "Sân Vườn VIP", NameEn = "VIP Garden", SortOrder = 3, IsActive = true }
+            };
+            await context.Areas.AddRangeAsync(areaList);
             await context.SaveChangesAsync();
+        }
+
+        if (!await context.Tables.AnyAsync())
+        {
+            var area1 = await context.Areas.OrderBy(a => a.SortOrder).FirstOrDefaultAsync() ?? new Area { Name = "Tầng 1", SortOrder = 1, IsActive = true };
+            var area2 = await context.Areas.OrderBy(a => a.SortOrder).Skip(1).FirstOrDefaultAsync() ?? area1;
+            var area3 = await context.Areas.OrderBy(a => a.SortOrder).Skip(2).FirstOrDefaultAsync() ?? area1;
 
             var tables = new List<Table>
             {
-                new Table { AreaId = area1.Id, Name = "Bàn 01", Capacity = 4, Status = 0, QrToken = "QR_TOKEN_TABLE_01_SECURE_TOKEN_32", PositionX = 50, PositionY = 50, Shape = 1, SortOrder = 1, IsActive = true },
-                new Table { AreaId = area1.Id, Name = "Bàn 02", Capacity = 4, Status = 1, QrToken = "QR_TOKEN_TABLE_02_SECURE_TOKEN_32", PositionX = 180, PositionY = 50, Shape = 1, SortOrder = 2, IsActive = true },
-                new Table { AreaId = area1.Id, Name = "Bàn 03 (VÍP)", Capacity = 6, Status = 2, QrToken = "QR_TOKEN_TABLE_03_SECURE_TOKEN_32", PositionX = 310, PositionY = 50, Shape = 2, Width = 120, SortOrder = 3, IsActive = true },
-                new Table { AreaId = area2.Id, Name = "Bàn 11 (Sky View)", Capacity = 2, Status = 0, QrToken = "QR_TOKEN_TABLE_11_SECURE_TOKEN_32", PositionX = 50, PositionY = 150, Shape = 0, SortOrder = 1, IsActive = true },
-                new Table { AreaId = area2.Id, Name = "Bàn 12 (Sky View)", Capacity = 4, Status = 3, QrToken = "QR_TOKEN_TABLE_12_SECURE_TOKEN_32", PositionX = 180, PositionY = 150, Shape = 1, SortOrder = 2, IsActive = true }
+                new Table { AreaId = area1.Id, Name = "Bàn 01", Capacity = 4, Status = 0, QrToken = "QR_TOKEN_TABLE_01_SECURE_TOKEN_32", PositionX = 40, PositionY = 40, Width = 90, Height = 90, Shape = 1, SortOrder = 1, IsActive = true },
+                new Table { AreaId = area1.Id, Name = "Bàn 02", Capacity = 4, Status = 1, QrToken = "QR_TOKEN_TABLE_02_SECURE_TOKEN_32", PositionX = 170, PositionY = 40, Width = 90, Height = 90, Shape = 1, SortOrder = 2, IsActive = true },
+                new Table { AreaId = area1.Id, Name = "Bàn 03 (VIP)", Capacity = 6, Status = 2, QrToken = "QR_TOKEN_TABLE_03_SECURE_TOKEN_32", PositionX = 300, PositionY = 40, Width = 130, Height = 90, Shape = 2, SortOrder = 3, IsActive = true },
+                new Table { AreaId = area1.Id, Name = "Bàn 04", Capacity = 2, Status = 0, QrToken = "QR_TOKEN_TABLE_04_SECURE_TOKEN_32", PositionX = 40, PositionY = 170, Width = 80, Height = 80, Shape = 0, SortOrder = 4, IsActive = true },
+                new Table { AreaId = area1.Id, Name = "Bàn 05", Capacity = 4, Status = 0, QrToken = "QR_TOKEN_TABLE_05_SECURE_TOKEN_32", PositionX = 170, PositionY = 170, Width = 90, Height = 90, Shape = 1, SortOrder = 5, IsActive = true },
+                new Table { AreaId = area2.Id, Name = "Bàn 11 (Sky)", Capacity = 2, Status = 0, QrToken = "QR_TOKEN_TABLE_11_SECURE_TOKEN_32", PositionX = 50, PositionY = 50, Width = 80, Height = 80, Shape = 0, SortOrder = 1, IsActive = true },
+                new Table { AreaId = area2.Id, Name = "Bàn 12 (Sky)", Capacity = 4, Status = 3, QrToken = "QR_TOKEN_TABLE_12_SECURE_TOKEN_32", PositionX = 180, PositionY = 50, Width = 90, Height = 90, Shape = 1, SortOrder = 2, IsActive = true },
+                new Table { AreaId = area3.Id, Name = "Bàn VIP 01", Capacity = 8, Status = 1, QrToken = "QR_TOKEN_TABLE_VIP01_SECURE_TOKEN", PositionX = 60, PositionY = 60, Width = 150, Height = 100, Shape = 2, SortOrder = 1, IsActive = true }
             };
 
             await context.Tables.AddRangeAsync(tables);
@@ -183,11 +208,11 @@ public static class DbInitializer
 
             var materials = new List<Material>
             {
-                new Material { UnitOfMeasureId = unitKg.Id, Name = "Bột mì Tipo 00", CurrentStock = 120.5m, MinStockLevel = 30m, CostPerUnit = 25000, IsActive = true },
-                new Material { UnitOfMeasureId = unitKg.Id, Name = "Phô mai Mozzarella Fresh", CurrentStock = 14.2m, MinStockLevel = 20m, CostPerUnit = 180000, IsActive = true },
-                new Material { UnitOfMeasureId = unitLit.Id, Name = "Sốt cà chua San Marzano", CurrentStock = 45.0m, MinStockLevel = 15m, CostPerUnit = 45000, IsActive = true },
-                new Material { UnitOfMeasureId = unitKg.Id, Name = "Lá húng tây Basil tươi", CurrentStock = 1.8m, MinStockLevel = 2.0m, CostPerUnit = 120000, IsActive = true },
-                new Material { UnitOfMeasureId = unitKg.Id, Name = "Thịt bò Xay đút lò", CurrentStock = 28.5m, MinStockLevel = 10m, CostPerUnit = 220000, IsActive = true }
+                new Material { UnitOfMeasureId = unitKg.Id, Name = "Bột mì Tipo 00", NameEn = "Tipo 00 Flour", CurrentStock = 120.5m, MinStockLevel = 30m, CostPerUnit = 25000, IsActive = true },
+                new Material { UnitOfMeasureId = unitKg.Id, Name = "Phô mai Mozzarella Fresh", NameEn = "Fresh Mozzarella Cheese", CurrentStock = 14.2m, MinStockLevel = 20m, CostPerUnit = 180000, IsActive = true },
+                new Material { UnitOfMeasureId = unitLit.Id, Name = "Sốt cà chua San Marzano", NameEn = "San Marzano Tomato Sauce", CurrentStock = 45.0m, MinStockLevel = 15m, CostPerUnit = 45000, IsActive = true },
+                new Material { UnitOfMeasureId = unitKg.Id, Name = "Lá húng tây Basil tươi", NameEn = "Fresh Basil Leaves", CurrentStock = 1.8m, MinStockLevel = 2.0m, CostPerUnit = 120000, IsActive = true },
+                new Material { UnitOfMeasureId = unitKg.Id, Name = "Thịt bò Xay đút lò", NameEn = "Minced Beef", CurrentStock = 28.5m, MinStockLevel = 10m, CostPerUnit = 220000, IsActive = true }
             };
 
             await context.Materials.AddRangeAsync(materials);
@@ -237,5 +262,69 @@ public static class DbInitializer
             await context.Vouchers.AddRangeAsync(vouchers);
             await context.SaveChangesAsync();
         }
+
+        // 11. Backfill English fields for pre-existing database records
+        var existingCategories = await context.Categories.Where(c => c.NameEn == null).ToListAsync();
+        foreach (var c in existingCategories)
+        {
+            if (c.Name.Contains("Khai vị")) { c.NameEn = "Appetizers"; c.DescriptionEn ??= "Light appetizers to start your meal"; }
+            else if (c.Name.Contains("Pizza")) { c.NameEn = "Premium Italian Pizza"; c.DescriptionEn ??= "Wood-fired pizza with 48h fermented dough"; }
+            else if (c.Name.Contains("Mì Ý")) { c.NameEn = "Italian Pasta"; c.DescriptionEn ??= "Fresh pasta tossed in traditional sauces"; }
+            else if (c.Name.Contains("Đồ uống")) { c.NameEn = "Drinks & Desserts"; c.DescriptionEn ??= "Fresh tea, coffee & Italian desserts"; }
+            else if (c.Name.Contains("Combo")) { c.NameEn = "Special Combos"; c.DescriptionEn ??= "Value meal sets for families & groups"; }
+            else { c.NameEn = c.Name; }
+        }
+
+        var existingMenuItems = await context.MenuItems.Where(m => m.NameEn == null).ToListAsync();
+        foreach (var m in existingMenuItems)
+        {
+            if (m.Name.Contains("Margherita")) { m.NameEn = "Margherita Mozzarella Pizza"; m.DescriptionEn ??= "Fresh Mozzarella, San Marzano tomato sauce, fresh Basil"; }
+            else if (m.Name.Contains("Pepperoni")) { m.NameEn = "Italian Pepperoni Pizza"; m.DescriptionEn ??= "Spicy Pepperoni sausage with melted cheese"; }
+            else if (m.Name.Contains("Bolognese")) { m.NameEn = "Spaghetti Bolognese"; m.DescriptionEn ??= "Classic Italian minced beef spaghetti"; }
+            else if (m.Name.Contains("Salad")) { m.NameEn = "Grilled Chicken Caesar Salad"; m.DescriptionEn ??= "Romaine lettuce, black pepper grilled chicken, Caesar dressing"; }
+            else if (m.Name.Contains("Trà Vải")) { m.NameEn = "Lychee Peach Basil Tea"; m.DescriptionEn ??= "Refreshing black tea blended with sweet lychee & fresh basil"; }
+            else if (m.Name.Contains("Combo")) { m.NameEn = "Family Pizza & Pasta Combo"; m.DescriptionEn ??= "1 Margherita Pizza + 1 Spaghetti Bolognese + 2 Lychee Teas"; }
+            else { m.NameEn = m.Name; }
+        }
+
+        var existingModGroups = await context.ModifierGroups.Where(mg => mg.NameEn == null).ToListAsync();
+        foreach (var mg in existingModGroups)
+        {
+            if (mg.Name.Contains("Kích thước")) mg.NameEn = "Select Pizza Size";
+            else if (mg.Name.Contains("Topping")) mg.NameEn = "Extra Toppings";
+            else mg.NameEn = mg.Name;
+        }
+
+        var existingModOptions = await context.ModifierOptions.Where(o => o.NameEn == null).ToListAsync();
+        foreach (var o in existingModOptions)
+        {
+            if (o.Name.Contains("Size M")) o.NameEn = "Medium Size (25cm)";
+            else if (o.Name.Contains("Size L")) o.NameEn = "Large Size (30cm)";
+            else if (o.Name.Contains("Phô mai")) o.NameEn = "Extra Mozzarella Cheese";
+            else if (o.Name.Contains("Xúc xích")) o.NameEn = "Extra Italian Pepperoni";
+            else o.NameEn = o.Name;
+        }
+
+        var existingAreas = await context.Areas.Where(a => a.NameEn == null).ToListAsync();
+        foreach (var a in existingAreas)
+        {
+            if (a.Name.Contains("Tầng 1")) a.NameEn = "1st Floor - Main Hall";
+            else if (a.Name.Contains("Tầng 2")) a.NameEn = "2nd Floor - Rooftop";
+            else if (a.Name.Contains("Sân Vườn")) a.NameEn = "VIP Garden";
+            else a.NameEn = a.Name;
+        }
+
+        var existingMaterials = await context.Materials.Where(m => m.NameEn == null).ToListAsync();
+        foreach (var mat in existingMaterials)
+        {
+            if (mat.Name.Contains("Bột mì")) mat.NameEn = "Tipo 00 Flour";
+            else if (mat.Name.Contains("Phô mai")) mat.NameEn = "Fresh Mozzarella Cheese";
+            else if (mat.Name.Contains("Sốt cà chua")) mat.NameEn = "San Marzano Tomato Sauce";
+            else if (mat.Name.Contains("Lá húng tây")) mat.NameEn = "Fresh Basil Leaves";
+            else if (mat.Name.Contains("Thịt bò")) mat.NameEn = "Minced Beef";
+            else mat.NameEn = mat.Name;
+        }
+
+        await context.SaveChangesAsync();
     }
 }

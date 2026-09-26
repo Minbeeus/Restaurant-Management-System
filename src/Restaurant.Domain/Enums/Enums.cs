@@ -17,10 +17,17 @@ public enum OrderType
 public enum OrderStatus
 {
     Draft = 0,
-    Confirmed = 1,
-    Completed = 2,
-    Paid = 3,
-    Cancelled = 4
+    Pending = 1,
+    InPreparation = 2,
+    Ready = 3,
+    Completed = 4,
+    Cancelled = 5
+}
+
+public enum OrderItemStatus
+{
+    Active = 0,
+    Voided = 1
 }
 
 public enum KitchenStatus
@@ -38,15 +45,50 @@ public enum PaymentMethod
 
 public enum PaymentStatus
 {
-    Pending = 0,
-    Completed = 1,
-    Failed = 2
+    Unpaid = 0,
+    PartiallyPaid = 1,
+    Paid = 2,
+    PartiallyRefunded = 3,
+    Refunded = 4,
+    Failed = 5
 }
 
 public enum ShiftStatus
 {
     Open = 0,
-    Closed = 1
+    Closed = 1,
+    PendingClosingApproval = 2
+}
+
+public enum ApprovalType
+{
+    Refund = 0,
+    Void = 1,
+    TillOut = 2,
+    ShiftClosing = 3,
+    CashAdjustment = 4,
+    DiscountExceeded = 5,
+    ReopenShift = 6,
+    CancelOrder = 7
+}
+
+public enum ApprovalStatus
+{
+    PendingApproval = 0,
+    Approved = 1,
+    Rejected = 2,
+    Cancelled = 3,
+    Executed = 4
+}
+
+public enum CashMovementType
+{
+    OpeningCash = 0,
+    CashSale = 1,
+    TillIn = 2,
+    TillOut = 3,
+    CashRefund = 4,
+    CashAdjustment = 5
 }
 
 public enum VoucherDiscountType

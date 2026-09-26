@@ -1,0 +1,577 @@
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] overflow-hidden border border-outline-variant flex flex-col">
+            
+            <!-- Header -->
+            <div class="px-6 py-4 bg-primary text-on-primary flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-3xl">point_of_sale</span>
+                    <div>
+                        <h2 class="font-extrabold text-xl m-0 tracking-wide">CÔNG CỤ THU NGÂN (CASHIER TOOLS)</h2>
+                        <span class="text-xs opacity-90">Quản lý Ca làm việc, Nộp/Rút tiền két, Lịch sử biến động & Tra cứu hóa đơn</span>
+                    </div>
+                </div>
+                <button class="hover:bg-white/20 p-2 rounded-full transition-colors cursor-pointer" @onclick="CloseAsync">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="flex border-b border-outline-variant bg-surface-high/60 px-6 pt-2 shrink-0 gap-2">
+                <button class="px-5 py-3 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-2 @(ActiveTab == "Shift" ? "border-primary text-primary bg-surface shadow-2xs rounded-t-xl" : "border-transparent text-on-surface-variant hover:text-on-surface")"
+                        @onclick='() => SetTab("Shift")'>
+                    <span class="material-symbols-outlined text-lg">badge</span>
+                    <span>1. CA LÀM VIỆC</span>
+                </button>
+
+                <button class="px-5 py-3 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-2 @(ActiveTab == "Cash" ? "border-primary text-primary bg-surface shadow-2xs rounded-t-xl" : "border-transparent text-on-surface-variant hover:text-on-surface")"
+                        @onclick='() => SetTab("Cash")'>
+                    <span class="material-symbols-outlined text-lg">payments</span>
+                    <span>2. TIỀN MẶT & RÚT KÉT</span>
+                </button>
+
+                <button class="px-5 py-3 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-2 @(ActiveTab == "Bills" ? "border-primary text-primary bg-surface shadow-2xs rounded-t-xl" : "border-transparent text-on-surface-variant hover:text-on-surface")"
+                        @onclick='() => SetTab("Bills")'>
+                    <span class="material-symbols-outlined text-lg">receipt_long</span>
+                    <span>3. TRA CỨU HÓA ĐƠN</span>
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="flex-1 overflow-y-auto p-6 bg-surface-low space-y-4">
+
+                <!-- TAB 1: SHIFT MANAGEMENT -->
+                @if (ActiveTab == "Shift")
+                {
+                    @if (CurrentShift == null)
+                    {
+                        <!-- Open Shift Form -->
+                        <div class="bg-surface rounded-2xl border border-outline-variant p-6 max-w-lg mx-auto shadow-md">
+                            <div class="flex items-center gap-3 text-primary mb-4">
+                                <span class="material-symbols-outlined text-3xl">play_circle</span>
+                                <h3 class="font-extrabold text-lg m-0">MỞ CA LÀM VIỆC MỚI</h3>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Tiền Đầu Ca (VNĐ)</label>
+                                    <input type="number" class="w-full p-3 rounded-xl border border-outline-variant font-black text-xl text-primary bg-surface-high focus:ring-2 focus:ring-primary"
+                                           @bind="OpenInitialCash" step="50000" min="0" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Ghi Chú Mở Ca</label>
+                                    <input type="text" class="w-full p-3 rounded-xl border border-outline-variant text-sm bg-surface-high"
+                                           placeholder="Nhập ghi chú đầu ca (ví dụ: Tiền thối sẵn 2 triệu)..." @bind="OpenNote" />
+                                </div>
+
+                                <button class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold text-base shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                                        disabled="IsProcessing" @onclick="OpenShiftAsync">
+                                    <span class="material-symbols-outlined">key</span>
+                                    XÁC NHẬN MỞ CA
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Active Shift Info & Close Shift Form -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <!-- Shift Overview Card -->
+                            <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-3">
+                                <div class="flex justify-between items-center pb-2 border-b border-outline-variant">
+                                    <span class="font-extrabold text-sm text-primary flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined">schedule</span>
+                                        THÔNG TIN CA HIỆN TẠI (#@CurrentShift.ShiftId)
+                                    </span>
+                                    <span class="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-extrabold border border-emerald-500/20">
+                                        @CurrentShift.StatusName
+                                    </span>
+                                </div>
+
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between text-on-surface-variant">
+                                        <span>Thu ngân phụ trách:</span>
+                                        <span class="font-bold text-on-surface">@CurrentShift.StaffName</span>
+                                    </div>
+                                    <div class="flex justify-between text-on-surface-variant">
+                                        <span>Giờ mở ca:</span>
+                                        <span class="font-bold text-on-surface">@CurrentShift.StartTime.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                    </div>
+                                    <div class="flex justify-between text-on-surface-variant">
+                                        <span>Tiền đầu ca:</span>
+                                        <span class="font-bold text-on-surface">@CurrentShift.InitialCash.ToString("N0") đ</span>
+                                    </div>
+                                    <div class="flex justify-between text-on-surface-variant">
+                                        <span>Doanh thu Tiền mặt:</span>
+                                        <span class="font-bold text-emerald-600">+@CurrentShift.CashRevenue.ToString("N0") đ</span>
+                                    </div>
+                                    <div class="flex justify-between text-on-surface-variant">
+                                        <span>Doanh thu Chuyển khoản:</span>
+                                        <span class="font-bold text-blue-600">+@CurrentShift.BankingRevenue.ToString("N0") đ</span>
+                                    </div>
+                                    <div class="pt-2 border-t border-outline-variant flex justify-between font-black text-sm">
+                                        <span>TỔNG TIỀN KỲ VỌNG:</span>
+                                        <span class="text-primary text-base">@CurrentShift.ExpectedCash.ToString("N0") đ</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Close Shift Form -->
+                            <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-4">
+                                <h3 class="font-extrabold text-sm text-primary flex items-center gap-1.5 pb-2 border-b border-outline-variant">
+                                    <span class="material-symbols-outlined">task_alt</span>
+                                    THỰC HIỆN ĐÓNG CA & ĐẾM TIỀN
+                                </h3>
+
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Số Tiền Thực Tế Kiểm Đếm Trong Két (VNĐ)</label>
+                                    <input type="number" class="w-full p-3 rounded-xl border border-outline-variant font-black text-xl text-emerald-600 bg-surface-high focus:ring-2 focus:ring-emerald-500"
+                                           @bind="ActualCashCounted" step="10000" min="0" />
+                                </div>
+
+                                <!-- Calculated Variance -->
+                                <div class="p-3 rounded-xl border text-xs flex justify-between items-center font-bold @(Variance == 0 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700" : "bg-rose-500/10 border-rose-500/30 text-rose-700")">
+                                    <span>Chênh Lệch (Thực tế - Kỳ vọng):</span>
+                                    <span class="text-sm font-black">
+                                        @(Variance > 0 ? $"+{Variance:N0} đ (Thừa)" : Variance < 0 ? $"{Variance:N0} đ (Thiếu)" : "Khớp 0 đ")
+                                    </span>
+                                </div>
+
+                                @if (Variance != 0)
+                                {
+                                    <div class="p-2.5 bg-amber-500/15 border border-amber-500/30 text-amber-800 text-[11px] rounded-xl font-bold">
+                                        💡 Chênh lệch khác 0 sẽ tự động tạo <strong>Yêu cầu Phê duyệt Đóng ca</strong> tới Quản lý.
+                                    </div>
+                                }
+
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Ghi Chú Đóng Ca</label>
+                                    <input type="text" class="w-full p-3 rounded-xl border border-outline-variant text-sm bg-surface-high"
+                                           placeholder="Nhập lý do chênh lệch hoặc ghi chú đóng ca..." @bind="CloseNote" />
+                                </div>
+
+                                <button class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-extrabold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                                        disabled="IsProcessing" @onclick="CloseShiftAsync">
+                                    <span class="material-symbols-outlined">lock</span>
+                                    GỬI YÊU CẦU ĐÓNG CA
+                                </button>
+                            </div>
+
+                        </div>
+                    }
+                }
+
+                <!-- TAB 2: TILL IN & TILL OUT -->
+                @if (ActiveTab == "Cash")
+                {
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
+                        <!-- Left Form: Till In / Till Out -->
+                        <div class="lg:col-span-5 bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between pb-2 border-b border-outline-variant">
+                                <span class="font-extrabold text-sm text-primary flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined">swap_horiz</span>
+                                    THAO TÁC TIỀN KÉT (TILL)
+                                </span>
+                            </div>
+
+                            <!-- Operation Selector -->
+                            <div class="grid grid-cols-2 gap-2 p-1 bg-surface-high rounded-xl border border-outline-variant text-xs font-bold">
+                                <button class="py-2.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 @(CashActionType == "TillIn" ? "bg-emerald-600 text-white shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                                        @onclick='() => CashActionType = "TillIn"'>
+                                    <span class="material-symbols-outlined text-base">move_to_inbox</span>
+                                    <span>Nộp Tiền (Till In)</span>
+                                </button>
+                                <button class="py-2.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 @(CashActionType == "TillOut" ? "bg-rose-600 text-white shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                                        @onclick='() => CashActionType = "TillOut"'>
+                                    <span class="material-symbols-outlined text-base">outbox</span>
+                                    <span>Rút Tiền (Till Out)</span>
+                                </button>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Số Tiền (VNĐ)</label>
+                                <input type="number" class="w-full p-3 rounded-xl border border-outline-variant font-black text-xl text-primary bg-surface-high"
+                                       @bind="CashAmount" step="50000" min="0" />
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Lý Do / Mục Đích</label>
+                                <input type="text" class="w-full p-3 rounded-xl border border-outline-variant text-sm bg-surface-high"
+                                       placeholder="@(CashActionType == "TillIn" ? "Ví dụ: Bổ sung tiền thối 500k..." : "Ví dụ: Rút nộp ngân hàng 3 triệu...")"
+                                       @bind="CashReason" />
+                            </div>
+
+                            @if (CashActionType == "TillOut")
+                            {
+                                <div class="p-2.5 bg-blue-500/10 border border-blue-500/30 text-blue-800 text-[11px] rounded-xl font-bold">
+                                    ℹ️ Hạn mức rút tiền két của Thu ngân: <strong>1.000.000 đ</strong>. Nếu vượt quá hạn mức, hệ thống sẽ gửi Yêu cầu Phê duyệt cho Quản lý.
+                                </div>
+                            }
+
+                            <button class="w-full py-3 rounded-xl font-extrabold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 @(CashActionType == "TillIn" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white")"
+                                    disabled="IsProcessing" @onclick="SubmitCashActionAsync">
+                                <span class="material-symbols-outlined">send</span>
+                                XÁC NHẬN @(CashActionType == "TillIn" ? "NỘP TIỀN" : "RÚT TIỀN")
+                            </button>
+                        </div>
+
+                        <!-- Right List: Cash Movements History -->
+                        <div class="lg:col-span-7 bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-extrabold text-sm text-primary pb-2 border-b border-outline-variant flex items-center justify-between">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined">history</span>
+                                        LỊCH SỬ BIẾN ĐỘNG TIỀN KÉT (CASH MOVEMENTS)
+                                    </span>
+                                    <span class="text-xs text-on-surface-variant font-normal">Ca hiện tại</span>
+                                </h3>
+
+                                <div class="overflow-y-auto max-h-[350px] space-y-2 mt-3 pr-1">
+                                    @if (CashSummary == null || !CashSummary.Movements.Any())
+                                    {
+                                        <div class="text-center text-xs text-on-surface-variant py-8">Chưa có giao dịch biến động tiền két nào trong ca này.</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var move in CashSummary.Movements)
+                                        {
+                                            <div class="p-3 bg-surface-high/60 rounded-xl border border-outline-variant/60 flex justify-between items-center text-xs">
+                                                <div>
+                                                    <div class="font-extrabold text-on-surface">@move.TypeName</div>
+                                                    <div class="text-[11px] text-on-surface-variant mt-0.5">@move.Reason (@move.CreatedAt.ToString("HH:mm:ss"))</div>
+                                                </div>
+                                                <div class="font-black text-sm text-right @(move.Amount >= 0 ? "text-emerald-600" : "text-rose-600")">
+                                                    @(move.Amount >= 0 ? $"+{move.Amount:N0}đ" : $"{move.Amount:N0}đ")
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                }
+
+                <!-- TAB 3: BILL VIEWER -->
+                @if (ActiveTab == "Bills")
+                {
+                    <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="relative flex-1">
+                                <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-xl">search</span>
+                                <input type="text" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-outline-variant bg-surface-high text-sm font-medium"
+                                       placeholder="Tìm kiếm mã hóa đơn, tên khách hàng, số điện thoại..." @bind="SearchBillKeyword" @onkeyup="HandleSearchKeyUp" />
+                            </div>
+                            <button class="px-5 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl shadow-xs hover:bg-primary/90"
+                                    @onclick="SearchBillsAsync">
+                                TÌM KIẾM
+                            </button>
+                        </div>
+
+                        <!-- Bill List Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead>
+                                    <tr class="bg-surface-high border-b border-outline-variant text-on-surface-variant uppercase font-bold text-[11px]">
+                                        <th class="p-3">Mã Đơn</th>
+                                        <th class="p-3">Bàn / Loại</th>
+                                        <th class="p-3">Khách Hàng</th>
+                                        <th class="p-3">Thời Gian</th>
+                                        <th class="p-3">Tổng Tiền</th>
+                                        <th class="p-3">Phương Thức</th>
+                                        <th class="p-3 text-right">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-outline-variant/60">
+                                    @if (!BillList.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="7" class="text-center p-8 text-on-surface-variant">Không tìm thấy hóa đơn nào.</td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var bill in BillList)
+                                        {
+                                            <tr class="hover:bg-surface-high/40 transition-colors">
+                                                <td class="p-3 font-extrabold text-primary">@bill.OrderCode</td>
+                                                <td class="p-3 font-bold">@bill.TableName</td>
+                                                <td class="p-3">@bill.CustomerName (@(string.IsNullOrEmpty(bill.CustomerPhone) ? "Khách lẻ" : bill.CustomerPhone))</td>
+                                                <td class="p-3 text-on-surface-variant">@bill.CreatedAt.ToString("dd/MM HH:mm")</td>
+                                                <td class="p-3 font-black text-emerald-600">@bill.TotalAmount.ToString("N0")đ</td>
+                                                <td class="p-3 font-semibold">@bill.PaymentMethodName</td>
+                                                <td class="p-3 text-right">
+                                                    <button class="px-3 py-1.5 bg-surface-high hover:bg-primary hover:text-white border border-outline-variant rounded-lg font-bold text-[11px] transition-all cursor-pointer"
+                                                            @onclick="() => OpenBillDetail(bill.OrderId)">
+                                                        Xem & In Bill
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="p-3 bg-error-container text-error rounded-xl font-bold text-xs">
+                        @ErrorMessage
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(SuccessMessage))
+                {
+                    <div class="p-3 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 rounded-xl font-bold text-xs">
+                        @SuccessMessage
+                    </div>
+                }
+
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 bg-surface border-t border-outline-variant flex justify-between items-center shrink-0">
+                <span class="text-xs text-on-surface-variant">Shift Status: <strong>@(CurrentShift?.StatusName ?? "Không mở ca")</strong></span>
+                <button class="px-6 py-2.5 bg-surface-high hover:bg-outline-variant/40 border border-outline-variant rounded-xl font-bold text-xs"
+                        @onclick="CloseAsync">
+                    ĐÓNG CỬA SỔ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Thermal K80 Modal -->
+    @if (SelectedBillK80 != null)
+    {
+        <K80ReceiptModal IsOpen="true" IsOpenChanged="() => SelectedBillK80 = null" OrderData="SelectedBillK80" />
+    }
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    protected string ActiveTab { get; set; } = "Shift";
+    protected ShiftReportDto? CurrentShift { get; set; }
+    protected CashMovementSummaryDto? CashSummary { get; set; }
+
+    protected decimal OpenInitialCash { get; set; } = 2000000;
+    protected string OpenNote { get; set; } = string.Empty;
+
+    protected decimal ActualCashCounted { get; set; } = 0;
+    protected string CloseNote { get; set; } = string.Empty;
+
+    protected string CashActionType { get; set; } = "TillIn";
+    protected decimal CashAmount { get; set; } = 100000;
+    protected string CashReason { get; set; } = string.Empty;
+
+    protected string SearchBillKeyword { get; set; } = string.Empty;
+    protected List<BillDetailDto> BillList { get; set; } = new();
+    protected K80ReceiptDto? SelectedBillK80 { get; set; }
+
+    protected bool IsProcessing { get; set; } = false;
+    protected string ErrorMessage { get; set; } = string.Empty;
+    protected string SuccessMessage { get; set; } = string.Empty;
+
+    protected decimal Variance => CurrentShift == null ? 0 : ActualCashCounted - CurrentShift.ExpectedCash;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen)
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        ErrorMessage = string.Empty;
+        try
+        {
+            var shiftResp = await Http.GetAsync("api/v1/shifts/current");
+            if (shiftResp.IsSuccessStatusCode)
+            {
+                var wrapper = await shiftResp.Content.ReadFromJsonAsync<ApiResponseWrapper<ShiftReportDto>>();
+                CurrentShift = wrapper?.Data;
+                if (CurrentShift != null)
+                {
+                    ActualCashCounted = CurrentShift.ExpectedCash;
+                    await LoadCashSummaryAsync(CurrentShift.ShiftId);
+                }
+            }
+            else
+            {
+                CurrentShift = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task LoadCashSummaryAsync(int shiftId)
+    {
+        try
+        {
+            var summaryResp = await Http.GetFromJsonAsync<ApiResponseWrapper<CashMovementSummaryDto>>($"api/v1/cashier/cash-movements/{shiftId}");
+            CashSummary = summaryResp?.Data;
+        }
+        catch { }
+    }
+
+    private void SetTab(string tab)
+    {
+        ActiveTab = tab;
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+        if (tab == "Bills" && !BillList.Any())
+        {
+            _ = SearchBillsAsync();
+        }
+    }
+
+    private async Task OpenShiftAsync()
+    {
+        IsProcessing = true;
+        ErrorMessage = string.Empty;
+        try
+        {
+            var req = new OpenShiftRequest { InitialCash = OpenInitialCash, Note = OpenNote };
+            var res = await Http.PostAsJsonAsync("api/v1/shifts/open", req);
+            if (res.IsSuccessStatusCode)
+            {
+                SuccessMessage = "Mở ca làm việc thành công!";
+                await LoadDataAsync();
+            }
+            else
+            {
+                var errStr = await res.Content.ReadAsStringAsync();
+                ErrorMessage = $"Lỗi mở ca: {errStr}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally { IsProcessing = false; }
+    }
+
+    private async Task CloseShiftAsync()
+    {
+        if (CurrentShift == null) return;
+        IsProcessing = true;
+        ErrorMessage = string.Empty;
+        try
+        {
+            var req = new CloseShiftRequest { ActualCashCounted = ActualCashCounted, Note = CloseNote };
+            var res = await Http.PostAsJsonAsync("api/v1/shifts/close", req);
+            if (res.IsSuccessStatusCode)
+            {
+                SuccessMessage = Variance == 0 ? "Đóng ca thành công!" : "Đã tạo Yêu cầu Phê duyệt Đóng ca chênh lệch cho Quản lý!";
+                await LoadDataAsync();
+            }
+            else
+            {
+                var errStr = await res.Content.ReadAsStringAsync();
+                ErrorMessage = $"Lỗi đóng ca: {errStr}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally { IsProcessing = false; }
+    }
+
+    private async Task SubmitCashActionAsync()
+    {
+        if (CurrentShift == null || CashAmount <= 0) return;
+        IsProcessing = true;
+        ErrorMessage = string.Empty;
+        try
+        {
+            if (CashActionType == "TillIn")
+            {
+                var req = new TillInRequest { Amount = CashAmount, Reason = string.IsNullOrEmpty(CashReason) ? "Nộp tiền két" : CashReason };
+                var res = await Http.PostAsJsonAsync($"api/v1/cashier/till-in/{CurrentShift.ShiftId}", req);
+                if (res.IsSuccessStatusCode)
+                {
+                    SuccessMessage = "Nộp tiền két (Till In) thành công!";
+                    await LoadDataAsync();
+                }
+            }
+            else
+            {
+                var req = new TillOutRequest { Amount = CashAmount, Reason = string.IsNullOrEmpty(CashReason) ? "Rút tiền két" : CashReason };
+                var res = await Http.PostAsJsonAsync($"api/v1/cashier/till-out/{CurrentShift.ShiftId}", req);
+                if (res.IsSuccessStatusCode)
+                {
+                    SuccessMessage = CashAmount > 1000000 ? "Đã gửi Yêu cầu Phê duyệt Rút tiền cho Quản lý!" : "Rút tiền két (Till Out) thành công!";
+                    await LoadDataAsync();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally { IsProcessing = false; }
+    }
+
+    private async Task HandleSearchKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchBillsAsync();
+        }
+    }
+
+    private async Task SearchBillsAsync()
+    {
+        try
+        {
+            var queryReq = new BillQueryRequest { SearchKeyword = SearchBillKeyword, Page = 1, PageSize = 30 };
+            var res = await Http.PostAsJsonAsync("api/v1/bills/query", queryReq);
+            if (res.IsSuccessStatusCode)
+            {
+                var wrapper = await res.Content.ReadFromJsonAsync<ApiResponseWrapper<List<BillDetailDto>>>();
+                BillList = wrapper?.Data ?? new List<BillDetailDto>();
+            }
+        }
+        catch { }
+    }
+
+    private async Task OpenBillDetail(int orderId)
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{orderId}/k80");
+            SelectedBillK80 = res?.Data;
+        }
+        catch { }
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+        public object? Error { get; set; }
+    }
+}

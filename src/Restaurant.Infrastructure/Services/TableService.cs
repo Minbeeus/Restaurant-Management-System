@@ -113,7 +113,7 @@ public class TableService : ITableService
             throw new InvalidOperationException("Không thể xóa bàn đang có khách hoặc đang phục vụ. Vui lòng thanh toán đơn hàng trước.");
         }
 
-        var hasActiveOrders = await _context.Orders.AnyAsync(o => o.TableId == id && o.Status != (int)OrderStatus.Paid && o.Status != (int)OrderStatus.Cancelled && o.Status != (int)OrderStatus.Completed);
+        var hasActiveOrders = await _context.Orders.AnyAsync(o => o.TableId == id && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Cancelled && o.Status != (int)OrderStatus.Completed);
         if (hasActiveOrders)
         {
             throw new InvalidOperationException("Không thể xóa bàn vì đang có đơn hàng chưa thanh toán.");

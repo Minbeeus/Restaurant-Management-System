@@ -116,7 +116,7 @@ public class KitchenService : IKitchenService
             .ToListAsync();
 
         var isAllDone = allItemsInOrder.All(oi => oi.KitchenStatus == (int)KitchenStatus.Done);
-        if (isAllDone && item.Order.Status != (int)OrderStatus.Paid && item.Order.Status != (int)OrderStatus.Cancelled)
+        if (isAllDone && item.Order.Status != (int)OrderStatus.Completed && item.Order.Status != (int)OrderStatus.Cancelled)
         {
             item.Order.Status = (int)OrderStatus.Completed;
             await _context.SaveChangesAsync();

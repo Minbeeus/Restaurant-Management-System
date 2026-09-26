@@ -40,8 +40,39 @@ public class CancelOrderService : ICancelOrderService
 
             if (order == null || order.Status == (int)OrderStatus.Cancelled) return false;
 
-            var wasPaid = order.Status == (int)OrderStatus.Paid;
-            order.Status = (int)OrderStatus.Cancelled;
+            var isSentToKitchen = order.OrderItems.Any(oi => oi.KitchenStatus >= (int)KitchenStatus.Processing);
+            if (isSentToKitchen && order.PaymentStatus == (int)PaymentStatus.Unpaid)
+            {
+                // Check if user has manager authorization to cancel an order already in preparation
+                var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
+                if (user == null || (user.Role.Name != "Manager" && user.Role.Name != "Admin"))
+                {
+                    // Create ApprovalRequest for Manager approval
+                    var appReq = new ApprovalRequest
+                    {
+                        Type = (int)ApprovalType.CancelOrder,
+                        ReferenceId = order.Id,
+                        Amount = order.TotalAmount,
+                        Reason = reason,
+                        Note = $"Yêu cầu hủy đơn hàng {order.OrderCode} đã gửi bếp",
+                        RequestedByUserId = userId,
+                        RequestedAt = DateTime.UtcNow,
+                        Status = (int)ApprovalStatus.PendingApproval
+                    };
+                    _context.ApprovalRequests.Add(appReq);
+                    await _context.SaveChangesAsync();
+                    await dbTransaction.CommitAsync();
+
+                    return false; // Approval request created, awaiting manager approval
+                }
+            }
+
+            var wasPaid = order.PaymentStatus == (int)PaymentStatus.Paid || order.Status == (int)OrderStatus.Completed;
+            
+            if (!wasPaid)
+            {
+                order.Status = (int)OrderStatus.Cancelled;
+            }
             
             var cancelText = string.Format(_localizer["CANCEL_ORDER_NOTE"] ?? "[CANCELLED]: {0}", reason);
             order.Note = string.IsNullOrEmpty(order.Note) ? cancelText : $"{order.Note} | {cancelText}";
@@ -59,16 +90,29 @@ public class CancelOrderService : ICancelOrderService
 
             foreach (var deduction in saleDeductions)
             {
-                // Thay vì cộng lại kho (Rollback), hệ thống giữ nguyên trạng thái kho đã trừ
-                // và chỉ chuyển đổi (convert) nhãn giao dịch từ Bán hàng sang Hủy/Hao hụt.
                 deduction.TransactionType = (int)InventoryTransactionType.CancellationWaste;
                 var wasteText = string.Format(_localizer["CANCELLATION_WASTE_NOTE"] ?? "[WASTE] Cancelled Order {0} | Origin: {1}", order.OrderCode, deduction.Note);
                 deduction.Note = wasteText;
             }
 
-            // 2. Rollback Loyalty Points if order was paid
+            // 2. Rollback Loyalty Points & Record Refund Transaction if order was paid
             if (wasPaid)
             {
+                var payment = await _context.Payments
+                    .FirstOrDefaultAsync(p => p.OrderId == order.Id && p.Status == (int)PaymentStatus.Paid);
+
+                var refund = new Refund
+                {
+                    OrderId = order.Id,
+                    PaymentId = payment?.Id,
+                    Amount = order.TotalAmount,
+                    Reason = reason,
+                    RefundedByUserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Refunds.Add(refund);
+                order.PaymentStatus = (int)PaymentStatus.Refunded;
                 await _loyaltyService.RollbackLoyaltyForCancelledOrderAsync(order.Id);
             }
 

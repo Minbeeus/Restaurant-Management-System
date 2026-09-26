@@ -6,6 +6,8 @@ public interface IIdentityService
 {
     Task<LoginResponse?> LoginAsync(LoginRequest request);
     Task<LoginResponse?> QuickLoginAsync(QuickLoginRequest request);
+    Task<PinLoginResponse?> PinLoginAsync(PinLoginRequest request);
+    Task<bool> VerifyManagerPinAsync(string pinCode);
     Task<UserDto?> GetUserByIdAsync(int userId);
     string HashPassword(string password);
     bool VerifyPassword(string password, string passwordHash);

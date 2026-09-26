@@ -13,6 +13,11 @@ public class TableStatusOverviewDto
     public string? CurrentOrderCode { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime? OrderCreatedAt { get; set; }
+    public double PositionX { get; set; }
+    public double PositionY { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int Shape { get; set; }
 }
 
 public class ApproveOrderRequest
@@ -34,6 +39,7 @@ public class MergeTableRequest
 
 public class OpenShiftRequest
 {
+    public int? RegisterId { get; set; }
     public decimal InitialCash { get; set; }
     public string? Note { get; set; }
 }
@@ -49,6 +55,8 @@ public class ShiftReportDto
     public int ShiftId { get; set; }
     public int UserId { get; set; }
     public string StaffName { get; set; } = string.Empty;
+    public int? RegisterId { get; set; }
+    public string? RegisterName { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public int Status { get; set; }
@@ -67,8 +75,10 @@ public class ShiftReportDto
 
 public class SubmitPosOrderRequest
 {
-    public int TableId { get; set; }
+    public int? TableId { get; set; }
     public string? CustomerNote { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerPhone { get; set; }
     public List<CartItemValidateRequest> Items { get; set; } = new();
 }
 
@@ -80,4 +90,72 @@ public class SubmitPosOrderResponse
     public string OrderStatusName { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public class TakeawayOrderDto
+{
+    public int OrderId { get; set; }
+    public string OrderCode { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = "Khách mang về";
+    public string CustomerPhone { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public decimal SubTotal { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string OrderChannel { get; set; } = "QR";
+    public bool IsQrOrder { get; set; }
+    public int Status { get; set; } // 0: Chờ xác nhận, 1: Đang chuẩn bị, 2: Đã xong, 4: Đã huỷ
+    public string MainStatusName { get; set; } = "Chờ xác nhận";
+    public bool IsPaid { get; set; }
+    public string DisplayStatus => IsPaid ? $"{MainStatusName} | $" : MainStatusName;
+    public List<TakeawayOrderItemDto> Items { get; set; } = new();
+}
+
+public class TakeawayOrderItemDto
+{
+    public int OrderItemId { get; set; }
+    public int MenuItemId { get; set; }
+    public string MenuItemName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal TotalPrice => UnitPrice * Quantity;
+    public string? Note { get; set; }
+    public List<string> Modifiers { get; set; } = new();
+}
+
+public class VoucherValidationResponseDto
+{
+    public bool IsValid { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+    public decimal DiscountAmount { get; set; }
+}
+
+public class K80ReceiptDto
+{
+    public string OrderCode { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public string TableName { get; set; } = string.Empty;
+    public string CashierName { get; set; } = "Thu Ngân POS";
+    public string CustomerName { get; set; } = "Khách Lẻ";
+    public string CustomerPhone { get; set; } = string.Empty;
+    public decimal SubTotal { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string PaymentMethod { get; set; } = "Tiền Mặt";
+    public decimal CashReceived { get; set; }
+    public decimal ChangeAmount => Math.Max(0, CashReceived - TotalAmount);
+    public List<K80ReceiptItemDto> Items { get; set; } = new();
+}
+
+public class K80ReceiptItemDto
+{
+    public string MenuItemName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal TotalPrice => (UnitPrice - DiscountAmount) * Quantity;
+    public List<string> Modifiers { get; set; } = new();
 }

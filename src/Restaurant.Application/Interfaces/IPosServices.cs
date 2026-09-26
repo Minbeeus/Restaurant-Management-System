@@ -10,6 +10,8 @@ public interface IPosOrderService
     Task<bool> MergeTablesAsync(MergeTableRequest request);
     Task<SubmitPosOrderResponse> SubmitPosOrderAsync(SubmitPosOrderRequest request);
     Task<bool> PrintTempBillAsync(int orderId);
+    Task<List<TakeawayOrderDto>> GetTakeawayOrdersAsync();
+    Task<TakeawayOrderDto?> GetTakeawayOrderByIdAsync(int orderId);
 }
 
 public interface IShiftService
@@ -18,4 +20,6 @@ public interface IShiftService
     Task<ShiftReportDto> CloseShiftAsync(int userId, CloseShiftRequest request);
     Task<ShiftReportDto?> GetCurrentShiftAsync(int userId);
     Task<bool> HasActiveShiftAsync(int userId);
+    Task<List<ShiftReportDto>> GetAllShiftsAsync(DateTime? fromDate, DateTime? toDate, int? status = null);
+    Task<ShiftReportDto> ReopenShiftAsync(int managerUserId, int shiftId);
 }

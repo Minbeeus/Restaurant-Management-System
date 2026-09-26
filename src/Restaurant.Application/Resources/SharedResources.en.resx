@@ -525,4 +525,901 @@
   <data name="Customer_Add_Button" xml:space="preserve">
     <value>Add Customer</value>
   </data>
+  <data name="Common_Search" xml:space="preserve">
+    <value>Search...</value>
+  </data>
+  <data name="Common_All_Categories" xml:space="preserve">
+    <value>All categories</value>
+  </data>
+  <data name="Common_All_Status" xml:space="preserve">
+    <value>All statuses</value>
+  </data>
+  <data name="Common_In_Stock" xml:space="preserve">
+    <value>In Stock</value>
+  </data>
+  <data name="Common_Out_Of_Stock" xml:space="preserve">
+    <value>Out of Stock</value>
+  </data>
+  <data name="Common_Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Common_Inactive" xml:space="preserve">
+    <value>Hidden</value>
+  </data>
+  <data name="Common_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Common_Confirm_Delete" xml:space="preserve">
+    <value>Confirm Delete?</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Common_Processing" xml:space="preserve">
+    <value>Processing...</value>
+  </data>
+  <data name="MenuItem_Search_Placeholder" xml:space="preserve">
+    <value>Search by item name...</value>
+  </data>
+  <data name="MenuItem_Header_Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="MenuItem_Header_Name" xml:space="preserve">
+    <value>Item Name</value>
+  </data>
+  <data name="MenuItem_Header_Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="MenuItem_Header_Price" xml:space="preserve">
+    <value>Price</value>
+  </data>
+  <data name="MenuItem_Header_Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="MenuItem_Header_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="MenuItem_No_Items_Found" xml:space="preserve">
+    <value>No items found matching the filter.</value>
+  </data>
+  <data name="MenuItem_Combo" xml:space="preserve">
+    <value>Combo</value>
+  </data>
+  <data name="MenuItem_SingleItem" xml:space="preserve">
+    <value>Single Item</value>
+  </data>
+  <data name="MenuItem_Hidden" xml:space="preserve">
+    <value>Hidden</value>
+  </data>
+  <data name="MenuItem_Available" xml:space="preserve">
+    <value>Available</value>
+  </data>
+  <data name="MenuItem_SoldOut" xml:space="preserve">
+    <value>Sold Out</value>
+  </data>
+  <data name="MenuItem_Modal_Update_Title" xml:space="preserve">
+    <value>Update Menu Item</value>
+  </data>
+  <data name="MenuItem_Modal_Create_Title" xml:space="preserve">
+    <value>Add New Menu Item</value>
+  </data>
+  <data name="MenuItem_Form_Name" xml:space="preserve">
+    <value>Item Name</value>
+  </data>
+  <data name="MenuItem_Form_Name_Placeholder" xml:space="preserve">
+    <value>Item Name</value>
+  </data>
+  <data name="MenuItem_Form_Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="MenuItem_Form_Category_Select" xml:space="preserve">
+    <value>-- Select Category --</value>
+  </data>
+  <data name="MenuItem_Form_Price" xml:space="preserve">
+    <value>Price (VND)</value>
+  </data>
+  <data name="MenuItem_Form_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="MenuItem_Form_ImageUrl" xml:space="preserve">
+    <value>Image URL</value>
+  </data>
+  <data name="MenuItem_Form_ItemStatus" xml:space="preserve">
+    <value>Item Status</value>
+  </data>
+  <data name="MenuItem_Form_IsCombo" xml:space="preserve">
+    <value>Is Combo</value>
+  </data>
+  <data name="MenuItem_Form_IsSoldOut" xml:space="preserve">
+    <value>Mark as Sold Out</value>
+  </data>
+  <data name="MenuItem_Form_IsActive" xml:space="preserve">
+    <value>Active (Visible)</value>
+  </data>
+  <data name="MenuItem_Form_SortOrder" xml:space="preserve">
+    <value>Sort Order</value>
+  </data>
+  <data name="MenuItem_Form_Modifiers" xml:space="preserve">
+    <value>Modifiers &amp; Toppings</value>
+  </data>
+  <data name="MenuItem_Form_NoModifiers" xml:space="preserve">
+    <value>No modifier groups found. Please create in "Modifiers &amp; Toppings".</value>
+  </data>
+  <data name="MenuItem_Delete_Confirm_Body" xml:space="preserve">
+    <value>Are you sure you want to delete item {0}? This action cannot be undone.</value>
+  </data>
+  <data name="MenuItem_Name_Required" xml:space="preserve">
+    <value>Item name cannot be empty.</value>
+  </data>
+  <data name="MenuItem_Category_Required" xml:space="preserve">
+    <value>Please select a category.</value>
+  </data>
+  <data name="MenuItem_Save_Error" xml:space="preserve">
+    <value>Error saving data. Please check again.</value>
+  </data>
+  <data name="Modifier_Title_Sub" xml:space="preserve">
+    <value>Modifiers &amp; Toppings</value>
+  </data>
+  <data name="Modifier_No_Groups" xml:space="preserve">
+    <value>No modifier groups available.</value>
+  </data>
+  <data name="Modifier_Required_Badge" xml:space="preserve">
+    <value>Required</value>
+  </data>
+  <data name="Modifier_Optional_Badge" xml:space="preserve">
+    <value>Optional</value>
+  </data>
+  <data name="Modifier_Select_Range" xml:space="preserve">
+    <value>Select {0} to {1}</value>
+  </data>
+  <data name="Modifier_Free" xml:space="preserve">
+    <value>Free</value>
+  </data>
+  <data name="Modifier_No_Options" xml:space="preserve">
+    <value>No options available</value>
+  </data>
+  <data name="Modifier_Modal_Update" xml:space="preserve">
+    <value>Update Modifier Group</value>
+  </data>
+  <data name="Modifier_Modal_Create" xml:space="preserve">
+    <value>Add New Modifier Group</value>
+  </data>
+  <data name="Modifier_Group_Info" xml:space="preserve">
+    <value>Group Information</value>
+  </data>
+  <data name="Modifier_Group_Name" xml:space="preserve">
+    <value>Group Name (e.g. Size, Sugar Level, Toppings)</value>
+  </data>
+  <data name="Modifier_Rules" xml:space="preserve">
+    <value>Rules</value>
+  </data>
+  <data name="Modifier_Must_Select" xml:space="preserve">
+    <value>Selection Required</value>
+  </data>
+  <data name="Modifier_Min_Select" xml:space="preserve">
+    <value>Min Selections</value>
+  </data>
+  <data name="Modifier_Max_Select" xml:space="preserve">
+    <value>Max Selections</value>
+  </data>
+  <data name="Modifier_Sort_Order" xml:space="preserve">
+    <value>Sort Order</value>
+  </data>
+  <data name="Modifier_Options_Title" xml:space="preserve">
+    <value>Options</value>
+  </data>
+  <data name="Modifier_Add_Option" xml:space="preserve">
+    <value>Add Option</value>
+  </data>
+  <data name="Modifier_No_Options_Prompt" xml:space="preserve">
+    <value>No options yet. Click "Add Option" to start.</value>
+  </data>
+  <data name="Modifier_Option_Name_Placeholder" xml:space="preserve">
+    <value>Name (e.g. Size M)</value>
+  </data>
+  <data name="Modifier_Extra_Price_Placeholder" xml:space="preserve">
+    <value>Extra Price (VND)</value>
+  </data>
+  <data name="Modifier_Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="Modifier_Delete_Group_Confirm" xml:space="preserve">
+    <value>Are you sure you want to delete group {0}? Deleting this group will delete all options inside.</value>
+  </data>
+  <data name="Recipe_Sub" xml:space="preserve">
+    <value>Configure raw material consumption for dishes &amp; topping options.</value>
+  </data>
+  <data name="Recipe_Setup_New" xml:space="preserve">
+    <value>Set Up New Recipe</value>
+  </data>
+  <data name="Recipe_Select_Item" xml:space="preserve">
+    <value>Select Dish / Option</value>
+  </data>
+  <data name="Recipe_Search_Item" xml:space="preserve">
+    <value>Search dish name...</value>
+  </data>
+  <data name="Recipe_Select_Prompt" xml:space="preserve">
+    <value>Please select a dish from the left column to view the BOM recipe.</value>
+  </data>
+  <data name="Recipe_Update_Btn" xml:space="preserve">
+    <value>Update Recipe</value>
+  </data>
+  <data name="Recipe_Materials_List" xml:space="preserve">
+    <value>Raw Material Consumption List</value>
+  </data>
+  <data name="Recipe_Empty" xml:space="preserve">
+    <value>No recipe configuration for this dish yet.</value>
+  </data>
+  <data name="Recipe_Add_Material_Now" xml:space="preserve">
+    <value>Add Material Now</value>
+  </data>
+  <data name="Recipe_Material_Col" xml:space="preserve">
+    <value>Material</value>
+  </data>
+  <data name="Recipe_Consumption_Col" xml:space="preserve">
+    <value>Consumption Qty</value>
+  </data>
+  <data name="Recipe_Unit_Col" xml:space="preserve">
+    <value>Unit</value>
+  </data>
+  <data name="Recipe_Cost_Est_Col" xml:space="preserve">
+    <value>Cost Est.</value>
+  </data>
+  <data name="Recipe_Total_Cost" xml:space="preserve">
+    <value>Total Material Cost (BOM Cost):</value>
+  </data>
+  <data name="Recipe_Modal_Title" xml:space="preserve">
+    <value>Configure BOM Recipe for {0}</value>
+  </data>
+  <data name="Recipe_Add_Material_Row" xml:space="preserve">
+    <value>+ Add material row</value>
+  </data>
+  <data name="Recipe_Select_Material" xml:space="preserve">
+    <value>-- Select Material --</value>
+  </data>
+  <data name="Recipe_Quantity_Placeholder" xml:space="preserve">
+    <value>Quantity</value>
+  </data>
+  <data name="Recipe_Save_Btn" xml:space="preserve">
+    <value>Save Recipe</value>
+  </data>
+  <data name="Area_Header_ID" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="Area_Header_Name" xml:space="preserve">
+    <value>Area Name</value>
+  </data>
+  <data name="Area_Header_TableCount" xml:space="preserve">
+    <value>Table Count</value>
+  </data>
+  <data name="Area_Header_Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <data name="Area_Header_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Area_Header_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Area_No_Data" xml:space="preserve">
+    <value>No areas found.</value>
+  </data>
+  <data name="Area_Tables_Unit" xml:space="preserve">
+    <value>Table(s)</value>
+  </data>
+  <data name="Area_Modal_Update" xml:space="preserve">
+    <value>Update Area</value>
+  </data>
+  <data name="Area_Modal_Create" xml:space="preserve">
+    <value>Add New Area</value>
+  </data>
+  <data name="Area_Name_Label" xml:space="preserve">
+    <value>Area Name (e.g. Floor 1, Garden)</value>
+  </data>
+  <data name="Area_Name_Placeholder" xml:space="preserve">
+    <value>Area Name</value>
+  </data>
+  <data name="Area_Delete_Confirm" xml:space="preserve">
+    <value>Are you sure you want to delete area {0}? This action cannot be undone.</value>
+  </data>
+  <data name="Table_Floorplan_Title" xml:space="preserve">
+    <value>Restaurant Floor Plan</value>
+  </data>
+  <data name="Table_View_Plan" xml:space="preserve">
+    <value>Floor Plan</value>
+  </data>
+  <data name="Table_View_List" xml:space="preserve">
+    <value>List View</value>
+  </data>
+  <data name="Table_Mode_View" xml:space="preserve">
+    <value>View Mode</value>
+  </data>
+  <data name="Table_Mode_Edit" xml:space="preserve">
+    <value>Edit Layout</value>
+  </data>
+  <data name="Table_Save_Layout" xml:space="preserve">
+    <value>Save Layout</value>
+  </data>
+  <data name="Table_Add_Table" xml:space="preserve">
+    <value>Add Table</value>
+  </data>
+  <data name="Table_Editing_Hint" xml:space="preserve">
+    <value>Editing: Drag &amp; drop tables to change position</value>
+  </data>
+  <data name="Table_Collision_Error" xml:space="preserve">
+    <value>- Error: Tables cannot overlap!</value>
+  </data>
+  <data name="Table_Capacity_Unit" xml:space="preserve">
+    <value>seats</value>
+  </data>
+  <data name="Table_General_Info" xml:space="preserve">
+    <value>General Info</value>
+  </data>
+  <data name="Table_Capacity_Label" xml:space="preserve">
+    <value>Capacity:</value>
+  </data>
+  <data name="Table_Area_Label" xml:space="preserve">
+    <value>Area:</value>
+  </data>
+  <data name="Table_Tasks" xml:space="preserve">
+    <value>Layout Actions</value>
+  </data>
+  <data name="Table_Rotate" xml:space="preserve">
+    <value>Rotate Table (90°)</value>
+  </data>
+  <data name="Table_Change_Shape" xml:space="preserve">
+    <value>Change Shape:</value>
+  </data>
+  <data name="Table_Shape_Round" xml:space="preserve">
+    <value>Round</value>
+  </data>
+  <data name="Table_Shape_Square" xml:space="preserve">
+    <value>Square</value>
+  </data>
+  <data name="Table_Shape_Rectangle" xml:space="preserve">
+    <value>Rectangle</value>
+  </data>
+  <data name="Table_Download_QR" xml:space="preserve">
+    <value>Download Table QR</value>
+  </data>
+  <data name="Table_Status_Available" xml:space="preserve">
+    <value>Available</value>
+  </data>
+  <data name="Table_Status_Occupied" xml:space="preserve">
+    <value>Occupied</value>
+  </data>
+  <data name="Table_Header_Capacity" xml:space="preserve">
+    <value>Capacity</value>
+  </data>
+  <data name="Table_No_Tables_Found" xml:space="preserve">
+    <value>No tables found matching the filter.</value>
+  </data>
+  <data name="Table_Modal_Create" xml:space="preserve">
+    <value>Add New Table</value>
+  </data>
+  <data name="Table_Modal_Edit" xml:space="preserve">
+    <value>Edit Table</value>
+  </data>
+  <data name="Table_Name_Label" xml:space="preserve">
+    <value>Table Name</value>
+  </data>
+  <data name="Table_Name_Placeholder" xml:space="preserve">
+    <value>e.g. Table 01</value>
+  </data>
+  <data name="Table_Capacity_Input" xml:space="preserve">
+    <value>Capacity</value>
+  </data>
+  <data name="Table_Delete_Confirm" xml:space="preserve">
+    <value>Are you sure you want to delete {0}? This action cannot be undone.</value>
+  </data>
+  <data name="Order_Sub" xml:space="preserve">
+    <value>Manage and search all Dine-in, Takeaway orders, payment status, and invoice details.</value>
+  </data>
+  <data name="Order_Search_Placeholder" xml:space="preserve">
+    <value>Search by Order Code (e.g. ORD-2026...) or Table Name...</value>
+  </data>
+  <data name="Order_Status_Paid" xml:space="preserve">
+    <value>Paid</value>
+  </data>
+  <data name="Order_Status_Completed" xml:space="preserve">
+    <value>Completed in Kitchen</value>
+  </data>
+  <data name="Order_Status_Confirmed" xml:space="preserve">
+    <value>Confirmed</value>
+  </data>
+  <data name="Order_Status_Cancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="Order_Col_Code" xml:space="preserve">
+    <value>Order Code</value>
+  </data>
+  <data name="Order_Col_Location" xml:space="preserve">
+    <value>Location / Type</value>
+  </data>
+  <data name="Order_Col_Time" xml:space="preserve">
+    <value>Created Time</value>
+  </data>
+  <data name="Order_Col_Total" xml:space="preserve">
+    <value>Total Amount</value>
+  </data>
+  <data name="Order_Col_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Order_Col_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Order_No_Orders" xml:space="preserve">
+    <value>No orders found.</value>
+  </data>
+  <data name="Order_DineIn" xml:space="preserve">
+    <value>Dine-in</value>
+  </data>
+  <data name="Order_Takeaway" xml:space="preserve">
+    <value>Takeaway</value>
+  </data>
+  <data name="Order_Badge_KitchenDone" xml:space="preserve">
+    <value>Kitchen Done</value>
+  </data>
+  <data name="Order_Details_Btn" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="Order_Details_Title" xml:space="preserve">
+    <value>Order Details {0}</value>
+  </data>
+  <data name="Order_Subtotal_Label" xml:space="preserve">
+    <value>Subtotal:</value>
+  </data>
+  <data name="Order_Discount_Label" xml:space="preserve">
+    <value>Discount/Voucher:</value>
+  </data>
+  <data name="Order_Total_Label" xml:space="preserve">
+    <value>Total:</value>
+  </data>
+  <data name="Order_Audit_Note" xml:space="preserve">
+    <value>* Order logged in system Audit Log.</value>
+  </data>
+  <data name="Order_Print_Invoice" xml:space="preserve">
+    <value>Reprint Invoice</value>
+  </data>
+  <data name="Staff_Sub" xml:space="preserve">
+    <value>Employee list, login accounts, roles (RBAC) and register PIN.</value>
+  </data>
+  <data name="Staff_Add_New" xml:space="preserve">
+    <value>Add New Employee</value>
+  </data>
+  <data name="Staff_Col_FullName" xml:space="preserve">
+    <value>Full Name</value>
+  </data>
+  <data name="Staff_Col_Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Staff_Col_Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="Staff_Col_Phone" xml:space="preserve">
+    <value>Phone Number</value>
+  </data>
+  <data name="Staff_Col_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Staff_Col_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="Staff_Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Staff_Inactive" xml:space="preserve">
+    <value>Locked</value>
+  </data>
+  <data name="Staff_Modal_Create" xml:space="preserve">
+    <value>Add New Employee</value>
+  </data>
+  <data name="Staff_Modal_Update" xml:space="preserve">
+    <value>Update Employee</value>
+  </data>
+  <data name="Staff_FullName_Label" xml:space="preserve">
+    <value>Full Name</value>
+  </data>
+  <data name="Staff_Username_Label" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Staff_Role_Label" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="Staff_Phone_Label" xml:space="preserve">
+    <value>Phone Number</value>
+  </data>
+  <data name="Staff_Save_Btn" xml:space="preserve">
+    <value>Save Employee</value>
+  </data>
+  <data name="Material_Sub" xml:space="preserve">
+    <value>Raw material catalog, stock quantity and min stock alerts.</value>
+  </data>
+  <data name="Material_Add_New" xml:space="preserve">
+    <value>Add New Material</value>
+  </data>
+  <data name="Material_Search_Placeholder" xml:space="preserve">
+    <value>Search material name...</value>
+  </data>
+  <data name="Material_Low_Stock_Alert" xml:space="preserve">
+    <value>Low Stock Alert ({0})</value>
+  </data>
+  <data name="Material_Col_Name" xml:space="preserve">
+    <value>Material Name</value>
+  </data>
+  <data name="Material_Col_Stock" xml:space="preserve">
+    <value>Current Stock</value>
+  </data>
+  <data name="Material_Col_Unit" xml:space="preserve">
+    <value>Unit</value>
+  </data>
+  <data name="Material_Col_MinStock" xml:space="preserve">
+    <value>Min Level</value>
+  </data>
+  <data name="Material_Col_Cost" xml:space="preserve">
+    <value>Cost / Unit</value>
+  </data>
+  <data name="Material_Col_Status" xml:space="preserve">
+    <value>Stock Status</value>
+  </data>
+  <data name="Material_No_Data" xml:space="preserve">
+    <value>No materials found.</value>
+  </data>
+  <data name="Material_Status_Low" xml:space="preserve">
+    <value>Low Stock</value>
+  </data>
+  <data name="Material_Status_Safe" xml:space="preserve">
+    <value>Safe</value>
+  </data>
+  <data name="Material_Modal_Create" xml:space="preserve">
+    <value>Add New Material</value>
+  </data>
+  <data name="Material_Modal_Update" xml:space="preserve">
+    <value>Update Material</value>
+  </data>
+  <data name="Material_Name_Label" xml:space="preserve">
+    <value>Material Name</value>
+  </data>
+  <data name="Material_Unit_Label" xml:space="preserve">
+    <value>Unit of Measure</value>
+  </data>
+  <data name="Material_Min_Stock_Label" xml:space="preserve">
+    <value>Min Stock Level</value>
+  </data>
+  <data name="Material_Cost_Label" xml:space="preserve">
+    <value>Est. Cost (VND/Unit)</value>
+  </data>
+  <data name="Material_Save_Btn" xml:space="preserve">
+    <value>Save Material</value>
+  </data>
+  <data name="GoodsReceipt_Sub" xml:space="preserve">
+    <value>Create goods receipts from suppliers and track cost.</value>
+  </data>
+  <data name="GoodsReceipt_Add" xml:space="preserve">
+    <value>Create Goods Receipt</value>
+  </data>
+  <data name="GoodsReceipt_History_Title" xml:space="preserve">
+    <value>Recent Goods Receipts History</value>
+  </data>
+  <data name="GoodsReceipt_History_Sub" xml:space="preserve">
+    <value>Receipts in current month</value>
+  </data>
+  <data name="GoodsReceipt_Col_Code" xml:space="preserve">
+    <value>Receipt Code</value>
+  </data>
+  <data name="GoodsReceipt_Col_Supplier" xml:space="preserve">
+    <value>Supplier</value>
+  </data>
+  <data name="GoodsReceipt_Col_Date" xml:space="preserve">
+    <value>Receipt Date</value>
+  </data>
+  <data name="GoodsReceipt_Col_Total" xml:space="preserve">
+    <value>Total Amount</value>
+  </data>
+  <data name="GoodsReceipt_Col_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="GoodsReceipt_Status_Done" xml:space="preserve">
+    <value>Received</value>
+  </data>
+  <data name="GoodsReceipt_Modal_Title" xml:space="preserve">
+    <value>Create Goods Receipt for Materials</value>
+  </data>
+  <data name="GoodsReceipt_Select_Supplier" xml:space="preserve">
+    <value>Supplier</value>
+  </data>
+  <data name="GoodsReceipt_Select_Supplier_Placeholder" xml:space="preserve">
+    <value>-- Select Supplier --</value>
+  </data>
+  <data name="GoodsReceipt_Items_List" xml:space="preserve">
+    <value>Items List</value>
+  </data>
+  <data name="GoodsReceipt_Add_Item" xml:space="preserve">
+    <value>+ Add Item</value>
+  </data>
+  <data name="GoodsReceipt_Complete_Btn" xml:space="preserve">
+    <value>Complete Receipt</value>
+  </data>
+  <data name="Stocktake_Sub" xml:space="preserve">
+    <value>Count physical stock, calculate variance and adjust inventory.</value>
+  </data>
+  <data name="Stocktake_Start" xml:space="preserve">
+    <value>Start Stocktake</value>
+  </data>
+  <data name="Stocktake_History_Title" xml:space="preserve">
+    <value>Recent Stocktakes History</value>
+  </data>
+  <data name="Stocktake_Col_Code" xml:space="preserve">
+    <value>Stocktake Code</value>
+  </data>
+  <data name="Stocktake_Col_Staff" xml:space="preserve">
+    <value>Auditor</value>
+  </data>
+  <data name="Stocktake_Col_Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Stocktake_Col_TotalCount" xml:space="preserve">
+    <value>Items Counted</value>
+  </data>
+  <data name="Stocktake_Col_Variance" xml:space="preserve">
+    <value>Variance Loss</value>
+  </data>
+  <data name="Stocktake_Col_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Stocktake_Status_Done" xml:space="preserve">
+    <value>Balanced &amp; Done</value>
+  </data>
+  <data name="Stocktake_Modal_Title" xml:space="preserve">
+    <value>Perform Physical Stock Audit</value>
+  </data>
+  <data name="Stocktake_Guide" xml:space="preserve">
+    <value>Guide: Enter actual count for each material. System will calculate variance against theoretical stock.</value>
+  </data>
+  <data name="Stocktake_Col_SystemStock" xml:space="preserve">
+    <value>System Stock</value>
+  </data>
+  <data name="Stocktake_Col_ActualStock" xml:space="preserve">
+    <value>Actual Count</value>
+  </data>
+  <data name="Stocktake_Col_Diff" xml:space="preserve">
+    <value>Difference</value>
+  </data>
+  <data name="Stocktake_Col_Reason" xml:space="preserve">
+    <value>Variance Reason</value>
+  </data>
+  <data name="Stocktake_Submit_Btn" xml:space="preserve">
+    <value>Complete &amp; Adjust Stock</value>
+  </data>
+  <data name="Supplier_Sub" xml:space="preserve">
+    <value>Directory of material suppliers and contact information.</value>
+  </data>
+  <data name="Supplier_Add_New" xml:space="preserve">
+    <value>Add Supplier</value>
+  </data>
+  <data name="Supplier_Active_Badge" xml:space="preserve">
+    <value>Active Partner</value>
+  </data>
+  <data name="Supplier_Contact_Person" xml:space="preserve">
+    <value>Contact Person:</value>
+  </data>
+  <data name="Supplier_Phone" xml:space="preserve">
+    <value>Phone Number:</value>
+  </data>
+  <data name="Supplier_Address" xml:space="preserve">
+    <value>Address:</value>
+  </data>
+  <data name="Supplier_Not_Updated" xml:space="preserve">
+    <value>Not updated</value>
+  </data>
+  <data name="Supplier_Modal_Create" xml:space="preserve">
+    <value>Add New Supplier</value>
+  </data>
+  <data name="Supplier_Modal_Update" xml:space="preserve">
+    <value>Update Supplier</value>
+  </data>
+  <data name="Supplier_Name_Label" xml:space="preserve">
+    <value>Company / Supplier Name</value>
+  </data>
+  <data name="Supplier_Contact_Label" xml:space="preserve">
+    <value>Contact Person</value>
+  </data>
+  <data name="Supplier_Phone_Label" xml:space="preserve">
+    <value>Contact Phone</value>
+  </data>
+  <data name="Supplier_Address_Label" xml:space="preserve">
+    <value>Office / Warehouse Address</value>
+  </data>
+  <data name="Supplier_Save_Btn" xml:space="preserve">
+    <value>Save Supplier</value>
+  </data>
+  <data name="Report_Revenue_Sub" xml:space="preserve">
+    <value>Analyze total sales, Cash / VietQR split and order counts.</value>
+  </data>
+  <data name="Report_Revenue_Export" xml:space="preserve">
+    <value>Export Excel Report</value>
+  </data>
+  <data name="Report_Revenue_Total" xml:space="preserve">
+    <value>Total Revenue</value>
+  </data>
+  <data name="Report_Revenue_Growth" xml:space="preserve">
+    <value>↑ +14.2% vs last month</value>
+  </data>
+  <data name="Report_Revenue_TotalOrders" xml:space="preserve">
+    <value>Total Orders</value>
+  </data>
+  <data name="Report_Revenue_PaidSub" xml:space="preserve">
+    <value>Completed &amp; Paid</value>
+  </data>
+  <data name="Report_Revenue_VietQR" xml:space="preserve">
+    <value>VietQR Bank Transfer</value>
+  </data>
+  <data name="Report_Revenue_VietQRSub" xml:space="preserve">
+    <value>65.6% of total revenue</value>
+  </data>
+  <data name="Report_Revenue_Cash" xml:space="preserve">
+    <value>Cash Payment</value>
+  </data>
+  <data name="Report_Revenue_CashSub" xml:space="preserve">
+    <value>34.4% of total revenue</value>
+  </data>
+  <data name="Report_Revenue_DailyTitle" xml:space="preserve">
+    <value>Daily Detailed Revenue</value>
+  </data>
+  <data name="Report_Revenue_Col_Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="Report_Revenue_Col_Orders" xml:space="preserve">
+    <value>Order Count</value>
+  </data>
+  <data name="Report_Revenue_Col_Cash" xml:space="preserve">
+    <value>Cash</value>
+  </data>
+  <data name="Report_Revenue_Col_VietQR" xml:space="preserve">
+    <value>VietQR / Transfer</value>
+  </data>
+  <data name="Report_Revenue_Col_Total" xml:space="preserve">
+    <value>Total Revenue</value>
+  </data>
+  <data name="Report_TopMovers_Sub" xml:space="preserve">
+    <value>Statistics on top selling dishes and revenue contribution.</value>
+  </data>
+  <data name="Report_TopMovers_Col_Rank" xml:space="preserve">
+    <value>Rank</value>
+  </data>
+  <data name="Report_TopMovers_Col_Name" xml:space="preserve">
+    <value>Item Name</value>
+  </data>
+  <data name="Report_TopMovers_Col_Qty" xml:space="preserve">
+    <value>Qty Sold</value>
+  </data>
+  <data name="Report_TopMovers_Col_Total" xml:space="preserve">
+    <value>Total Item Revenue</value>
+  </data>
+  <data name="Report_TopMovers_Col_Eval" xml:space="preserve">
+    <value>Performance Rating</value>
+  </data>
+  <data name="Report_TopMovers_BestSeller" xml:space="preserve">
+    <value>🔥 Best Seller</value>
+  </data>
+  <data name="Report_TopMovers_HighSales" xml:space="preserve">
+    <value>🔥 Top Seller</value>
+  </data>
+  <data name="Report_TopMovers_Good" xml:space="preserve">
+    <value>Good</value>
+  </data>
+  <data name="Report_InventoryLoss_Sub" xml:space="preserve">
+    <value>Total loss from inventory variance and waste from cancelled orders.</value>
+  </data>
+  <data name="Report_InventoryLoss_VarianceTitle" xml:space="preserve">
+    <value>Inventory Variance Loss</value>
+  </data>
+  <data name="Report_InventoryLoss_VarianceSub" xml:space="preserve">
+    <value>Updated after latest stocktake</value>
+  </data>
+  <data name="Report_InventoryLoss_WasteTitle" xml:space="preserve">
+    <value>Order Cancellation Waste</value>
+  </data>
+  <data name="Report_InventoryLoss_WasteSub" xml:space="preserve">
+    <value>Waste from 3 cancelled orders this month</value>
+  </data>
+  <data name="Report_InventoryLoss_DetailTitle" xml:space="preserve">
+    <value>Detailed Recorded Losses</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Type" xml:space="preserve">
+    <value>Reason Type</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Detail" xml:space="preserve">
+    <value>Details / Reason</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Amount" xml:space="preserve">
+    <value>Loss Amount</value>
+  </data>
+  <data name="Voucher_Sub" xml:space="preserve">
+    <value>Configure promo codes, %, max discount amount and validity period.</value>
+  </data>
+  <data name="Voucher_Add_New" xml:space="preserve">
+    <value>Create New Voucher</value>
+  </data>
+  <data name="Voucher_Status_Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Voucher_Status_Expired" xml:space="preserve">
+    <value>Expired</value>
+  </data>
+  <data name="Voucher_Discount_Pct" xml:space="preserve">
+    <value>{0}% off total bill</value>
+  </data>
+  <data name="Voucher_Discount_Fixed" xml:space="preserve">
+    <value>Direct {0} VND discount</value>
+  </data>
+  <data name="Voucher_Min_Order" xml:space="preserve">
+    <value>Min order amount:</value>
+  </data>
+  <data name="Voucher_Usage" xml:space="preserve">
+    <value>Usage count:</value>
+  </data>
+  <data name="Voucher_Validity" xml:space="preserve">
+    <value>Validity:</value>
+  </data>
+  <data name="Voucher_Modal_Create" xml:space="preserve">
+    <value>Create New Voucher Code</value>
+  </data>
+  <data name="Voucher_Modal_Update" xml:space="preserve">
+    <value>Update Voucher</value>
+  </data>
+  <data name="Voucher_Code_Label" xml:space="preserve">
+    <value>Voucher Code</value>
+  </data>
+  <data name="Voucher_Type_Label" xml:space="preserve">
+    <value>Discount Type</value>
+  </data>
+  <data name="Voucher_Type_Pct" xml:space="preserve">
+    <value>Percentage (%)</value>
+  </data>
+  <data name="Voucher_Type_Fixed" xml:space="preserve">
+    <value>Fixed Amount (VND)</value>
+  </data>
+  <data name="Voucher_Value_Label" xml:space="preserve">
+    <value>Discount Value</value>
+  </data>
+  <data name="Voucher_Min_Order_Label" xml:space="preserve">
+    <value>Min Order (VND)</value>
+  </data>
+  <data name="Voucher_Limit_Label" xml:space="preserve">
+    <value>Usage Limit</value>
+  </data>
+  <data name="Voucher_Save_Btn" xml:space="preserve">
+    <value>Save Voucher Code</value>
+  </data>
+  <data name="Customer_Sub" xml:space="preserve">
+    <value>Member list, loyalty tier, and accumulated points.</value>
+  </data>
+  <data name="Customer_Col_ID" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="Customer_Col_Name" xml:space="preserve">
+    <value>Customer Name</value>
+  </data>
+  <data name="Customer_Col_Phone" xml:space="preserve">
+    <value>Phone Number</value>
+  </data>
+  <data name="Customer_Col_Tier" xml:space="preserve">
+    <value>Loyalty Tier</value>
+  </data>
+  <data name="Customer_Col_TotalPoints" xml:space="preserve">
+    <value>Total Accumulated Points</value>
+  </data>
+  <data name="Customer_Col_AvailablePoints" xml:space="preserve">
+    <value>Available Points</value>
+  </data>
 </root>

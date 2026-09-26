@@ -143,7 +143,7 @@
 
         // SignalR Connection
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/hubs/restaurant"))
+            .WithUrl("http://localhost:5011/hubs/restaurant")
             .WithAutomaticReconnect()
             .Build();
 

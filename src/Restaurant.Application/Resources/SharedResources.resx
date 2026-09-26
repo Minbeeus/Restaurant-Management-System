@@ -525,4 +525,901 @@
   <data name="Customer_Add_Button" xml:space="preserve">
     <value>Thêm Khách hàng</value>
   </data>
+  <data name="Common_Search" xml:space="preserve">
+    <value>Tìm kiếm...</value>
+  </data>
+  <data name="Common_All_Categories" xml:space="preserve">
+    <value>Tất cả danh mục</value>
+  </data>
+  <data name="Common_All_Status" xml:space="preserve">
+    <value>Tất cả trạng thái</value>
+  </data>
+  <data name="Common_In_Stock" xml:space="preserve">
+    <value>Còn hàng (Đang bán)</value>
+  </data>
+  <data name="Common_Out_Of_Stock" xml:space="preserve">
+    <value>Hết hàng (Sold Out)</value>
+  </data>
+  <data name="Common_Active" xml:space="preserve">
+    <value>Hoạt động</value>
+  </data>
+  <data name="Common_Inactive" xml:space="preserve">
+    <value>Tạm ẩn</value>
+  </data>
+  <data name="Common_Edit" xml:space="preserve">
+    <value>Sửa</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Xóa</value>
+  </data>
+  <data name="Common_Actions" xml:space="preserve">
+    <value>Hành động</value>
+  </data>
+  <data name="Common_Confirm_Delete" xml:space="preserve">
+    <value>Xác nhận xóa?</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Đóng</value>
+  </data>
+  <data name="Common_Processing" xml:space="preserve">
+    <value>Đang xử lý...</value>
+  </data>
+  <data name="MenuItem_Search_Placeholder" xml:space="preserve">
+    <value>Tìm kiếm theo Tên món ăn...</value>
+  </data>
+  <data name="MenuItem_Header_Image" xml:space="preserve">
+    <value>Hình</value>
+  </data>
+  <data name="MenuItem_Header_Name" xml:space="preserve">
+    <value>Tên Món</value>
+  </data>
+  <data name="MenuItem_Header_Category" xml:space="preserve">
+    <value>Danh mục</value>
+  </data>
+  <data name="MenuItem_Header_Price" xml:space="preserve">
+    <value>Giá bán</value>
+  </data>
+  <data name="MenuItem_Header_Type" xml:space="preserve">
+    <value>Loại</value>
+  </data>
+  <data name="MenuItem_Header_Status" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="MenuItem_No_Items_Found" xml:space="preserve">
+    <value>Không tìm thấy món ăn nào phù hợp với bộ lọc.</value>
+  </data>
+  <data name="MenuItem_Combo" xml:space="preserve">
+    <value>Combo</value>
+  </data>
+  <data name="MenuItem_SingleItem" xml:space="preserve">
+    <value>Đơn món</value>
+  </data>
+  <data name="MenuItem_Hidden" xml:space="preserve">
+    <value>Tạm ẩn</value>
+  </data>
+  <data name="MenuItem_Available" xml:space="preserve">
+    <value>Còn món</value>
+  </data>
+  <data name="MenuItem_SoldOut" xml:space="preserve">
+    <value>Hết món</value>
+  </data>
+  <data name="MenuItem_Modal_Update_Title" xml:space="preserve">
+    <value>Cập nhật Món ăn</value>
+  </data>
+  <data name="MenuItem_Modal_Create_Title" xml:space="preserve">
+    <value>Thêm Món ăn mới</value>
+  </data>
+  <data name="MenuItem_Form_Name" xml:space="preserve">
+    <value>Tên món</value>
+  </data>
+  <data name="MenuItem_Form_Name_Placeholder" xml:space="preserve">
+    <value>Tên món ăn</value>
+  </data>
+  <data name="MenuItem_Form_Category" xml:space="preserve">
+    <value>Danh mục</value>
+  </data>
+  <data name="MenuItem_Form_Category_Select" xml:space="preserve">
+    <value>-- Chọn danh mục --</value>
+  </data>
+  <data name="MenuItem_Form_Price" xml:space="preserve">
+    <value>Giá bán (VNĐ)</value>
+  </data>
+  <data name="MenuItem_Form_Description" xml:space="preserve">
+    <value>Mô tả chi tiết</value>
+  </data>
+  <data name="MenuItem_Form_ImageUrl" xml:space="preserve">
+    <value>URL Hình ảnh</value>
+  </data>
+  <data name="MenuItem_Form_ItemStatus" xml:space="preserve">
+    <value>Trạng thái món</value>
+  </data>
+  <data name="MenuItem_Form_IsCombo" xml:space="preserve">
+    <value>Đây là Combo</value>
+  </data>
+  <data name="MenuItem_Form_IsSoldOut" xml:space="preserve">
+    <value>Báo hết hàng (Sold Out)</value>
+  </data>
+  <data name="MenuItem_Form_IsActive" xml:space="preserve">
+    <value>Đang hoạt động (Hiển thị)</value>
+  </data>
+  <data name="MenuItem_Form_SortOrder" xml:space="preserve">
+    <value>Thứ tự hiển thị</value>
+  </data>
+  <data name="MenuItem_Form_Modifiers" xml:space="preserve">
+    <value>Tùy chọn &amp; Topping (Modifiers)</value>
+  </data>
+  <data name="MenuItem_Form_NoModifiers" xml:space="preserve">
+    <value>Chưa có Modifier Group nào. Vui lòng tạo trong phần "Tùy chọn &amp; Topping".</value>
+  </data>
+  <data name="MenuItem_Delete_Confirm_Body" xml:space="preserve">
+    <value>Bạn có chắc chắn muốn xóa món {0} không? Hành động này không thể hoàn tác.</value>
+  </data>
+  <data name="MenuItem_Name_Required" xml:space="preserve">
+    <value>Tên món ăn không được để trống.</value>
+  </data>
+  <data name="MenuItem_Category_Required" xml:space="preserve">
+    <value>Vui lòng chọn danh mục.</value>
+  </data>
+  <data name="MenuItem_Save_Error" xml:space="preserve">
+    <value>Lỗi khi lưu dữ liệu. Vui lòng kiểm tra lại.</value>
+  </data>
+  <data name="Modifier_Title_Sub" xml:space="preserve">
+    <value>Tùy chọn &amp; Topping (Modifiers)</value>
+  </data>
+  <data name="Modifier_No_Groups" xml:space="preserve">
+    <value>Chưa có nhóm tùy chọn nào.</value>
+  </data>
+  <data name="Modifier_Required_Badge" xml:space="preserve">
+    <value>Bắt buộc</value>
+  </data>
+  <data name="Modifier_Optional_Badge" xml:space="preserve">
+    <value>Tùy chọn</value>
+  </data>
+  <data name="Modifier_Select_Range" xml:space="preserve">
+    <value>Chọn từ {0} đến {1}</value>
+  </data>
+  <data name="Modifier_Free" xml:space="preserve">
+    <value>Miễn phí</value>
+  </data>
+  <data name="Modifier_No_Options" xml:space="preserve">
+    <value>Không có tùy chọn con nào</value>
+  </data>
+  <data name="Modifier_Modal_Update" xml:space="preserve">
+    <value>Cập nhật Nhóm Tùy chọn</value>
+  </data>
+  <data name="Modifier_Modal_Create" xml:space="preserve">
+    <value>Thêm Nhóm Tùy chọn mới</value>
+  </data>
+  <data name="Modifier_Group_Info" xml:space="preserve">
+    <value>Thông tin Nhóm (Group)</value>
+  </data>
+  <data name="Modifier_Group_Name" xml:space="preserve">
+    <value>Tên nhóm (VD: Kích cỡ, Mức đường, Topping)</value>
+  </data>
+  <data name="Modifier_Rules" xml:space="preserve">
+    <value>Quy định</value>
+  </data>
+  <data name="Modifier_Must_Select" xml:space="preserve">
+    <value>Bắt buộc phải chọn</value>
+  </data>
+  <data name="Modifier_Min_Select" xml:space="preserve">
+    <value>Số lượng Chọn tối thiểu</value>
+  </data>
+  <data name="Modifier_Max_Select" xml:space="preserve">
+    <value>Số lượng Chọn tối đa</value>
+  </data>
+  <data name="Modifier_Sort_Order" xml:space="preserve">
+    <value>Thứ tự hiển thị</value>
+  </data>
+  <data name="Modifier_Options_Title" xml:space="preserve">
+    <value>Các lựa chọn (Options)</value>
+  </data>
+  <data name="Modifier_Add_Option" xml:space="preserve">
+    <value>Thêm Option</value>
+  </data>
+  <data name="Modifier_No_Options_Prompt" xml:space="preserve">
+    <value>Chưa có lựa chọn nào. Bấm "Thêm Option" để bắt đầu.</value>
+  </data>
+  <data name="Modifier_Option_Name_Placeholder" xml:space="preserve">
+    <value>Tên (VD: Size M)</value>
+  </data>
+  <data name="Modifier_Extra_Price_Placeholder" xml:space="preserve">
+    <value>Phụ thu (VNĐ)</value>
+  </data>
+  <data name="Modifier_Default" xml:space="preserve">
+    <value>Mặc định</value>
+  </data>
+  <data name="Modifier_Delete_Group_Confirm" xml:space="preserve">
+    <value>Bạn có chắc chắn muốn xóa nhóm {0} không? Xóa nhóm sẽ xóa toàn bộ các tùy chọn con bên trong.</value>
+  </data>
+  <data name="Recipe_Sub" xml:space="preserve">
+    <value>Cấu hình định lượng nguyên liệu thô tiêu hao khi chế biến món ăn &amp; tùy chọn topping.</value>
+  </data>
+  <data name="Recipe_Setup_New" xml:space="preserve">
+    <value>Thiết lập Công thức mới</value>
+  </data>
+  <data name="Recipe_Select_Item" xml:space="preserve">
+    <value>Chọn Món ăn / Option</value>
+  </data>
+  <data name="Recipe_Search_Item" xml:space="preserve">
+    <value>Tìm tên món ăn...</value>
+  </data>
+  <data name="Recipe_Select_Prompt" xml:space="preserve">
+    <value>Vui lòng chọn một món ăn ở cột bên trái để xem công thức BOM.</value>
+  </data>
+  <data name="Recipe_Update_Btn" xml:space="preserve">
+    <value>Cập nhật Công thức</value>
+  </data>
+  <data name="Recipe_Materials_List" xml:space="preserve">
+    <value>Danh sách Định lượng Nguyên liệu thô</value>
+  </data>
+  <data name="Recipe_Empty" xml:space="preserve">
+    <value>Chưa có cấu hình định lượng cho món ăn này.</value>
+  </data>
+  <data name="Recipe_Add_Material_Now" xml:space="preserve">
+    <value>Thêm Nguyên liệu ngay</value>
+  </data>
+  <data name="Recipe_Material_Col" xml:space="preserve">
+    <value>Nguyên vật liệu</value>
+  </data>
+  <data name="Recipe_Consumption_Col" xml:space="preserve">
+    <value>Định lượng tiêu hao</value>
+  </data>
+  <data name="Recipe_Unit_Col" xml:space="preserve">
+    <value>Đơn vị</value>
+  </data>
+  <data name="Recipe_Cost_Est_Col" xml:space="preserve">
+    <value>Ước tính Chi phí</value>
+  </data>
+  <data name="Recipe_Total_Cost" xml:space="preserve">
+    <value>Tổng giá vốn nguyên liệu (BOM Cost):</value>
+  </data>
+  <data name="Recipe_Modal_Title" xml:space="preserve">
+    <value>Cấu hình Định lượng BOM cho {0}</value>
+  </data>
+  <data name="Recipe_Add_Material_Row" xml:space="preserve">
+    <value>+ Thêm dòng nguyên liệu</value>
+  </data>
+  <data name="Recipe_Select_Material" xml:space="preserve">
+    <value>-- Chọn Nguyên liệu --</value>
+  </data>
+  <data name="Recipe_Quantity_Placeholder" xml:space="preserve">
+    <value>Số lượng</value>
+  </data>
+  <data name="Recipe_Save_Btn" xml:space="preserve">
+    <value>Lưu Công thức</value>
+  </data>
+  <data name="Area_Header_ID" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="Area_Header_Name" xml:space="preserve">
+    <value>Tên Khu vực</value>
+  </data>
+  <data name="Area_Header_TableCount" xml:space="preserve">
+    <value>Số lượng Bàn</value>
+  </data>
+  <data name="Area_Header_Sort" xml:space="preserve">
+    <value>Sắp xếp</value>
+  </data>
+  <data name="Area_Header_Status" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="Area_Header_Actions" xml:space="preserve">
+    <value>Hành động</value>
+  </data>
+  <data name="Area_No_Data" xml:space="preserve">
+    <value>Chưa có khu vực nào.</value>
+  </data>
+  <data name="Area_Tables_Unit" xml:space="preserve">
+    <value>Bàn</value>
+  </data>
+  <data name="Area_Modal_Update" xml:space="preserve">
+    <value>Cập nhật Khu vực</value>
+  </data>
+  <data name="Area_Modal_Create" xml:space="preserve">
+    <value>Thêm Khu vực mới</value>
+  </data>
+  <data name="Area_Name_Label" xml:space="preserve">
+    <value>Tên Khu vực (VD: Tầng 1, Sân Vườn)</value>
+  </data>
+  <data name="Area_Name_Placeholder" xml:space="preserve">
+    <value>Tên khu vực</value>
+  </data>
+  <data name="Area_Delete_Confirm" xml:space="preserve">
+    <value>Bạn có chắc chắn muốn xóa khu vực {0} không? Hành động này không thể hoàn tác.</value>
+  </data>
+  <data name="Table_Floorplan_Title" xml:space="preserve">
+    <value>Sơ đồ nhà hàng (Floor Plan)</value>
+  </data>
+  <data name="Table_View_Plan" xml:space="preserve">
+    <value>Sơ đồ</value>
+  </data>
+  <data name="Table_View_List" xml:space="preserve">
+    <value>Danh sách</value>
+  </data>
+  <data name="Table_Mode_View" xml:space="preserve">
+    <value>Chế độ Xem</value>
+  </data>
+  <data name="Table_Mode_Edit" xml:space="preserve">
+    <value>Sửa Sơ đồ</value>
+  </data>
+  <data name="Table_Save_Layout" xml:space="preserve">
+    <value>Lưu sơ đồ</value>
+  </data>
+  <data name="Table_Add_Table" xml:space="preserve">
+    <value>Thêm Bàn</value>
+  </data>
+  <data name="Table_Editing_Hint" xml:space="preserve">
+    <value>Đang chỉnh sửa: Kéo thả bàn để thay đổi vị trí</value>
+  </data>
+  <data name="Table_Collision_Error" xml:space="preserve">
+    <value>- Lỗi: Các bàn không được đè lên nhau!</value>
+  </data>
+  <data name="Table_Capacity_Unit" xml:space="preserve">
+    <value>chỗ</value>
+  </data>
+  <data name="Table_General_Info" xml:space="preserve">
+    <value>Thông tin chung</value>
+  </data>
+  <data name="Table_Capacity_Label" xml:space="preserve">
+    <value>Sức chứa:</value>
+  </data>
+  <data name="Table_Area_Label" xml:space="preserve">
+    <value>Khu vực:</value>
+  </data>
+  <data name="Table_Tasks" xml:space="preserve">
+    <value>Tác vụ Sơ đồ</value>
+  </data>
+  <data name="Table_Rotate" xml:space="preserve">
+    <value>Xoay bàn (90°)</value>
+  </data>
+  <data name="Table_Change_Shape" xml:space="preserve">
+    <value>Đổi hình dạng:</value>
+  </data>
+  <data name="Table_Shape_Round" xml:space="preserve">
+    <value>Tròn</value>
+  </data>
+  <data name="Table_Shape_Square" xml:space="preserve">
+    <value>Vuông</value>
+  </data>
+  <data name="Table_Shape_Rectangle" xml:space="preserve">
+    <value>C.Nhật</value>
+  </data>
+  <data name="Table_Download_QR" xml:space="preserve">
+    <value>Tải Mã QR Bàn Này</value>
+  </data>
+  <data name="Table_Status_Available" xml:space="preserve">
+    <value>Trống (Available)</value>
+  </data>
+  <data name="Table_Status_Occupied" xml:space="preserve">
+    <value>Đang phục vụ</value>
+  </data>
+  <data name="Table_Header_Capacity" xml:space="preserve">
+    <value>Sức chứa</value>
+  </data>
+  <data name="Table_No_Tables_Found" xml:space="preserve">
+    <value>Không tìm thấy bàn nào phù hợp với bộ lọc.</value>
+  </data>
+  <data name="Table_Modal_Create" xml:space="preserve">
+    <value>Thêm bàn mới</value>
+  </data>
+  <data name="Table_Modal_Edit" xml:space="preserve">
+    <value>Sửa bàn</value>
+  </data>
+  <data name="Table_Name_Label" xml:space="preserve">
+    <value>Tên Bàn</value>
+  </data>
+  <data name="Table_Name_Placeholder" xml:space="preserve">
+    <value>VD: Bàn 01</value>
+  </data>
+  <data name="Table_Capacity_Input" xml:space="preserve">
+    <value>Sức chứa</value>
+  </data>
+  <data name="Table_Delete_Confirm" xml:space="preserve">
+    <value>Bạn có chắc chắn muốn xóa {0} không? Hành động này không thể hoàn tác.</value>
+  </data>
+  <data name="Order_Sub" xml:space="preserve">
+    <value>Quản lý và tra cứu toàn bộ đơn hàng Dine-in, Takeaway, trạng thái thanh toán và chi tiết hóa đơn.</value>
+  </data>
+  <data name="Order_Search_Placeholder" xml:space="preserve">
+    <value>Tìm theo Mã đơn (VD: ORD-2026...) hoặc Tên bàn...</value>
+  </data>
+  <data name="Order_Status_Paid" xml:space="preserve">
+    <value>Đã thanh toán (Paid)</value>
+  </data>
+  <data name="Order_Status_Completed" xml:space="preserve">
+    <value>Đã xong chế biến</value>
+  </data>
+  <data name="Order_Status_Confirmed" xml:space="preserve">
+    <value>Đã duyệt (Confirmed)</value>
+  </data>
+  <data name="Order_Status_Cancelled" xml:space="preserve">
+    <value>Đã hủy đơn</value>
+  </data>
+  <data name="Order_Col_Code" xml:space="preserve">
+    <value>Mã Đơn hàng</value>
+  </data>
+  <data name="Order_Col_Location" xml:space="preserve">
+    <value>Vị trí / Loại</value>
+  </data>
+  <data name="Order_Col_Time" xml:space="preserve">
+    <value>Thời gian lập</value>
+  </data>
+  <data name="Order_Col_Total" xml:space="preserve">
+    <value>Tổng Tiền</value>
+  </data>
+  <data name="Order_Col_Status" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="Order_Col_Actions" xml:space="preserve">
+    <value>Hành động</value>
+  </data>
+  <data name="Order_No_Orders" xml:space="preserve">
+    <value>Không tìm thấy đơn hàng nào phù hợp.</value>
+  </data>
+  <data name="Order_DineIn" xml:space="preserve">
+    <value>Tại bàn</value>
+  </data>
+  <data name="Order_Takeaway" xml:space="preserve">
+    <value>Mang đi</value>
+  </data>
+  <data name="Order_Badge_KitchenDone" xml:space="preserve">
+    <value>Bếp xong</value>
+  </data>
+  <data name="Order_Details_Btn" xml:space="preserve">
+    <value>Chi tiết</value>
+  </data>
+  <data name="Order_Details_Title" xml:space="preserve">
+    <value>Chi tiết Đơn hàng {0}</value>
+  </data>
+  <data name="Order_Subtotal_Label" xml:space="preserve">
+    <value>Tạm tính:</value>
+  </data>
+  <data name="Order_Discount_Label" xml:space="preserve">
+    <value>Giảm giá/Voucher:</value>
+  </data>
+  <data name="Order_Total_Label" xml:space="preserve">
+    <value>Tổng cộng:</value>
+  </data>
+  <data name="Order_Audit_Note" xml:space="preserve">
+    <value>* Đơn hàng đã được lưu vết nhật ký Audit Log hệ thống.</value>
+  </data>
+  <data name="Order_Print_Invoice" xml:space="preserve">
+    <value>In lại Hóa đơn</value>
+  </data>
+  <data name="Staff_Sub" xml:space="preserve">
+    <value>Danh sách nhân viên, tài khoản đăng nhập, vai trò phân quyền (RBAC) và mã PIN két.</value>
+  </data>
+  <data name="Staff_Add_New" xml:space="preserve">
+    <value>Thêm Nhân viên Mới</value>
+  </data>
+  <data name="Staff_Col_FullName" xml:space="preserve">
+    <value>Họ và Tên</value>
+  </data>
+  <data name="Staff_Col_Username" xml:space="preserve">
+    <value>Tên Đăng nhập</value>
+  </data>
+  <data name="Staff_Col_Role" xml:space="preserve">
+    <value>Vai trò</value>
+  </data>
+  <data name="Staff_Col_Phone" xml:space="preserve">
+    <value>Số điện thoại</value>
+  </data>
+  <data name="Staff_Col_Status" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="Staff_Col_Actions" xml:space="preserve">
+    <value>Hành động</value>
+  </data>
+  <data name="Staff_Active" xml:space="preserve">
+    <value>Đang làm việc</value>
+  </data>
+  <data name="Staff_Inactive" xml:space="preserve">
+    <value>Tạm khóa</value>
+  </data>
+  <data name="Staff_Modal_Create" xml:space="preserve">
+    <value>Thêm Nhân viên Mới</value>
+  </data>
+  <data name="Staff_Modal_Update" xml:space="preserve">
+    <value>Cập nhật Nhân viên</value>
+  </data>
+  <data name="Staff_FullName_Label" xml:space="preserve">
+    <value>Họ và Tên</value>
+  </data>
+  <data name="Staff_Username_Label" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Staff_Role_Label" xml:space="preserve">
+    <value>Vai trò</value>
+  </data>
+  <data name="Staff_Phone_Label" xml:space="preserve">
+    <value>Số điện thoại</value>
+  </data>
+  <data name="Staff_Save_Btn" xml:space="preserve">
+    <value>Lưu Nhân viên</value>
+  </data>
+  <data name="Material_Sub" xml:space="preserve">
+    <value>Danh mục nguyên liệu thô, định lượng tồn kho và ngưỡng cảnh báo tồn tối thiểu.</value>
+  </data>
+  <data name="Material_Add_New" xml:space="preserve">
+    <value>Thêm Nguyên liệu mới</value>
+  </data>
+  <data name="Material_Search_Placeholder" xml:space="preserve">
+    <value>Tìm tên nguyên liệu...</value>
+  </data>
+  <data name="Material_Low_Stock_Alert" xml:space="preserve">
+    <value>Cảnh báo Tồn thấp ({0})</value>
+  </data>
+  <data name="Material_Col_Name" xml:space="preserve">
+    <value>Tên Nguyên liệu</value>
+  </data>
+  <data name="Material_Col_Stock" xml:space="preserve">
+    <value>Tồn hiện tại</value>
+  </data>
+  <data name="Material_Col_Unit" xml:space="preserve">
+    <value>Đơn vị</value>
+  </data>
+  <data name="Material_Col_MinStock" xml:space="preserve">
+    <value>Ngưỡng tối thiểu</value>
+  </data>
+  <data name="Material_Col_Cost" xml:space="preserve">
+    <value>Giá vốn / Đơn vị</value>
+  </data>
+  <data name="Material_Col_Status" xml:space="preserve">
+    <value>Trạng thái Tồn</value>
+  </data>
+  <data name="Material_No_Data" xml:space="preserve">
+    <value>Không tìm thấy nguyên liệu nào.</value>
+  </data>
+  <data name="Material_Status_Low" xml:space="preserve">
+    <value>Sắp hết kho</value>
+  </data>
+  <data name="Material_Status_Safe" xml:space="preserve">
+    <value>An toàn</value>
+  </data>
+  <data name="Material_Modal_Create" xml:space="preserve">
+    <value>Thêm Nguyên liệu mới</value>
+  </data>
+  <data name="Material_Modal_Update" xml:space="preserve">
+    <value>Cập nhật Nguyên liệu</value>
+  </data>
+  <data name="Material_Name_Label" xml:space="preserve">
+    <value>Tên nguyên liệu</value>
+  </data>
+  <data name="Material_Unit_Label" xml:space="preserve">
+    <value>Đơn vị tính</value>
+  </data>
+  <data name="Material_Min_Stock_Label" xml:space="preserve">
+    <value>Ngưỡng tối thiểu</value>
+  </data>
+  <data name="Material_Cost_Label" xml:space="preserve">
+    <value>Giá vốn ước tính (VNĐ/Đơn vị)</value>
+  </data>
+  <data name="Material_Save_Btn" xml:space="preserve">
+    <value>Lưu Nguyên liệu</value>
+  </data>
+  <data name="GoodsReceipt_Sub" xml:space="preserve">
+    <value>Lập phiếu nhập kho nguyên liệu từ nhà cung cấp và ghi nhận giá vốn lô hàng.</value>
+  </data>
+  <data name="GoodsReceipt_Add" xml:space="preserve">
+    <value>Tạo Phiếu Nhập Kho</value>
+  </data>
+  <data name="GoodsReceipt_History_Title" xml:space="preserve">
+    <value>Lịch sử Phiếu Nhập Kho gần đây</value>
+  </data>
+  <data name="GoodsReceipt_History_Sub" xml:space="preserve">
+    <value>Hiển thị các phiếu trong tháng</value>
+  </data>
+  <data name="GoodsReceipt_Col_Code" xml:space="preserve">
+    <value>Mã Phiếu</value>
+  </data>
+  <data name="GoodsReceipt_Col_Supplier" xml:space="preserve">
+    <value>Nhà Cung Cấp</value>
+  </data>
+  <data name="GoodsReceipt_Col_Date" xml:space="preserve">
+    <value>Ngày Nhập</value>
+  </data>
+  <data name="GoodsReceipt_Col_Total" xml:space="preserve">
+    <value>Tổng Tiền hàng</value>
+  </data>
+  <data name="GoodsReceipt_Col_Status" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="GoodsReceipt_Status_Done" xml:space="preserve">
+    <value>Đã nhập kho</value>
+  </data>
+  <data name="GoodsReceipt_Modal_Title" xml:space="preserve">
+    <value>Tạo Phiếu Nhập Kho Nguyên Liệu</value>
+  </data>
+  <data name="GoodsReceipt_Select_Supplier" xml:space="preserve">
+    <value>Nhà cung cấp</value>
+  </data>
+  <data name="GoodsReceipt_Select_Supplier_Placeholder" xml:space="preserve">
+    <value>-- Chọn nhà cung cấp --</value>
+  </data>
+  <data name="GoodsReceipt_Items_List" xml:space="preserve">
+    <value>Danh sách hàng nhập</value>
+  </data>
+  <data name="GoodsReceipt_Add_Item" xml:space="preserve">
+    <value>+ Thêm mặt hàng</value>
+  </data>
+  <data name="GoodsReceipt_Complete_Btn" xml:space="preserve">
+    <value>Hoàn tất Nhập kho</value>
+  </data>
+  <data name="Stocktake_Sub" xml:space="preserve">
+    <value>Đếm số lượng thực tế trong kho, tính toán chênh lệch hao hụt và tự động điều chỉnh tồn kho.</value>
+  </data>
+  <data name="Stocktake_Start" xml:space="preserve">
+    <value>Bắt đầu Đợt Kiểm kê</value>
+  </data>
+  <data name="Stocktake_History_Title" xml:space="preserve">
+    <value>Lịch sử Đợt Kiểm kê gần đây</value>
+  </data>
+  <data name="Stocktake_Col_Code" xml:space="preserve">
+    <value>Mã Đợt</value>
+  </data>
+  <data name="Stocktake_Col_Staff" xml:space="preserve">
+    <value>Người Thực hiện</value>
+  </data>
+  <data name="Stocktake_Col_Time" xml:space="preserve">
+    <value>Thời gian</value>
+  </data>
+  <data name="Stocktake_Col_TotalCount" xml:space="preserve">
+    <value>Tổng Món kiểm</value>
+  </data>
+  <data name="Stocktake_Col_Variance" xml:space="preserve">
+    <value>Chênh lệch Hụt kho</value>
+  </data>
+  <data name="Stocktake_Col_Status" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="Stocktake_Status_Done" xml:space="preserve">
+    <value>Hoàn tất Cân bằng</value>
+  </data>
+  <data name="Stocktake_Modal_Title" xml:space="preserve">
+    <value>Thực hiện Kiểm kê Tồn kho Thực tế</value>
+  </data>
+  <data name="Stocktake_Guide" xml:space="preserve">
+    <value>Hướng dẫn: Nhập số lượng đếm thực tế của từng nguyên liệu. Hệ thống sẽ tính toán chênh lệch so với tồn lý thuyết hiện tại.</value>
+  </data>
+  <data name="Stocktake_Col_SystemStock" xml:space="preserve">
+    <value>Tồn Lý thuyết</value>
+  </data>
+  <data name="Stocktake_Col_ActualStock" xml:space="preserve">
+    <value>Đếm Thực tế</value>
+  </data>
+  <data name="Stocktake_Col_Diff" xml:space="preserve">
+    <value>Chênh lệch</value>
+  </data>
+  <data name="Stocktake_Col_Reason" xml:space="preserve">
+    <value>Lý do chênh lệch</value>
+  </data>
+  <data name="Stocktake_Submit_Btn" xml:space="preserve">
+    <value>Hoàn tất &amp; Điều chỉnh Tồn kho</value>
+  </data>
+  <data name="Supplier_Sub" xml:space="preserve">
+    <value>Danh bạ đối tác cung ứng vật tư, nguyên liệu và thông tin liên hệ nhập kho.</value>
+  </data>
+  <data name="Supplier_Add_New" xml:space="preserve">
+    <value>Thêm Nhà Cung Cấp</value>
+  </data>
+  <data name="Supplier_Active_Badge" xml:space="preserve">
+    <value>Đối tác Hoạt động</value>
+  </data>
+  <data name="Supplier_Contact_Person" xml:space="preserve">
+    <value>Người đại diện:</value>
+  </data>
+  <data name="Supplier_Phone" xml:space="preserve">
+    <value>Số điện thoại:</value>
+  </data>
+  <data name="Supplier_Address" xml:space="preserve">
+    <value>Địa chỉ:</value>
+  </data>
+  <data name="Supplier_Not_Updated" xml:space="preserve">
+    <value>Chưa cập nhật</value>
+  </data>
+  <data name="Supplier_Modal_Create" xml:space="preserve">
+    <value>Thêm Nhà Cung Cấp Mới</value>
+  </data>
+  <data name="Supplier_Modal_Update" xml:space="preserve">
+    <value>Cập nhật Nhà Cung Cấp</value>
+  </data>
+  <data name="Supplier_Name_Label" xml:space="preserve">
+    <value>Tên Công ty / NCC</value>
+  </data>
+  <data name="Supplier_Contact_Label" xml:space="preserve">
+    <value>Người đại diện liên hệ</value>
+  </data>
+  <data name="Supplier_Phone_Label" xml:space="preserve">
+    <value>Số điện thoại liên hệ</value>
+  </data>
+  <data name="Supplier_Address_Label" xml:space="preserve">
+    <value>Địa chỉ văn phòng / Kho</value>
+  </data>
+  <data name="Supplier_Save_Btn" xml:space="preserve">
+    <value>Lưu Nhà Cung Cấp</value>
+  </data>
+  <data name="Report_Revenue_Sub" xml:space="preserve">
+    <value>Phân tích tổng doanh thu, cơ cấu thanh toán Tiền mặt / VietQR và số lượng đơn hàng.</value>
+  </data>
+  <data name="Report_Revenue_Export" xml:space="preserve">
+    <value>Xuất Excel Báo cáo</value>
+  </data>
+  <data name="Report_Revenue_Total" xml:space="preserve">
+    <value>Tổng Doanh Thu</value>
+  </data>
+  <data name="Report_Revenue_Growth" xml:space="preserve">
+    <value>↑ +14.2% so với tháng trước</value>
+  </data>
+  <data name="Report_Revenue_TotalOrders" xml:space="preserve">
+    <value>Tổng Số Đơn hàng</value>
+  </data>
+  <data name="Report_Revenue_PaidSub" xml:space="preserve">
+    <value>Đã hoàn tất thanh toán</value>
+  </data>
+  <data name="Report_Revenue_VietQR" xml:space="preserve">
+    <value>Thanh toán Chuyển khoản VietQR</value>
+  </data>
+  <data name="Report_Revenue_VietQRSub" xml:space="preserve">
+    <value>Chiếm 65.6% tổng doanh thu</value>
+  </data>
+  <data name="Report_Revenue_Cash" xml:space="preserve">
+    <value>Thanh toán Tiền mặt</value>
+  </data>
+  <data name="Report_Revenue_CashSub" xml:space="preserve">
+    <value>Chiếm 34.4% tổng doanh thu</value>
+  </data>
+  <data name="Report_Revenue_DailyTitle" xml:space="preserve">
+    <value>Doanh thu Chi tiết Theo Ngày</value>
+  </data>
+  <data name="Report_Revenue_Col_Date" xml:space="preserve">
+    <value>Ngày</value>
+  </data>
+  <data name="Report_Revenue_Col_Orders" xml:space="preserve">
+    <value>Số Đơn</value>
+  </data>
+  <data name="Report_Revenue_Col_Cash" xml:space="preserve">
+    <value>Tiền mặt</value>
+  </data>
+  <data name="Report_Revenue_Col_VietQR" xml:space="preserve">
+    <value>VietQR / Chuyển khoản</value>
+  </data>
+  <data name="Report_Revenue_Col_Total" xml:space="preserve">
+    <value>Tổng Doanh thu</value>
+  </data>
+  <data name="Report_TopMovers_Sub" xml:space="preserve">
+    <value>Thống kê các món ăn bán chạy nhất và tỷ trọng đóng góp doanh thu sản phẩm.</value>
+  </data>
+  <data name="Report_TopMovers_Col_Rank" xml:space="preserve">
+    <value>Xếp hạng</value>
+  </data>
+  <data name="Report_TopMovers_Col_Name" xml:space="preserve">
+    <value>Tên Món ăn</value>
+  </data>
+  <data name="Report_TopMovers_Col_Qty" xml:space="preserve">
+    <value>Số lượng bán</value>
+  </data>
+  <data name="Report_TopMovers_Col_Total" xml:space="preserve">
+    <value>Tổng Doanh thu Món</value>
+  </data>
+  <data name="Report_TopMovers_Col_Eval" xml:space="preserve">
+    <value>Đánh giá Hiệu suất</value>
+  </data>
+  <data name="Report_TopMovers_BestSeller" xml:space="preserve">
+    <value>🔥 Best Seller</value>
+  </data>
+  <data name="Report_TopMovers_HighSales" xml:space="preserve">
+    <value>🔥 Bán chạy</value>
+  </data>
+  <data name="Report_TopMovers_Good" xml:space="preserve">
+    <value>Tốt</value>
+  </data>
+  <data name="Report_InventoryLoss_Sub" xml:space="preserve">
+    <value>Tổng hợp tổn thất do chênh lệch kiểm kê kho và nguyên liệu lãng phí từ các đơn hàng bị hủy (Cancellation Waste).</value>
+  </data>
+  <data name="Report_InventoryLoss_VarianceTitle" xml:space="preserve">
+    <value>Hao hụt do Kiểm kê Chênh lệch</value>
+  </data>
+  <data name="Report_InventoryLoss_VarianceSub" xml:space="preserve">
+    <value>Cập nhật sau đợt kiểm kê gần nhất</value>
+  </data>
+  <data name="Report_InventoryLoss_WasteTitle" xml:space="preserve">
+    <value>Hao hụt do Hủy món / Hủy đơn (Cancellation Waste)</value>
+  </data>
+  <data name="Report_InventoryLoss_WasteSub" xml:space="preserve">
+    <value>Lãng phí từ 3 đơn hàng hủy trong tháng</value>
+  </data>
+  <data name="Report_InventoryLoss_DetailTitle" xml:space="preserve">
+    <value>Chi tiết các Khoản Hao hụt Ghi nhận</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Time" xml:space="preserve">
+    <value>Thời gian</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Type" xml:space="preserve">
+    <value>Loại nguyên nhân</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Detail" xml:space="preserve">
+    <value>Chi tiết / Lý do</value>
+  </data>
+  <data name="Report_InventoryLoss_Col_Amount" xml:space="preserve">
+    <value>Giá trị Tổn thất</value>
+  </data>
+  <data name="Voucher_Sub" xml:space="preserve">
+    <value>Cấu hình mã khuyến mãi, tỷ lệ %, số tiền giảm tối đa và thời gian áp dụng cho khách hàng.</value>
+  </data>
+  <data name="Voucher_Add_New" xml:space="preserve">
+    <value>Tạo Mã Voucher Mới</value>
+  </data>
+  <data name="Voucher_Status_Active" xml:space="preserve">
+    <value>Hoạt động</value>
+  </data>
+  <data name="Voucher_Status_Expired" xml:space="preserve">
+    <value>Hết hạn</value>
+  </data>
+  <data name="Voucher_Discount_Pct" xml:space="preserve">
+    <value>Giảm {0}% tổng hóa đơn</value>
+  </data>
+  <data name="Voucher_Discount_Fixed" xml:space="preserve">
+    <value>Giảm trực tiếp {0} VNĐ</value>
+  </data>
+  <data name="Voucher_Min_Order" xml:space="preserve">
+    <value>Đơn hàng tối thiểu:</value>
+  </data>
+  <data name="Voucher_Usage" xml:space="preserve">
+    <value>Số lượt sử dụng:</value>
+  </data>
+  <data name="Voucher_Validity" xml:space="preserve">
+    <value>Hiệu lực:</value>
+  </data>
+  <data name="Voucher_Modal_Create" xml:space="preserve">
+    <value>Tạo Mã Voucher Mới</value>
+  </data>
+  <data name="Voucher_Modal_Update" xml:space="preserve">
+    <value>Cập nhật Voucher</value>
+  </data>
+  <data name="Voucher_Code_Label" xml:space="preserve">
+    <value>Mã Voucher</value>
+  </data>
+  <data name="Voucher_Type_Label" xml:space="preserve">
+    <value>Loại giảm giá</value>
+  </data>
+  <data name="Voucher_Type_Pct" xml:space="preserve">
+    <value>Theo Phần trăm (%)</value>
+  </data>
+  <data name="Voucher_Type_Fixed" xml:space="preserve">
+    <value>Số tiền cố định (VNĐ)</value>
+  </data>
+  <data name="Voucher_Value_Label" xml:space="preserve">
+    <value>Giá trị giảm</value>
+  </data>
+  <data name="Voucher_Min_Order_Label" xml:space="preserve">
+    <value>Đơn tối thiểu (VNĐ)</value>
+  </data>
+  <data name="Voucher_Limit_Label" xml:space="preserve">
+    <value>Giới hạn số lượt</value>
+  </data>
+  <data name="Voucher_Save_Btn" xml:space="preserve">
+    <value>Lưu Mã Voucher</value>
+  </data>
+  <data name="Customer_Sub" xml:space="preserve">
+    <value>Danh sách hội viên, hạng thẻ thành viên và tổng điểm tích lũy giao dịch.</value>
+  </data>
+  <data name="Customer_Col_ID" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="Customer_Col_Name" xml:space="preserve">
+    <value>Họ và Tên Khách hàng</value>
+  </data>
+  <data name="Customer_Col_Phone" xml:space="preserve">
+    <value>Số điện thoại</value>
+  </data>
+  <data name="Customer_Col_Tier" xml:space="preserve">
+    <value>Hạng Thẻ</value>
+  </data>
+  <data name="Customer_Col_TotalPoints" xml:space="preserve">
+    <value>Tổng Điểm Tích lũy</value>
+  </data>
+  <data name="Customer_Col_AvailablePoints" xml:space="preserve">
+    <value>Điểm Khả dụng</value>
+  </data>
 </root>

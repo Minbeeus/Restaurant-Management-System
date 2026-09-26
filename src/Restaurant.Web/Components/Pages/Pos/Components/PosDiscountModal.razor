@@ -1,0 +1,261 @@
+@using Restaurant.Web.Components.Pages.Pos.Components.OrderCart
+@using Restaurant.Web.Services
+@inject IAuthApiClient AuthApiClient
+
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg border border-outline-variant overflow-hidden flex flex-col p-6 space-y-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+                <h3 class="font-bold text-lg text-primary flex items-center gap-2">
+                    <span class="material-symbols-outlined">percent</span>
+                    Giảm Giá Món Hàng / Đơn Hàng
+                </h3>
+                <button class="p-1 rounded-lg hover:bg-surface-high text-on-surface-variant cursor-pointer"
+                        @onclick="Close">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            @if (!_requirePinStep)
+            {
+                <!-- Step 1: Select Items & Discount Type/Value -->
+                <div class="space-y-4">
+                    <!-- Item Selection List -->
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface-variant uppercase mb-2">Chọn món áp dụng giảm giá:</label>
+                        <div class="max-h-40 overflow-y-auto border border-outline-variant rounded-xl p-2 space-y-1 bg-surface-high/50">
+                            @if (!CartItems.Any())
+                            {
+                                <p class="text-xs text-on-surface-variant p-2 text-center">Giỏ hàng đang trống.</p>
+                            }
+                            else
+                            {
+                                <label class="flex items-center gap-2 p-2 hover:bg-surface-high rounded-lg cursor-pointer text-xs font-bold border-b border-outline-variant/40 pb-2">
+                                    <input type="checkbox" checked="@AllSelected" @onchange="ToggleSelectAll" class="rounded text-primary" />
+                                    <span>Tất cả món trong đơn (@CartItems.Count món)</span>
+                                </label>
+                                @foreach (var item in CartItems)
+                                {
+                                    var isChecked = SelectedItemIds.Contains(item.MenuItemId);
+                                    <label class="flex items-center justify-between p-2 hover:bg-surface-high rounded-lg cursor-pointer text-xs font-medium">
+                                        <div class="flex items-center gap-2">
+                                            <input type="checkbox" checked="@isChecked" @onchange='() => ToggleItemSelection(item.MenuItemId)' class="rounded text-primary" />
+                                            <span>@item.Name x @item.Quantity</span>
+                                        </div>
+                                        <span class="font-bold text-on-surface">@((item.Price * item.Quantity).ToString("N0"))đ</span>
+                                    </label>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Discount Type Selection -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="p-3 border rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer @(DiscountType == "Amount" ? "bg-primary text-on-primary border-primary" : "bg-surface-high text-on-surface border-outline-variant")"
+                                @onclick='() => DiscountType = "Amount"'>
+                            <span class="material-symbols-outlined text-[18px]">payments</span>
+                            <span>Giảm theo số tiền (VNĐ)</span>
+                        </button>
+                        <button class="p-3 border rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer @(DiscountType == "Percent" ? "bg-primary text-on-primary border-primary" : "bg-surface-high text-on-surface border-outline-variant")"
+                                @onclick='() => DiscountType = "Percent"'>
+                            <span class="material-symbols-outlined text-[18px]">percent</span>
+                            <span>Giảm theo phần trăm (%)</span>
+                        </button>
+                    </div>
+
+                    <!-- Value Input -->
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">
+                            Nhập giá trị giảm giá (@(DiscountType == "Amount" ? "VNĐ" : "%")):
+                        </label>
+                        <input type="number" min="0" max="@(DiscountType == "Percent" ? 100 : 10000000)"
+                               class="w-full p-2.5 bg-surface-high border border-outline-variant rounded-xl text-sm font-bold text-primary focus:outline-none focus:border-primary"
+                               placeholder="@(DiscountType == "Amount" ? "Ví dụ: 50000" : "Ví dụ: 10")"
+                               @bind="DiscountValue" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <p class="text-xs text-error font-medium">@ErrorMessage</p>
+                    }
+                </div>
+
+                <!-- Footer Action -->
+                <div class="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+                    <button class="px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold hover:bg-surface-high cursor-pointer"
+                            @onclick="Close">Hủy</button>
+                    <button class="px-6 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary/90 cursor-pointer"
+                            @onclick="ProceedToPinStep">
+                        Tiếp Tục (Xác Nhận PIN Quản Lý)
+                    </button>
+                </div>
+            }
+            else
+            {
+                <!-- Step 2: Manager PIN Verification -->
+                <div class="space-y-4 py-2">
+                    <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-700 dark:text-amber-400 text-xs font-medium flex items-center gap-2">
+                        <span class="material-symbols-outlined text-lg">admin_panel_settings</span>
+                        <span>Thao tác giảm giá yêu cầu nhập mã PIN của Quản lý ca hoặc Nhà hàng để xác nhận.</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Mã PIN Quản Lý (6 Chữ Số)</label>
+                        <input type="password" maxlength="6"
+                               class="w-full p-3 text-center tracking-widest text-lg font-bold bg-surface-high border border-outline-variant rounded-xl focus:outline-none focus:border-primary"
+                               placeholder="******"
+                               @bind="ManagerPin" @bind:event="oninput" @onkeyup="HandlePinKeyUp" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <p class="text-xs text-error font-medium text-center">@ErrorMessage</p>
+                    }
+                </div>
+
+                <!-- Footer Action for PIN -->
+                <div class="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+                    <button class="px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold hover:bg-surface-high cursor-pointer"
+                            @onclick='() => _requirePinStep = false'>Quay Lại</button>
+                    <button class="px-6 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary/90 cursor-pointer flex items-center gap-2"
+                            @onclick="ConfirmDiscountWithPin" disabled="@IsVerifyingPin">
+                        @if (IsVerifyingPin)
+                        {
+                            <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-on-primary"></span>
+                        }
+                        <span>Xác Nhận Giảm Giá</span>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public List<OrderCartItemLocal> CartItems { get; set; } = new();
+    [Parameter] public EventCallback<DiscountAppliedEventArgs> OnDiscountConfirmed { get; set; }
+
+    private HashSet<int> SelectedItemIds { get; set; } = new();
+    private string DiscountType { get; set; } = "Amount";
+    private decimal DiscountValue { get; set; } = 0;
+
+    private bool _requirePinStep { get; set; } = false;
+    private string ManagerPin { get; set; } = string.Empty;
+    private bool IsVerifyingPin { get; set; } = false;
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private bool AllSelected => CartItems.Any() && SelectedItemIds.Count == CartItems.Count;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !SelectedItemIds.Any() && CartItems.Any())
+        {
+            SelectedItemIds = new HashSet<int>(CartItems.Select(i => i.MenuItemId));
+        }
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        if ((bool)(e.Value ?? false))
+        {
+            SelectedItemIds = new HashSet<int>(CartItems.Select(i => i.MenuItemId));
+        }
+        else
+        {
+            SelectedItemIds.Clear();
+        }
+    }
+
+    private void ToggleItemSelection(int menuItemId)
+    {
+        if (SelectedItemIds.Contains(menuItemId))
+            SelectedItemIds.Remove(menuItemId);
+        else
+            SelectedItemIds.Add(menuItemId);
+    }
+
+    private void ProceedToPinStep()
+    {
+        if (!SelectedItemIds.Any())
+        {
+            ErrorMessage = "Vui lòng chọn ít nhất 1 món để giảm giá.";
+            return;
+        }
+        if (DiscountValue <= 0)
+        {
+            ErrorMessage = "Giá trị giảm giá phải lớn hơn 0.";
+            return;
+        }
+
+        ErrorMessage = string.Empty;
+        _requirePinStep = true;
+    }
+
+    private async Task HandlePinKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && ManagerPin.Length == 6)
+        {
+            await ConfirmDiscountWithPin();
+        }
+    }
+
+    private async Task ConfirmDiscountWithPin()
+    {
+        if (string.IsNullOrWhiteSpace(ManagerPin) || ManagerPin.Length != 6)
+        {
+            ErrorMessage = "Vui lòng nhập đủ 6 chữ số mã PIN.";
+            return;
+        }
+
+        IsVerifyingPin = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var isValid = await AuthApiClient.VerifyManagerPinAsync(ManagerPin);
+            if (!isValid)
+            {
+                ErrorMessage = "Mã PIN Quản lý không chính xác.";
+                return;
+            }
+
+            await OnDiscountConfirmed.InvokeAsync(new DiscountAppliedEventArgs
+            {
+                ItemIds = SelectedItemIds.ToList(),
+                Type = DiscountType,
+                Value = DiscountValue
+            });
+
+            await Close();
+        }
+        catch
+        {
+            ErrorMessage = "Xác nhận mã PIN thất bại.";
+        }
+        finally
+        {
+            IsVerifyingPin = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        _requirePinStep = false;
+        ManagerPin = string.Empty;
+        ErrorMessage = string.Empty;
+        DiscountValue = 0;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    public class DiscountAppliedEventArgs
+    {
+        public List<int> ItemIds { get; set; } = new();
+        public string Type { get; set; } = "Amount";
+        public decimal Value { get; set; }
+    }
+}

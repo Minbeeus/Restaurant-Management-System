@@ -10,7 +10,7 @@
 <div class="flex flex-col h-[calc(100vh-64px-48px)]">
     <!-- Header -->
     <div class="flex justify-between items-center mb-4 shrink-0">
-        <h2 class="text-2xl font-headline-sm text-primary">Sơ đồ nhà hàng (Floor Plan)</h2>
+        <h2 class="text-2xl font-headline-sm text-primary">@L["Table_Floorplan_Title"]</h2>
         
         <div class="flex items-center gap-3">
             @if (_areas.Any())
@@ -27,10 +27,10 @@
 
             <div class="flex items-center gap-1 bg-surface-container rounded-lg p-1 mr-2 border border-outline-variant/30">
                 <button class="px-3 py-1.5 rounded-md text-sm font-bold transition-colors @(_viewMode == "Canvas" ? "bg-white text-primary shadow-sm" : "text-on-surface hover:bg-surface-low")" @onclick="@(() => SwitchViewMode("Canvas"))">
-                    <span class="material-symbols-outlined align-middle text-[18px] mr-1" data-icon="dashboard">dashboard</span> Sơ đồ
+                    <span class="material-symbols-outlined align-middle text-[18px] mr-1" data-icon="dashboard">dashboard</span> @L["Table_View_Plan"]
                 </button>
                 <button class="px-3 py-1.5 rounded-md text-sm font-bold transition-colors @(_viewMode == "Grid" ? "bg-white text-primary shadow-sm" : "text-on-surface hover:bg-surface-low")" @onclick="@(() => SwitchViewMode("Grid"))">
-                    <span class="material-symbols-outlined align-middle text-[18px] mr-1" data-icon="list">list</span> Danh sách
+                    <span class="material-symbols-outlined align-middle text-[18px] mr-1" data-icon="list">list</span> @L["Table_View_List"]
                 </button>
             </div>
 
@@ -38,7 +38,7 @@
             {
                 <button class="flex items-center gap-2 px-4 py-2 rounded font-label-bold shadow-sm transition-colors @(_isEditMode ? "bg-surface-variant text-on-surface hover:bg-surface-variant/80" : "bg-primary text-on-primary hover:bg-primary/90")" @onclick="ToggleEditMode">
                     <span class="material-symbols-outlined text-[20px]" data-icon="@(_isEditMode ? "visibility" : "edit_square")">@(_isEditMode ? "visibility" : "edit_square")</span>
-                    @(_isEditMode ? "Chế độ Xem" : "Sửa Sơ đồ")
+                    @(_isEditMode ? L["Table_Mode_View"] : L["Table_Mode_Edit"])
                 </button>
             }
 
@@ -46,12 +46,12 @@
             {
                 <button class="flex items-center gap-2 px-4 py-2 rounded font-label-bold shadow-sm transition-colors @(_hasCollision ? "bg-on-surface-variant/20 text-on-surface-variant cursor-not-allowed" : "bg-basil-container text-white hover:bg-basil-container/90")" @onclick="SaveLayoutAsync" disabled="@_hasCollision">
                     <span class="material-symbols-outlined text-[20px]" data-icon="save">save</span>
-                    Lưu sơ đồ
+                    @L["Table_Save_Layout"]
                 </button>
             }
             
             <button class="bg-surface-container-high text-on-surface px-4 py-2 rounded font-label-bold shadow-sm hover:bg-surface-container-highest transition-colors" @onclick="OpenAddModal">
-                <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> Thêm Bàn
+                <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> @L["Table_Add_Table"]
             </button>
         </div>
     </div>
@@ -65,7 +65,7 @@
     else if (!_areas.Any())
     {
         <div class="p-8 text-center text-on-surface-variant bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 mt-8">
-            Chưa có khu vực nào. Vui lòng tạo Khu vực trước.
+            @L["Area_No_Data"]
         </div>
     }
     else
@@ -82,10 +82,10 @@
                 {
                     <div class="absolute top-4 left-4 bg-surface/80 backdrop-blur px-3 py-1.5 rounded shadow-sm text-xs font-bold text-on-surface z-10 flex items-center gap-2 border border-outline-variant/30">
                         <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                        Đang chỉnh sửa: Kéo thả bàn để thay đổi vị trí
+                        @L["Table_Editing_Hint"]
                         @if (_hasCollision)
                         {
-                            <span class="text-error ml-2">- Lỗi: Các bàn không được đè lên nhau!</span>
+                            <span class="text-error ml-2">- @L["Table_Collision_Error"]</span>
                         }
                     </div>
                 }
@@ -101,7 +101,7 @@
                             <span class="font-bold text-on-background pointer-events-none @(table.Width < 60 ? "text-xs" : "text-base")">@table.Name</span>
                             @if (table.Width >= 60 && table.Height >= 60)
                             {
-                                <span class="text-xs text-on-surface-variant pointer-events-none">@table.Capacity chỗ</span>
+                                <span class="text-xs text-on-surface-variant pointer-events-none">@table.Capacity @L["Table_Capacity_Unit"]</span>
                             }
                         </div>
                     }
@@ -124,37 +124,37 @@
 
                     <div class="p-4 flex-1 overflow-y-auto">
                         <div class="mb-4">
-                            <div class="text-xs text-on-surface-variant mb-1 uppercase font-bold tracking-wider">Thông tin chung</div>
-                            <div class="font-label-bold">Sức chứa: @_selectedTable.Capacity chỗ</div>
-                            <div class="font-label-bold">Khu vực: @_areas.FirstOrDefault(a => a.Id == _selectedTable.AreaId)?.Name</div>
+                            <div class="text-xs text-on-surface-variant mb-1 uppercase font-bold tracking-wider">@L["Table_General_Info"]</div>
+                            <div class="font-label-bold">@L["Table_Capacity_Label"]: @_selectedTable.Capacity @L["Table_Capacity_Unit"]</div>
+                            <div class="font-label-bold">@L["Table_Area_Label"]: @_areas.FirstOrDefault(a => a.Id == _selectedTable.AreaId)?.Name</div>
                         </div>
 
                         @if (_isEditMode)
                         {
                             <div class="mb-6 space-y-3">
-                                <div class="text-xs text-on-surface-variant mb-1 uppercase font-bold tracking-wider">Tác vụ Sơ đồ</div>
+                                <div class="text-xs text-on-surface-variant mb-1 uppercase font-bold tracking-wider">@L["Table_Tasks"]</div>
                                 
                                 <button class="w-full flex items-center justify-between px-3 py-2 bg-surface hover:bg-surface-low border border-outline rounded transition-colors" @onclick="RotateSelectedTable">
-                                    <span class="font-bold text-sm">Xoay bàn (90°)</span>
+                                    <span class="font-bold text-sm">@L["Table_Rotate"]</span>
                                     <span class="material-symbols-outlined text-sm" data-icon="rotate_right">rotate_right</span>
                                 </button>
                                 
                                 <div class="flex flex-col gap-1">
-                                    <span class="text-sm font-bold text-on-surface">Đổi hình dạng:</span>
+                                    <span class="text-sm font-bold text-on-surface">@L["Table_Change_Shape"]:</span>
                                     <div class="flex gap-2">
-                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 0 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(0)">Tròn</button>
-                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 1 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(1)">Vuông</button>
-                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 2 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(2)">C.Nhật</button>
+                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 0 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(0)">@L["Table_Shape_Round"]</button>
+                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 1 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(1)">@L["Table_Shape_Square"]</button>
+                                        <button class="flex-1 py-1.5 border border-outline rounded text-sm hover:bg-primary-container hover:text-primary transition-colors @(_selectedTable.Shape == 2 ? "bg-primary-container text-primary border-primary" : "bg-surface")" @onclick="() => ChangeShape(2)">@L["Table_Shape_Rectangle"]</button>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="mt-auto flex gap-2">
                                 <button class="flex-1 flex items-center justify-center gap-1 py-2 text-primary hover:bg-primary-container border border-primary/30 rounded font-label-bold transition-colors" @onclick="() => OpenEditModal(_selectedTable)">
-                                    <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span> Sửa
+                                    <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span> @L["Common_Edit"]
                                 </button>
                                 <button class="flex-1 flex items-center justify-center gap-1 py-2 text-error hover:bg-error-container border border-error/30 rounded font-label-bold transition-colors" @onclick="() => ConfirmDelete(_selectedTable)">
-                                    <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span> Xóa
+                                    <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span> @L["Common_Delete"]
                                 </button>
                             </div>
                         }
@@ -163,7 +163,7 @@
                             <!-- View mode actions -->
                             <a href="@GetQrCodeUrl(_selectedTable.Id)" target="_blank" class="w-full flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors">
                                 <span class="material-symbols-outlined" data-icon="qr_code_2">qr_code_2</span>
-                                Tải Mã QR Bàn Này
+                                @L["Table_Download_QR"]
                             </a>
                         }
                     </div>
@@ -178,13 +178,13 @@
                     <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-4 flex flex-col md:flex-row gap-4 shrink-0">
                         <div class="flex-1 relative">
                             <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[20px]" data-icon="search">search</span>
-                            <InputText @bind-Value="_searchKeyword" @bind-Value:event="oninput" class="w-full pl-10 pr-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary transition-colors" placeholder="Tìm kiếm theo Tên bàn..." />
+                            <InputText @bind-Value="_searchKeyword" @bind-Value:event="oninput" class="w-full pl-10 pr-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary transition-colors" placeholder="@L["Table_Name_Placeholder"]" />
                         </div>
                         <div class="w-full md:w-48 shrink-0">
                             <select @bind="_filterStatus" class="w-full px-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary transition-colors cursor-pointer">
-                                <option value="">Tất cả trạng thái</option>
-                                <option value="0">Trống (Available)</option>
-                                <option value="1">Đang phục vụ</option>
+                                <option value="">@L["MenuItem_Filter_All_Status"]</option>
+                                <option value="0">@L["Table_Status_Available"]</option>
+                                <option value="1">@L["Table_Status_Occupied"]</option>
                             </select>
                         </div>
                     </div>
@@ -193,18 +193,18 @@
                         <table class="w-full text-left border-collapse">
                             <thead class="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-bold sticky top-0 z-10">
                                 <tr>
-                                    <th class="p-4 font-semibold text-center w-16">ID</th>
-                                    <th class="p-4 font-semibold">Tên Bàn</th>
-                                    <th class="p-4 font-semibold">Sức chứa</th>
-                                    <th class="p-4 font-semibold text-center">Trạng thái</th>
-                                    <th class="p-4 font-semibold text-center w-48">Hành động</th>
+                                    <th class="p-4 font-semibold text-center w-16">@L["Area_Header_ID"]</th>
+                                    <th class="p-4 font-semibold">@L["Table_Name_Label"]</th>
+                                    <th class="p-4 font-semibold">@L["Table_Header_Capacity"]</th>
+                                    <th class="p-4 font-semibold text-center">@L["Area_Header_Status"]</th>
+                                    <th class="p-4 font-semibold text-center w-48">@L["Area_Header_Actions"]</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @if (!FilteredTables.Any())
                                 {
                                     <tr>
-                                        <td colspan="5" class="p-8 text-center text-on-surface-variant">Không tìm thấy bàn nào phù hợp với bộ lọc.</td>
+                                        <td colspan="5" class="p-8 text-center text-on-surface-variant">@L["Table_No_Tables_Found"]</td>
                                     </tr>
                                 }
                                 @foreach (var table in FilteredTables)
@@ -212,25 +212,25 @@
                                     <tr class="border-b border-outline-variant/20 last:border-0 hover:bg-surface-low/50 transition-colors">
                                         <td class="p-4 text-center text-on-surface-variant">#@table.Id</td>
                                         <td class="p-4 font-label-bold text-on-background text-base">@table.Name</td>
-                                        <td class="p-4 text-on-surface-variant">@table.Capacity chỗ ngồi</td>
+                                        <td class="p-4 text-on-surface-variant">@table.Capacity @L["Table_Capacity_Unit"]</td>
                                         <td class="p-4 text-center">
                                             @if (table.Status == 0)
                                             {
-                                                <span class="px-2 py-1 bg-success-green/10 text-success-green rounded text-xs font-bold border border-success-green/20">Trống</span>
+                                                <span class="px-2 py-1 bg-success-green/10 text-success-green rounded text-xs font-bold border border-success-green/20">@L["Table_Status_Available"]</span>
                                             }
                                             else
                                             {
-                                                <span class="px-2 py-1 bg-error-container/20 text-error rounded text-xs font-bold border border-error/20">Đang phục vụ</span>
+                                                <span class="px-2 py-1 bg-error-container/20 text-error rounded text-xs font-bold border border-error/20">@L["Table_Status_Occupied"]</span>
                                             }
                                         </td>
                                         <td class="p-4 text-center space-x-2">
-                                            <a href="@GetQrCodeUrl(table.Id)" target="_blank" class="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors inline-block" title="Xem/Tải QR">
+                                            <a href="@GetQrCodeUrl(table.Id)" target="_blank" class="text-secondary hover:bg-secondary-container p-2 rounded-full transition-colors inline-block" title="@L["Table_Download_QR"]">
                                                 <span class="material-symbols-outlined text-sm" data-icon="qr_code_2">qr_code_2</span>
                                             </a>
-                                            <button class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Sửa" @onclick="() => OpenEditModal(table)">
+                                            <button class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="@L["Common_Edit"]" @onclick="() => OpenEditModal(table)">
                                                 <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
                                             </button>
-                                            <button class="text-error hover:bg-error-container p-2 rounded-full transition-colors disabled:opacity-50" title="Xóa" @onclick="() => ConfirmDelete(table)" disabled="@(table.Status == 1)">
+                                            <button class="text-error hover:bg-error-container p-2 rounded-full transition-colors disabled:opacity-50" title="@L["Common_Delete"]" @onclick="() => ConfirmDelete(table)" disabled="@(table.Status == 1)">
                                                 <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
                                             </button>
                                         </td>
@@ -663,21 +663,21 @@
 {
     <div class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-200">
-            <h3 class="font-bold text-lg mb-4 text-on-background">@(_isEditing ? "Sửa bàn" : "Thêm bàn mới")</h3>
+            <h3 class="font-bold text-lg mb-4 text-on-background">@(_isEditing ? L["Table_Modal_Edit"] : L["Table_Modal_Create"])</h3>
             <EditForm Model="@_model" OnValidSubmit="SaveTableAsync">
                 <div class="space-y-3 mb-6">
                     <div>
-                        <label class="text-sm font-bold block mb-1 text-on-surface">Tên Bàn</label>
-                        <InputText @bind-Value="_model.Name" class="w-full border border-outline rounded p-2 bg-surface focus:border-primary focus:outline-none" placeholder="VD: Bàn 01" />
+                        <label class="text-sm font-bold block mb-1 text-on-surface">@L["Table_Name_Label"]</label>
+                        <InputText @bind-Value="_model.Name" class="w-full border border-outline rounded p-2 bg-surface focus:border-primary focus:outline-none" placeholder="@L["Table_Name_Placeholder"]" />
                     </div>
                     <div>
-                        <label class="text-sm font-bold block mb-1 text-on-surface">Sức chứa</label>
+                        <label class="text-sm font-bold block mb-1 text-on-surface">@L["Table_Capacity_Input"]</label>
                         <InputNumber @bind-Value="_model.Capacity" class="w-full border border-outline rounded p-2 bg-surface focus:border-primary focus:outline-none" min="1" />
                     </div>
                 </div>
                 <div class="flex justify-end gap-2">
-                    <button type="button" class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low font-label-bold transition-colors" @onclick="CloseModal">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded font-label-bold hover:bg-primary/90 transition-colors">Lưu</button>
+                    <button type="button" class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low font-label-bold transition-colors" @onclick="CloseModal">@L["Common_Cancel"]</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded font-label-bold hover:bg-primary/90 transition-colors">@L["Common_Save_Changes"]</button>
                 </div>
             </EditForm>
         </div>
@@ -693,8 +693,8 @@
                 <div class="w-16 h-16 rounded-full bg-error-container text-error mx-auto flex items-center justify-center mb-4">
                     <span class="material-symbols-outlined text-3xl" data-icon="warning">warning</span>
                 </div>
-                <h3 class="text-xl font-bold text-on-background mb-2">Xác nhận xóa?</h3>
-                <p class="text-on-surface-variant text-sm mb-6">Bạn có chắc chắn muốn xóa <strong>@_tableToDelete?.Name</strong> không? Hành động này không thể hoàn tác.</p>
+                <h3 class="text-xl font-bold text-on-background mb-2">@L["Category_Delete_Confirm_Title"]</h3>
+                <p class="text-on-surface-variant text-sm mb-6">@string.Format(L["Table_Delete_Confirm"], _tableToDelete?.Name)</p>
                 
                 @if (!string.IsNullOrEmpty(_deleteErrorMessage))
                 {
@@ -704,13 +704,13 @@
                 }
 
                 <div class="flex justify-center gap-3">
-                    <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">Hủy</button>
+                    <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">@L["Common_Cancel"]</button>
                     <button class="px-4 py-2 bg-error text-white rounded hover:bg-error/90 transition-colors font-label-bold flex-1 flex items-center justify-center gap-2" @onclick="ExecuteDeleteAsync" disabled="@_isDeleting">
                         @if (_isDeleting)
                         {
                             <span class="material-symbols-outlined animate-spin text-sm" data-icon="progress_activity">progress_activity</span>
                         }
-                        Xóa ngay
+                        @L["Category_Delete_Now_Btn"]
                     </button>
                 </div>
             </div>

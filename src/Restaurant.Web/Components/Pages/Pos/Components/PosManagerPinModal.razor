@@ -1,0 +1,142 @@
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@inject HttpClient Http
+
+@if (IsOpen && RequestDto != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-amber-500/40 p-6 space-y-4">
+            
+            <div class="flex items-center gap-3 text-amber-600 border-b border-outline-variant pb-3">
+                <span class="material-symbols-outlined text-3xl">admin_panel_settings</span>
+                <div>
+                    <h3 class="font-black text-lg text-on-surface m-0 tracking-wide">XÁC NHẬN BỞI QUẢN LÝ (APPROVAL)</h3>
+                    <span class="text-xs text-on-surface-variant font-medium">Nhập mã PIN Quản lý để phê duyệt yêu cầu</span>
+                </div>
+            </div>
+
+            <!-- Details Card -->
+            <div class="bg-surface-high p-4 rounded-xl border border-outline-variant space-y-2 text-xs">
+                <div class="flex justify-between font-bold text-on-surface">
+                    <span>Loại yêu cầu:</span>
+                    <span class="text-primary font-black">@RequestDto.TypeName</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Số tiền:</span>
+                    <span class="font-black text-emerald-600 text-sm">@RequestDto.Amount.ToString("N0") đ</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Thu ngân yêu cầu:</span>
+                    <span class="font-bold">@RequestDto.RequestedByUserName (@RequestDto.RequestedAt.ToString("HH:mm:ss"))</span>
+                </div>
+                <div class="pt-2 border-t border-outline-variant">
+                    <span class="font-bold text-on-surface-variant">Lý do:</span>
+                    <p class="text-on-surface font-semibold mt-0.5">@RequestDto.Reason</p>
+                </div>
+            </div>
+
+            <!-- PIN Input -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Mã PIN Quản Lý (6 Chữ Số)</label>
+                <input type="password" maxlength="6" class="w-full p-3 text-center tracking-[1em] text-2xl font-black rounded-xl border border-outline-variant bg-surface-high focus:ring-2 focus:ring-amber-500"
+                       placeholder="••••••" @bind="ManagerPin" @onkeyup="HandleKeyUp" />
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Ghi Chú Duyệt (Tùy chọn)</label>
+                <input type="text" class="w-full p-2.5 rounded-xl border border-outline-variant text-xs bg-surface-high"
+                       placeholder="Nhập ghi chú phê duyệt..." @bind="ApprovalNote" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="p-2.5 bg-error-container text-error rounded-xl font-bold text-xs">
+                    @ErrorMessage
+                </div>
+            }
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end gap-3 pt-2">
+                <button class="px-5 py-2.5 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high cursor-pointer"
+                        @onclick="CloseAsync">
+                    HỦY BỎ
+                </button>
+                <button class="px-6 py-2.5 text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                        disabled="IsProcessing" @onclick="ApproveAsync">
+                    <span class="material-symbols-outlined text-lg">check_circle</span>
+                    XÁC NHẬN DUYỆT NGAY
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public ApprovalRequestDto? RequestDto { get; set; }
+    [Parameter] public EventCallback<bool> OnApproved { get; set; }
+
+    protected string ManagerPin { get; set; } = string.Empty;
+    protected string ApprovalNote { get; set; } = string.Empty;
+    protected bool IsProcessing { get; set; } = false;
+    protected string ErrorMessage { get; set; } = string.Empty;
+
+    private async Task HandleKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && ManagerPin.Length >= 6)
+        {
+            await ApproveAsync();
+        }
+    }
+
+    private async Task ApproveAsync()
+    {
+        if (RequestDto == null || string.IsNullOrWhiteSpace(ManagerPin))
+        {
+            ErrorMessage = "Vui lòng nhập đầy đủ mã PIN Quản lý.";
+            return;
+        }
+
+        IsProcessing = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var req = new ManagerPinApprovalRequestDto
+            {
+                ApprovalRequestId = RequestDto.Id,
+                ManagerPin = ManagerPin.Trim(),
+                ApprovalNote = ApprovalNote
+            };
+
+            var res = await Http.PostAsJsonAsync("api/v1/approvals/manager-pin-approve", req);
+            if (res.IsSuccessStatusCode)
+            {
+                await CloseAsync();
+                await OnApproved.InvokeAsync(true);
+            }
+            else
+            {
+                var body = await res.Content.ReadAsStringAsync();
+                ErrorMessage = $"Từ chối duyệt: {body}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        ManagerPin = string.Empty;
+        ErrorMessage = string.Empty;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

@@ -5,51 +5,133 @@
 @using Restaurant.Web.Components.Pages.Pos.Components.CategoryTabs
 @using Restaurant.Web.Components.Pages.Pos.Components.MenuGrid
 @using Restaurant.Web.Components.Pages.Pos.Components
+@using Restaurant.Application.DTOs
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 
-<div class="pos-main">
-    <div class="pos-main__left">
-        <OrderCart 
-            Items="CartItems" 
-            TableName="@CurrentTableName"
-            OrderCode="@CurrentOrderCode"
-            OnQuantityChanged="HandleCartQuantityChanged"
-            OnItemRemoved="HandleCartItemRemoved"
-            OnSendToKitchen="HandleSendToKitchenAsync"
-            OnPay="HandlePayAsync" />
-    </div>
-    <div class="pos-main__right">
-        @if (!string.IsNullOrEmpty(ToastMessage))
-        {
-            <div class="bg-success-container text-success px-4 py-2 mb-2 rounded font-bold shadow-sm flex items-center justify-between">
-                <span>@ToastMessage</span>
-                <button class="text-sm border border-success px-2 py-1 rounded hover:bg-success/10" @onclick="() => ToastMessage = string.Empty">Đóng</button>
+<div class="flex flex-col h-full bg-background overflow-hidden">
+    <!-- Dedicated Action Menu Toolbar for Order Placement (No Top Nav) -->
+    <header class="h-14 bg-surface border-b border-outline-variant px-4 flex items-center justify-between shrink-0 shadow-xs z-30 select-none">
+        <!-- Left: Table / Order Info -->
+        <div class="flex items-center gap-3">
+            <button class="p-2 hover:bg-surface-high rounded-xl text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
+                    @onclick='() => Navigation.NavigateTo("/pos/tables")'>
+                <span class="material-symbols-outlined text-lg">arrow_back</span>
+                <span>Sơ đồ bàn</span>
+            </button>
+            <div class="h-5 w-[1px] bg-outline-variant"></div>
+            <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 bg-primary/10 text-primary font-bold text-xs rounded-lg">
+                    @CurrentTableName
+                </span>
+                <span class="text-xs text-on-surface-variant font-mono">@CurrentOrderCode</span>
+                @if (SelectedMember != null)
+                {
+                    <span class="px-2 py-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px] rounded-full border border-amber-500/30 flex items-center gap-1">
+                        ⭐ @SelectedMember.FullName (@SelectedMember.TierName)
+                    </span>
+                }
             </div>
-        }
+        </div>
 
-        @if (ShowAlert)
-        {
-            <div class="bg-warning-container text-warning px-4 py-2 mb-2 rounded font-bold shadow-sm flex items-center justify-between">
-                <span>CÓ ĐƠN HÀNG MỚI TỪ QR! BÀN @NewOrderTableName</span>
-                <button class="text-sm border border-warning px-2 py-1 rounded hover:bg-warning/10" @onclick="() => ShowAlert = false">Đóng</button>
-            </div>
-        }
-        
-        <CategoryTabs 
-            Categories="Categories"
-            ActiveCategoryId="ActiveCategoryId"
-            ShowImages="ShowImages"
-            OnCategoryChanged="HandleCategoryChanged"
-            OnImageToggleChanged="HandleImageToggle" />
+        <!-- Right: 5 Action Toolbar Buttons -->
+        <div class="flex items-center gap-2">
+            <!-- 1. Thành viên -->
+            <button class="px-3 py-1.5 bg-surface-high hover:bg-primary/10 text-on-surface hover:text-primary border border-outline-variant rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    @onclick="() => ShowMemberModal = true">
+                <span class="material-symbols-outlined text-[18px] text-primary">badge</span>
+                <span>Thành Viên</span>
+            </button>
+
+            <!-- 2. Giảm giá -->
+            <button class="px-3 py-1.5 bg-surface-high hover:bg-primary/10 text-on-surface hover:text-primary border border-outline-variant rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    @onclick="() => ShowDiscountModal = true">
+                <span class="material-symbols-outlined text-[18px] text-primary">percent</span>
+                <span>Giảm Giá</span>
+            </button>
+
+            <!-- 3. In hóa đơn -->
+            <button class="px-3 py-1.5 bg-surface-high hover:bg-primary/10 text-on-surface hover:text-primary border border-outline-variant rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    @onclick="HandlePrintPreBill">
+                <span class="material-symbols-outlined text-[18px] text-primary">print</span>
+                <span>In Hóa Đơn</span>
+            </button>
+
+            <!-- 4. Hủy đơn -->
+            <button class="px-3 py-1.5 bg-error/10 hover:bg-error text-error hover:text-on-error border border-error/30 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    @onclick="() => ShowCancelOrderModal = true">
+                <span class="material-symbols-outlined text-[18px]">cancel</span>
+                <span>Hủy Đơn</span>
+            </button>
+
+            <!-- 5. Xong (Done & Send to Kitchen) -->
+            <button class="px-4 py-1.5 bg-primary text-on-primary hover:bg-primary/90 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                    @onclick="HandleDoneAsync" disabled="@IsProcessing">
+                @if (IsProcessing)
+                {
+                    <span class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-on-primary"></span>
+                }
+                else
+                {
+                    <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                }
+                <span>Xong (Gửi Bếp)</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Cart Left Section -->
+        <div class="w-[380px] lg:w-[420px] bg-surface border-r border-outline-variant flex flex-col shrink-0">
+            <OrderCart 
+                Items="CartItems" 
+                TableName="@CurrentTableName"
+                OrderCode="@CurrentOrderCode"
+                OnQuantityChanged="HandleCartQuantityChanged"
+                OnItemRemoved="HandleCartItemRemoved"
+                OnSendToKitchen="HandleSendToKitchenAsync"
+                OnPay="HandlePayAsync" />
+        </div>
+
+        <!-- Menu Right Section -->
+        <div class="flex-1 bg-surface-low p-4 flex flex-col overflow-hidden">
+            @if (!string.IsNullOrEmpty(ToastMessage))
+            {
+                <div class="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-4 py-2.5 mb-3 rounded-xl font-bold text-xs flex items-center justify-between shadow-2xs">
+                    <span>@ToastMessage</span>
+                    <button class="text-xs border border-emerald-500/40 px-2 py-0.5 rounded-lg hover:bg-emerald-500/10 cursor-pointer"
+                            @onclick="() => ToastMessage = string.Empty">Đóng</button>
+                </div>
+            }
+
+            @if (ShowAlert)
+            {
+                <div class="bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-4 py-2.5 mb-3 rounded-xl font-bold text-xs flex items-center justify-between shadow-2xs">
+                    <span>CÓ ĐƠN HÀNG MỚI TỪ QR! BÀN @NewOrderTableName</span>
+                    <button class="text-xs border border-amber-500/40 px-2 py-0.5 rounded-lg hover:bg-amber-500/10 cursor-pointer"
+                            @onclick="() => ShowAlert = false">Đóng</button>
+                </div>
+            }
             
-        <MenuGrid 
-            Items="FilteredMenuItems"
-            ShowImage="ShowImages"
-            OnItemClicked="HandleMenuItemClicked" />
+            <CategoryTabs 
+                Categories="Categories"
+                ActiveCategoryId="ActiveCategoryId"
+                ShowImages="ShowImages"
+                OnCategoryChanged="HandleCategoryChanged"
+                OnImageToggleChanged="HandleImageToggle" />
+                
+            <div class="flex-1 overflow-y-auto pt-2">
+                <MenuGrid 
+                    Items="FilteredMenuItems"
+                    ShowImage="ShowImages"
+                    OnItemClicked="HandleMenuItemClicked" />
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- Modals -->
 <ComboBuilderModal 
     @bind-IsOpen="ShowComboModal"
     MenuItem="SelectedItemDetail"
@@ -63,3 +145,21 @@
     TableName="@CurrentTableName"
     SubTotal="@CartSubTotal"
     OnPaymentCompleted="HandlePaymentCompletedAsync" />
+
+<!-- 1. Thành viên Modal -->
+<PosMemberModal
+    @bind-IsOpen="ShowMemberModal"
+    OnMemberConfirmed="HandleMemberConfirmed" />
+
+<!-- 2. Giảm giá Modal -->
+<PosDiscountModal
+    @bind-IsOpen="ShowDiscountModal"
+    CartItems="CartItems"
+    OnDiscountConfirmed="HandleDiscountConfirmed" />
+
+<!-- 4. Hủy đơn Modal -->
+<PosCancelOrderModal
+    @bind-IsOpen="ShowCancelOrderModal"
+    TableName="@CurrentTableName"
+    OrderId="ActiveOrderId"
+    OnOrderCancelled="HandleOrderCancelledAsync" />

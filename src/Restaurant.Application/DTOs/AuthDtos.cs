@@ -11,6 +11,11 @@ public class QuickLoginRequest
     public string AccessCode { get; set; } = string.Empty;
 }
 
+public class VerifyPinRequest
+{
+    public string PinCode { get; set; } = string.Empty;
+}
+
 public class LoginResponse
 {
     public string Token { get; set; } = string.Empty;
@@ -29,4 +34,20 @@ public class UserDto
     public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
     public bool IsActive { get; set; }
+}
+
+public class PinLoginRequest
+{
+    public string PinCode { get; set; } = string.Empty;
+}
+
+public class PinLoginResponse
+{
+    public string Token { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public List<string> Permissions { get; set; } = new();
+    public string DestinationArea { get; set; } = string.Empty; // "POS", "KDS", "BOTH", "ADMIN"
+    public DateTime ExpiresAt { get; set; }
 }

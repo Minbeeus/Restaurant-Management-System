@@ -1,0 +1,161 @@
+@using Restaurant.Application.DTOs
+@inject HttpClient Http
+
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md border border-outline-variant overflow-hidden flex flex-col p-6 space-y-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+                <h3 class="font-bold text-lg text-primary flex items-center gap-2">
+                    <span class="material-symbols-outlined">badge</span>
+                    Kiểm Tra Thành Viên (Tích Điểm)
+                </h3>
+                <button class="p-1 rounded-lg hover:bg-surface-high text-on-surface-variant cursor-pointer"
+                        @onclick="Close">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Phone Search Input -->
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-on-surface-variant uppercase">Số Điện Thoại Khách Hàng</label>
+                <div class="flex gap-2">
+                    <input type="tel" class="flex-1 p-2.5 bg-surface-high border border-outline-variant rounded-xl text-sm font-semibold focus:outline-none focus:border-primary"
+                           placeholder="Nhập số điện thoại (ví dụ: 0912345678)..."
+                           @bind="SearchPhone" @bind:event="oninput" @onkeyup="HandleKeyUp" />
+                    <button class="px-4 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-xs flex items-center gap-1 cursor-pointer hover:bg-primary/90 transition-colors"
+                            @onclick="SearchMemberAsync" disabled="@IsSearching">
+                        @if (IsSearching)
+                        {
+                            <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-on-primary"></span>
+                        }
+                        else
+                        {
+                            <span class="material-symbols-outlined text-[16px]">search</span>
+                        }
+                        <span>Tìm</span>
+                    </button>
+                </div>
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <p class="text-xs text-error font-medium mt-1">@ErrorMessage</p>
+                }
+            </div>
+
+            <!-- Member Info Card Display -->
+            @if (FoundMember != null)
+            {
+                <div class="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3 animate-in fade-in zoom-in-95">
+                    <div class="flex items-center justify-between border-b border-primary/10 pb-2">
+                        <span class="text-xs text-on-surface-variant font-medium">Họ & Tên</span>
+                        <span class="text-sm font-bold text-on-surface">@FoundMember.FullName</span>
+                    </div>
+                    <div class="flex items-center justify-between border-b border-primary/10 pb-2">
+                        <span class="text-xs text-on-surface-variant font-medium">Số điện thoại</span>
+                        <span class="text-sm font-semibold text-on-surface">@FoundMember.PhoneNumber</span>
+                    </div>
+                    <div class="flex items-center justify-between border-b border-primary/10 pb-2">
+                        <span class="text-xs text-on-surface-variant font-medium">Hạng thành viên</span>
+                        <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-xs rounded-full border border-amber-500/30">
+                            ⭐ @FoundMember.TierName
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-on-surface-variant font-medium">Số điểm hiện có</span>
+                        <span class="text-sm font-extrabold text-primary">@FoundMember.AvailablePoints.ToString("N0") điểm</span>
+                    </div>
+                </div>
+            }
+
+            <!-- Footer Action -->
+            <div class="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+                <button class="px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold hover:bg-surface-high cursor-pointer"
+                        @onclick="Close">Hủy</button>
+                <button class="px-6 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary/90 cursor-pointer disabled:opacity-50"
+                        disabled="@(FoundMember == null)"
+                        @onclick="ConfirmMember">
+                    Xác Nhận Tích Điểm
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback<CustomerDto> OnMemberConfirmed { get; set; }
+
+    private string SearchPhone { get; set; } = string.Empty;
+    private CustomerDto? FoundMember { get; set; }
+    private bool IsSearching { get; set; } = false;
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchMemberAsync();
+        }
+    }
+
+    private async Task SearchMemberAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SearchPhone))
+        {
+            ErrorMessage = "Vui lòng nhập số điện thoại.";
+            return;
+        }
+
+        IsSearching = true;
+        ErrorMessage = string.Empty;
+        FoundMember = null;
+
+        try
+        {
+            var response = await Http.GetFromJsonAsync<ApiResponseWrapper<CustomerDto>>($"api/v1/loyalty/customers/by-phone/{SearchPhone.Trim()}");
+            if (response?.Success == true && response.Data != null)
+            {
+                FoundMember = response.Data;
+            }
+            else
+            {
+                ErrorMessage = "Khách hàng chưa đăng ký thành viên.";
+            }
+        }
+        catch
+        {
+            ErrorMessage = "Khách hàng không tồn tại hoặc lỗi kết nối.";
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    private async Task ConfirmMember()
+    {
+        if (FoundMember != null)
+        {
+            await OnMemberConfirmed.InvokeAsync(FoundMember);
+            await Close();
+        }
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        FoundMember = null;
+        SearchPhone = string.Empty;
+        ErrorMessage = string.Empty;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    public class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+        public object? Error { get; set; }
+    }
+}

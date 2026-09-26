@@ -23,7 +23,9 @@ public class CategoryService : ICategoryService
             {
                 Id = c.Id,
                 Name = c.Name,
+                NameEn = c.NameEn,
                 Description = c.Description,
+                DescriptionEn = c.DescriptionEn,
                 ImageUrl = c.ImageUrl,
                 SortOrder = c.SortOrder,
                 IsActive = c.IsActive
@@ -40,7 +42,9 @@ public class CategoryService : ICategoryService
         {
             Id = c.Id,
             Name = c.Name,
+            NameEn = c.NameEn,
             Description = c.Description,
+            DescriptionEn = c.DescriptionEn,
             ImageUrl = c.ImageUrl,
             SortOrder = c.SortOrder,
             IsActive = c.IsActive
@@ -65,7 +69,9 @@ public class CategoryService : ICategoryService
         var category = new Category
         {
             Name = request.Name.Trim(),
+            NameEn = request.NameEn?.Trim(),
             Description = request.Description,
+            DescriptionEn = request.DescriptionEn,
             ImageUrl = request.ImageUrl,
             SortOrder = request.SortOrder,
             IsActive = true
@@ -80,7 +86,9 @@ public class CategoryService : ICategoryService
         {
             Id = category.Id,
             Name = category.Name,
+            NameEn = category.NameEn,
             Description = category.Description,
+            DescriptionEn = category.DescriptionEn,
             ImageUrl = category.ImageUrl,
             SortOrder = category.SortOrder,
             IsActive = category.IsActive
@@ -108,7 +116,9 @@ public class CategoryService : ICategoryService
         }
 
         category.Name = request.Name.Trim();
+        category.NameEn = request.NameEn?.Trim();
         category.Description = request.Description;
+        category.DescriptionEn = request.DescriptionEn;
         category.ImageUrl = request.ImageUrl;
         category.SortOrder = request.SortOrder;
         category.IsActive = request.IsActive;
@@ -121,7 +131,9 @@ public class CategoryService : ICategoryService
         {
             Id = category.Id,
             Name = category.Name,
+            NameEn = category.NameEn,
             Description = category.Description,
+            DescriptionEn = category.DescriptionEn,
             ImageUrl = category.ImageUrl,
             SortOrder = category.SortOrder,
             IsActive = category.IsActive
