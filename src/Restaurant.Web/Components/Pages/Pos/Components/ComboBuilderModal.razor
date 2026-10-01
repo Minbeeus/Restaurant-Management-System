@@ -4,7 +4,7 @@
 
 @if (IsOpen)
 {
-    <AppModal Title="Chọn Option Món" IsOpen="IsOpen" OnClose="CloseModal">
+    <AppModal Title="Chọn Option Món" IsOpen="IsOpen" IsOpenChanged="CloseModal">
         <ChildContent>
             @if (MenuItem != null)
             {

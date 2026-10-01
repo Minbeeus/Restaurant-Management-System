@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Restaurant.Application.Common;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
 
@@ -7,6 +8,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/kds")]
+[Authorize(Policy = Permissions.KdsAccess)]
 public class KdsController : ControllerBase
 {
     private readonly IKitchenService _kitchenService;
@@ -25,7 +27,7 @@ public class KdsController : ControllerBase
     }
 
     [HttpPatch("items/{id}/status")]
-    [AllowAnonymous] // Changed for Demo purposes
+    [AllowAnonymous]
     public async Task<IActionResult> UpdateItemStatus(int id, [FromBody] UpdateKitchenStatusRequest request)
     {
         var result = await _kitchenService.UpdateItemStatusAsync(id, request.KitchenStatus);
@@ -35,7 +37,7 @@ public class KdsController : ControllerBase
     }
 
     [HttpPost("items/{menuItemId}/sold-out")]
-    [Authorize(Roles = "Chef,Manager,Admin")]
+    [AllowAnonymous]
     public async Task<IActionResult> ToggleSoldOut(int menuItemId)
     {
         var success = await _kitchenService.ToggleSoldOutAsync(menuItemId);

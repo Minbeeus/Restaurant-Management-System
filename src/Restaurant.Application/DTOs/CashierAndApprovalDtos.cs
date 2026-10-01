@@ -135,6 +135,8 @@ public class BillItemDto
     public decimal UnitPrice { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal TotalPrice => (UnitPrice - DiscountAmount) * Quantity;
+    public int? ParentItemId { get; set; }
+    public bool IsComboChild => ParentItemId.HasValue;
     public List<string> Modifiers { get; set; } = new();
 }
 

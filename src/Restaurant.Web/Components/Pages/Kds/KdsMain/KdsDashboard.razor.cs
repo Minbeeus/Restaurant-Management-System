@@ -49,9 +49,15 @@ public partial class KdsDashboard : IAsyncDisposable
 
         // Hub Connection setup for Chefs
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=kds")
             .WithAutomaticReconnect()
             .Build();
+
+        _hubConnection.Reconnected += async (connectionId) =>
+        {
+            await LoadActiveTicketsAsync();
+            await InvokeAsync(StateHasChanged);
+        };
 
         _hubConnection.On<KitchenTicketDto>("ReceiveKitchenTicket", (ticket) =>
         {
@@ -63,7 +69,16 @@ public partial class KdsDashboard : IAsyncDisposable
             });
         });
 
-        _hubConnection.On<int, int>("KitchenItemStatusChanged", (orderItemId, status) =>
+        _hubConnection.On<int, string, int>("ReceiveItemStatusUpdate", (orderItemId, status, orderId) =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadActiveTicketsAsync();
+                StateHasChanged();
+            });
+        });
+
+        _hubConnection.On<int, int, int, int, string>("ReceiveOrderItemStatusChanged", (tableId, orderId, orderItemId, kitchenStatus, kitchenStatusName) =>
         {
             _ = InvokeAsync(async () =>
             {

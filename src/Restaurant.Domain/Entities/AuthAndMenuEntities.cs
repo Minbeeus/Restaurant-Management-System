@@ -63,10 +63,21 @@ public class Category : FullAuditableEntity
     public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
 }
 
+public class KitchenStation : AuditableEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+    public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
+}
+
 public class MenuItem : FullAuditableEntity
 {
     public int CategoryId { get; set; }
     public Category Category { get; set; } = null!;
+    public int? KitchenStationId { get; set; }
+    public KitchenStation? KitchenStation { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? NameEn { get; set; }
     public string? Description { get; set; }
@@ -79,6 +90,38 @@ public class MenuItem : FullAuditableEntity
     public int SortOrder { get; set; }
     public Recipe? Recipe { get; set; }
     public ICollection<MenuItemModifierGroup> MenuItemModifierGroups { get; set; } = new List<MenuItemModifierGroup>();
+
+    // Combo Properties
+    public ICollection<ComboGroup> ComboGroups { get; set; } = new List<ComboGroup>();
+    public ICollection<ComboItem> ComboItems { get; set; } = new List<ComboItem>(); // For fixed and add-ons without group
+}
+
+public class ComboGroup : AuditableEntity
+{
+    public int ComboId { get; set; }
+    public MenuItem Combo { get; set; } = null!;
+    public string Name { get; set; } = string.Empty;
+    public int MinSelections { get; set; } = 0;
+    public int MaxSelections { get; set; } = 1;
+    public bool IsRequired { get; set; } = false;
+    public int SortOrder { get; set; }
+    
+    public ICollection<ComboItem> ComboItems { get; set; } = new List<ComboItem>();
+}
+
+public class ComboItem : AuditableEntity
+{
+    public int ComboId { get; set; }
+    public MenuItem Combo { get; set; } = null!;
+    public int? ComboGroupId { get; set; }
+    public ComboGroup? ComboGroup { get; set; }
+    public int MenuItemId { get; set; }
+    public MenuItem MenuItem { get; set; } = null!; // The target component item
+    public int ComponentType { get; set; } // Enums.ComboComponentType
+    public int DefaultQuantity { get; set; } = 1;
+    public decimal AdditionalPrice { get; set; } = 0;
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
 }
 
 public class ModifierGroup : AuditableEntity

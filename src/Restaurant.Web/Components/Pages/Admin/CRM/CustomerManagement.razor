@@ -12,6 +12,14 @@
     </div>
 </div>
 
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="bg-error-container text-on-error-container p-4 rounded-xl mb-6 flex items-center gap-3">
+        <span class="material-symbols-outlined">error</span>
+        <span class="font-bold">@_errorMessage</span>
+    </div>
+}
+
 @if (_isLoading)
 {
     <div class="flex justify-center p-12">
@@ -65,6 +73,7 @@ else
 @code {
     private List<CustomerDto> _customers = new();
     private bool _isLoading = true;
+    private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,9 +83,14 @@ else
     private async Task LoadData()
     {
         _isLoading = true;
+        _errorMessage = null;
         try
         {
             _customers = await ApiClient.GetCustomersAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Lỗi khi tải danh sách khách hàng: {ex.Message}";
         }
         finally
         {

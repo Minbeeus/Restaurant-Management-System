@@ -6,6 +6,8 @@ public interface IInventoryService
 {
     Task<List<MaterialDto>> GetAllMaterialsAsync();
     Task<MaterialDto> CreateMaterialAsync(CreateMaterialRequest request);
+    Task<MaterialDto?> UpdateMaterialAsync(int id, CreateMaterialRequest request);
+    Task<bool> DeleteMaterialAsync(int id);
     Task<bool> CreatePurchaseOrderAsync(int userId, CreatePurchaseOrderRequest request);
     Task<bool> AuditStockAsync(int userId, StockAuditRequest request);
     Task<bool> SetMenuItemRecipeAsync(SetMenuItemRecipeRequest request);

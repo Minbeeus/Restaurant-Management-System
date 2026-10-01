@@ -39,6 +39,16 @@ public class RestaurantHub : Hub<IRestaurantHubClient>
             await Groups.AddToGroupAsync(Context.ConnectionId, $"TableGroup_{tableId}");
         }
 
+        var clientType = httpContext?.Request.Query["clientType"].ToString();
+        if (clientType == "pos")
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, CashiersGroup);
+        }
+        else if (clientType == "kds")
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, ChefsGroup);
+        }
+
         await base.OnConnectedAsync();
     }
 

@@ -199,7 +199,7 @@ public class PaymentService : IPaymentService
             order.Status = (int)OrderStatus.Completed;
             if (order.Table != null)
             {
-                order.Table.Status = (int)TableStatus.Available;
+                order.Table.Status = (int)TableStatus.Paid;
             }
 
             existingLog.IsProcessed = true;
@@ -219,7 +219,7 @@ public class PaymentService : IPaymentService
             await _notificationService.NotifyPaymentCompletedAsync(order.Id, order.OrderCode, payload.transferAmount, "VietQR");
             if (order.TableId.HasValue)
             {
-                await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Available) ?? "Unknown");
+                await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Paid) ?? "Paid");
             }
 
             return true;
@@ -320,7 +320,7 @@ public class PaymentService : IPaymentService
             order.Status = (int)OrderStatus.Completed;
             if (order.Table != null)
             {
-                order.Table.Status = (int)TableStatus.Available;
+                order.Table.Status = (int)TableStatus.Paid;
             }
 
             if (request.CustomerId.HasValue)
@@ -344,7 +344,7 @@ public class PaymentService : IPaymentService
             await _notificationService.NotifyPaymentCompletedAsync(order.Id, order.OrderCode, order.TotalAmount, "Tiền mặt");
             if (order.TableId.HasValue)
             {
-                await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Available) ?? "Available");
+                await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Paid) ?? "Paid");
             }
 
             return new CashPaymentResponse

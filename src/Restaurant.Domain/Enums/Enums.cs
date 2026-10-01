@@ -2,10 +2,11 @@ namespace Restaurant.Domain.Enums;
 
 public enum TableStatus
 {
-    Available = 0,
-    Occupied = 1,
-    NewOrder = 2,
-    Billing = 3
+    Available = 0,   // Mặc định: Bàn chưa có khách (Màu xám)
+    Occupied = 1,    // Bàn đang bị chiếm / POS khác hoặc khách QR đang thao tác (Màu đỏ)
+    Serving = 2,     // Đơn đã gửi bếp nhưng CHƯA in tạm tính (Màu xanh lá)
+    Billing = 3,     // Đã in tạm tính, chờ thanh toán (Màu vàng)
+    Paid = 4         // Đã thanh toán, chờ dọn bàn (Màu xanh dương)
 }
 
 public enum OrderType
@@ -117,4 +118,11 @@ public enum InventoryTransactionType
     SaleDeduction = 3,
     CancellationReturn = 4,
     CancellationWaste = 5
+}
+
+public enum ComboComponentType
+{
+    Fixed = 0,
+    Choice = 1,
+    AddOn = 2
 }

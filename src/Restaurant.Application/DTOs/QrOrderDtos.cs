@@ -46,6 +46,16 @@ public class MenuItemDetailDto : PublicMenuItemDto
     public List<ModifierGroupDto> ModifierGroups { get; set; } = new();
 }
 
+public class CartComboItemRequest
+{
+    public int ComboItemId { get; set; } // Map to ComboItem.Id
+    public int MenuItemId { get; set; }
+    public int Quantity { get; set; }
+    public decimal AdditionalPrice { get; set; }
+    public List<int> SelectedModifiers { get; set; } = new();
+    public string? Note { get; set; }
+}
+
 public class CartItemValidateRequest
 {
     public int MenuItemId { get; set; }
@@ -53,7 +63,7 @@ public class CartItemValidateRequest
     public decimal DiscountAmount { get; set; }
     public decimal? CustomUnitPrice { get; set; }
     public List<int> SelectedModifiers { get; set; } = new();
-    public List<int> SelectedComboItems { get; set; } = new();
+    public List<CartComboItemRequest> SelectedComboItems { get; set; } = new();
     public string? Note { get; set; }
 }
 

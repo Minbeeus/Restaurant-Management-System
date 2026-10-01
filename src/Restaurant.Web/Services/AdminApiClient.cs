@@ -131,15 +131,8 @@ public class AdminApiClient
     // Customers / Loyalty
     public async Task<List<CustomerDto>> GetCustomersAsync()
     {
-        try
-        {
-            var result = await _httpClient.GetFromJsonAsync<List<CustomerDto>>("api/loyalty/customers");
-            return result ?? new List<CustomerDto>();
-        }
-        catch
-        {
-            return GetMockCustomers();
-        }
+        var result = await _httpClient.GetFromJsonAsync<List<CustomerDto>>("api/v1/loyalty/customers");
+        return result ?? new List<CustomerDto>();
     }
 
     // Vouchers

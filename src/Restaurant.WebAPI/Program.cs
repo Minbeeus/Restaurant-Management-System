@@ -35,6 +35,7 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddSingleton<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMenuItemService, MenuItemService>();
+builder.Services.AddScoped<IComboService, ComboService>();
 builder.Services.AddScoped<IModifierService, ModifierService>();
 builder.Services.AddScoped<IAreaService, AreaService>();
 builder.Services.AddScoped<ITableService, TableService>();
@@ -102,6 +103,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManagerOrAdmin", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("CashierAccess", policy => policy.RequireRole("Admin", "Cashier"));
     options.AddPolicy("ChefAccess", policy => policy.RequireRole("Chef"));
+    options.AddPolicy(Restaurant.Application.Common.Permissions.KdsAccess, policy => policy.RequireClaim("Permission", Restaurant.Application.Common.Permissions.KdsAccess));
 });
 
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");

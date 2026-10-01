@@ -19,7 +19,10 @@ public class ConfigurationConfigurations :
     IEntityTypeConfiguration<CashMovement>,
     IEntityTypeConfiguration<AuditLogEntry>,
     IEntityTypeConfiguration<PaymentReconciliation>,
-    IEntityTypeConfiguration<Register>
+    IEntityTypeConfiguration<Register>,
+    IEntityTypeConfiguration<ComboGroup>,
+    IEntityTypeConfiguration<ComboItem>,
+    IEntityTypeConfiguration<OrderItem>
 {
     public void Configure(EntityTypeBuilder<Register> builder)
     {
@@ -165,6 +168,40 @@ public class ConfigurationConfigurations :
     public void Configure(EntityTypeBuilder<Customer> builder)
     {
         builder.HasIndex(c => c.PhoneNumber).IsUnique();
+    }
+
+    public void Configure(EntityTypeBuilder<ComboGroup> builder)
+    {
+        builder.HasOne(cg => cg.Combo)
+            .WithMany(m => m.ComboGroups)
+            .HasForeignKey(cg => cg.ComboId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public void Configure(EntityTypeBuilder<ComboItem> builder)
+    {
+        builder.HasOne(ci => ci.Combo)
+            .WithMany(m => m.ComboItems)
+            .HasForeignKey(ci => ci.ComboId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(ci => ci.ComboGroup)
+            .WithMany(cg => cg.ComboItems)
+            .HasForeignKey(ci => ci.ComboGroupId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(ci => ci.MenuItem)
+            .WithMany()
+            .HasForeignKey(ci => ci.MenuItemId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public void Configure(EntityTypeBuilder<OrderItem> builder)
+    {
+        builder.HasOne(oi => oi.ParentItem)
+            .WithMany(oi => oi.ChildItems)
+            .HasForeignKey(oi => oi.ParentItemId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

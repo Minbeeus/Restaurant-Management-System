@@ -21,6 +21,19 @@
         </button>
     </div>
 
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="bg-rose-500/10 border border-rose-500/30 text-rose-700 p-4 rounded-xl flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined">error</span>
+                <span class="text-sm font-medium">@ErrorMessage</span>
+            </div>
+            <button class="hover:bg-rose-500/20 p-1 rounded-full transition-colors" @onclick="() => ErrorMessage = null">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+    }
+
     <!-- Top KPI Sales Cards -->
     @if (SalesSummary != null)
     {
@@ -99,6 +112,8 @@
     protected StoreSalesSummaryDto? SalesSummary { get; set; }
     protected List<PaymentReconciliationItemDto> ReconciliationItems { get; set; } = new();
 
+    protected string? ErrorMessage { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
@@ -106,6 +121,7 @@
 
     private async Task LoadDataAsync()
     {
+        ErrorMessage = null;
         try
         {
             var summaryTask = Http.GetFromJsonAsync<ApiResponseWrapper<StoreSalesSummaryDto>>("api/v1/reconciliation/sales-summary");
@@ -116,23 +132,43 @@
             SalesSummary = (await summaryTask)?.Data;
             ReconciliationItems = (await reconTask)?.Data ?? new List<PaymentReconciliationItemDto>();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi khi tải dữ liệu đối soát: {ex.Message}";
+        }
     }
 
     private async Task SaveReconciliationAsync()
     {
+        ErrorMessage = null;
         try
         {
             var req = new SaveReconciliationRequest { ShiftId = 1, Items = ReconciliationItems };
-            await Http.PostAsJsonAsync("api/v1/reconciliation/save", req);
-            await LoadDataAsync();
+            var res = await Http.PostAsJsonAsync("api/v1/reconciliation/save", req);
+            if (res.IsSuccessStatusCode)
+            {
+                await LoadDataAsync();
+            }
+            else
+            {
+                var error = await res.Content.ReadFromJsonAsync<ErrorResponse>();
+                ErrorMessage = error?.Message ?? "Lỗi không xác định khi lưu đối soát.";
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi hệ thống: {ex.Message}";
+        }
     }
 
     private class ApiResponseWrapper<T>
     {
         public bool Success { get; set; }
         public T? Data { get; set; }
+    }
+
+    private class ErrorResponse
+    {
+        public string? Message { get; set; }
     }
 }

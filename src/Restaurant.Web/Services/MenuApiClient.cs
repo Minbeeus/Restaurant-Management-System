@@ -143,4 +143,40 @@ public class MenuApiClient
         var response = await _httpClient.DeleteAsync($"/api/v1/modifiers/groups/{id}");
         return response.IsSuccessStatusCode;
     }
+
+    // --- COMBOS ---
+    public async Task<List<ComboDetailDto>> GetCombosAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        return await _httpClient.GetFromJsonAsync<List<ComboDetailDto>>("/api/v1/combos") ?? new List<ComboDetailDto>();
+    }
+
+    public async Task<ComboDetailDto?> GetComboByIdAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        return await _httpClient.GetFromJsonAsync<ComboDetailDto>($"/api/v1/combos/{id}");
+    }
+
+    public async Task<ComboDetailDto?> CreateComboAsync(CreateComboRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("/api/v1/combos", request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ComboDetailDto>();
+    }
+
+    public async Task<ComboDetailDto?> UpdateComboAsync(int id, UpdateComboRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsJsonAsync($"/api/v1/combos/{id}", request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ComboDetailDto>();
+    }
+
+    public async Task<bool> DeleteComboAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.DeleteAsync($"/api/v1/combos/{id}");
+        return response.IsSuccessStatusCode;
+    }
 }

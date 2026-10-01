@@ -5,6 +5,7 @@ namespace Restaurant.Application.Interfaces;
 public interface ILoyaltyService
 {
     Task<CustomerDto?> GetCustomerByPhoneAsync(string phoneNumber);
+    Task<List<CustomerDto>> GetAllCustomersAsync();
     Task<CustomerDto> CreateCustomerAsync(CreateCustomerRequest request);
     Task AccumulatePointsAsync(int customerId, int orderId, decimal paidAmount);
     Task<bool> RedeemPointsAsync(int customerId, RedeemPointsRequest request);

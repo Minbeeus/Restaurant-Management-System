@@ -1,42 +1,98 @@
 @using Restaurant.Web.Components.UI.Buttons
 @inject NavigationManager Navigation
 
-<div class="pos-cart">
+<div class="pos-cart flex flex-col h-full bg-surface">
     <!-- Header -->
-    <div class="pos-cart__header">
+    <div class="pos-cart__header px-4 py-3 border-b border-outline-variant flex items-center justify-between shrink-0 bg-surface-high/40">
         <div class="pos-cart__info">
-            <h4 class="pos-cart__title">Bàn: @TableName</h4>
-            <span class="pos-cart__code">@OrderCode</span>
+            <h4 class="pos-cart__title font-extrabold text-sm text-on-surface">@TableName</h4>
+            <span class="pos-cart__code text-xs font-mono text-on-surface-variant">@OrderCode</span>
         </div>
-        <div class="pos-cart__user">
-            <span>👤 Thu Ngân</span>
+        <div class="pos-cart__user text-xs font-semibold text-on-surface-variant flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">badge</span>
+            <span>Thu Ngân</span>
         </div>
     </div>
     
     <!-- Item List -->
-    <div class="pos-cart__items">
+    <div class="pos-cart__items flex-1 overflow-y-auto p-3 space-y-2">
         @if (Items == null || !Items.Any())
         {
-            <div class="pos-cart__empty">
-                <p>Chưa có món nào được chọn</p>
+            <div class="pos-cart__empty flex flex-col items-center justify-center h-full text-on-surface-variant py-12">
+                <span class="material-symbols-outlined text-4xl mb-2 opacity-30">shopping_cart</span>
+                <p class="text-xs font-bold">Chưa có món nào được chọn</p>
             </div>
         }
         else
         {
             @foreach (var item in Items)
             {
-                <div class="pos-cart-item">
-                    <div class="pos-cart-item__main">
-                        <div class="pos-cart-item__name">@item.Name</div>
-                        <div class="pos-cart-item__price">@((item.Price * item.Quantity).ToString("N0"))đ</div>
+                <div class="pos-cart-item bg-surface-high/60 border @(SelectedItem == item ? "border-primary/80 ring-2 ring-primary/30" : "border-outline-variant/60 hover:border-primary/40") rounded-xl p-2.5 flex flex-col gap-1 transition-all cursor-pointer"
+                     @onclick="() => HandleItemClickAsync(item)">
+                    <div class="pos-cart-item__main flex justify-between items-start">
+                        <div class="flex-1 pr-2">
+                            <div class="flex items-center gap-1.5">
+                                <span class="pos-cart-item__name font-extrabold text-xs text-on-surface">@item.Name</span>
+                                @if (item.IsSentToKitchen)
+                                {
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
+                                        Đã gửi bếp
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
+                                        Mới
+                                    </span>
+                                }
+                            </div>
+
+                            @if (item.ModifierNames != null && item.ModifierNames.Any())
+                            {
+                                <div class="text-[11px] text-on-surface-variant mt-0.5 font-medium">
+                                    + @string.Join(", ", item.ModifierNames)
+                                </div>
+                            }
+                            @if (item.ComboItemNames != null && item.ComboItemNames.Any())
+                            {
+                                <div class="text-[11px] text-primary/80 mt-0.5 font-medium">
+                                    <ul class="list-disc list-inside">
+                                        @foreach (var comboName in item.ComboItemNames)
+                                        {
+                                            <li>@comboName</li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(item.Note))
+                            {
+                                <div class="text-[11px] italic text-amber-600 mt-0.5">
+                                    Ghi chú: @item.Note
+                                </div>
+                            }
+                        </div>
+                        <div class="pos-cart-item__price font-black text-xs text-primary shrink-0">
+                            @((item.Price * item.Quantity).ToString("N0"))đ
+                        </div>
                     </div>
                     
-                    <div class="pos-cart-item__actions">
-                        <div class="pos-cart-item__qty-control">
-                            <button class="pos-cart-item__qty-btn" disabled="@_isProcessing" @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity - 1)">-</button>
-                            <span class="pos-cart-item__qty-val">@item.Quantity</span>
-                            <button class="pos-cart-item__qty-btn" disabled="@_isProcessing" @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity + 1)">+</button>
-                        </div>
+                    <div class="pos-cart-item__actions flex justify-between items-center pt-1 border-t border-outline-variant/40 mt-1" @onclick:stopPropagation="true">
+                        <span class="text-[11px] text-on-surface-variant font-medium">
+                            Đơn giá: @item.Price.ToString("N0")đ
+                        </span>
+
+                        @if (!item.IsSentToKitchen)
+                        {
+                            <div class="pos-cart-item__qty-control flex items-center bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                                <button class="px-2 py-0.5 text-xs font-bold hover:bg-surface-high transition-colors" 
+                                        disabled="@_isProcessing" 
+                                        @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity - 1)">-</button>
+                                <span class="px-2 py-0.5 text-xs font-black min-w-[24px] text-center">@item.Quantity</span>
+                                <button class="px-2 py-0.5 text-xs font-bold hover:bg-surface-high transition-colors" 
+                                        disabled="@_isProcessing" 
+                                        @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity + 1)">+</button>
+                            </div>
+                        }
                     </div>
                 </div>
             }
@@ -44,43 +100,39 @@
     </div>
     
     <!-- Summary -->
-    <div class="pos-cart__summary">
-        <div class="pos-cart__summary-row">
-            <span>Subtotal:</span>
-            <span>@Subtotal.ToString("N0")đ</span>
+    <div class="pos-cart__summary p-3 bg-surface-high/30 border-t border-outline-variant space-y-1 text-xs">
+        <div class="pos-cart__summary-row flex justify-between text-on-surface-variant">
+            <span>Tạm tính (Subtotal):</span>
+            <span class="font-bold text-on-surface">@Subtotal.ToString("N0")đ</span>
         </div>
-        <div class="pos-cart__summary-row pos-cart__summary-row--discount">
-            <span>Giảm giá:</span>
-            <span>-@Discount.ToString("N0")đ</span>
-        </div>
-        <div class="pos-cart__summary-row">
+        @if (Discount > 0)
+        {
+            <div class="pos-cart__summary-row flex justify-between text-emerald-600 font-bold">
+                <span>Giảm giá:</span>
+                <span>-@Discount.ToString("N0")đ</span>
+            </div>
+        }
+        <div class="pos-cart__summary-row flex justify-between text-on-surface-variant">
             <span>Thuế (VAT 8%):</span>
-            <span>@Tax.ToString("N0")đ</span>
+            <span class="font-bold text-on-surface">@Tax.ToString("N0")đ</span>
         </div>
         
-        <div class="pos-cart__summary-total">
-            <span>Tổng thanh toán:</span>
-            <span class="pos-cart__total-val">@Total.ToString("N0")đ</span>
+        <div class="pos-cart__summary-total flex justify-between items-center pt-2 border-t border-outline-variant font-black text-sm">
+            <span>TỔNG CẦN THU:</span>
+            <span class="pos-cart__total-val text-primary text-base">@Total.ToString("N0")đ</span>
         </div>
     </div>
     
     <!-- Actions -->
-    <div class="pos-cart__actions">
-        <div class="pos-cart__actions-top">
-            <AppButton Variant="Secondary" Disabled="Items == null || !Items.Any() || _isProcessing" OnClick="HandleSendToKitchenAsync">
-                Gửi Bếp
-            </AppButton>
-            <AppButton Variant="Outline" Disabled="@_isProcessing" OnClick='() => Navigation.NavigateTo("/pos")'>
-                Chuyển Bàn
-            </AppButton>
-            <AppButton Variant="Outline" Disabled="@_isProcessing" OnClick='() => Navigation.NavigateTo("/pos")'>
-                Gộp Bàn
-            </AppButton>
-        </div>
-        <div class="pos-cart__actions-main">
-            <button class="pos-cart__pay-btn" disabled="@(Items == null || !Items.Any() || _isProcessing)" @onclick="HandlePayAsync">
-                Thanh Toán (@Total.ToString("N0")đ)
+    @if (Items != null && Items.Any())
+    {
+        <div class="pos-cart__actions p-3 bg-surface border-t border-outline-variant">
+            <button class="w-full py-2 bg-error/10 text-error hover:bg-error hover:text-white rounded-xl font-extrabold text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled="@(SelectedItem == null || _isProcessing)" 
+                    @onclick="HandleGlobalDeleteAsync">
+                <span class="material-symbols-outlined text-lg">delete</span>
+                <span>Xóa Món Đang Chọn</span>
             </button>
         </div>
-    </div>
+    }
 </div>

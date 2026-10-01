@@ -7,32 +7,32 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 
-<div class="flex flex-col h-full bg-background dark:bg-background">
+<div class="flex flex-col h-full bg-slate-900 text-slate-100">
     <!-- Header -->
-    <header class="h-16 flex items-center justify-between px-6 bg-surface dark:bg-inverse-surface border-b border-outline-variant dark:border-outline shrink-0 shadow-sm">
+    <header class="h-16 flex items-center justify-between px-6 bg-slate-800 border-b border-slate-700 shrink-0 shadow-sm">
         <div class="flex flex-col justify-center">
-            <h1 class="font-headline-sm text-headline-sm font-bold text-primary dark:text-inverse-primary m-0 leading-tight">Màn Hình Bếp (KDS)</h1>
-            <span class="text-xs text-on-surface-variant dark:text-outline leading-tight">Cập nhật chế biến thời gian thực</span>
+            <h1 class="font-headline-sm text-headline-sm font-bold text-white m-0 leading-tight">Màn Hình Bếp (KDS)</h1>
+            <span class="text-xs text-slate-400 leading-tight">Cập nhật chế biến thời gian thực</span>
         </div>
         
         <!-- Status Counters -->
         <div class="flex items-center gap-6">
             <div class="flex items-center gap-2 cursor-pointer" @onclick='() => SetFilterStatus("All")'>
-                <span class="text-xs text-on-surface-variant dark:text-outline font-label-bold uppercase">Tất cả:</span>
-                <span class="bg-surface-high text-on-surface px-3 py-1 rounded-full font-bold text-sm">@ActiveTickets.Count</span>
+                <span class="text-xs text-slate-400 font-label-bold uppercase">Tất cả:</span>
+                <span class="bg-slate-700 text-slate-200 px-3 py-1 rounded-full font-bold text-sm">@ActiveTickets.Count</span>
             </div>
             <div class="flex items-center gap-2 cursor-pointer" @onclick='() => SetFilterStatus("Pending")'>
-                <span class="text-xs text-on-surface-variant dark:text-outline font-label-bold uppercase">Chờ làm:</span>
-                <span class="bg-warning-bg text-warning-amber px-3 py-1 rounded-full font-bold text-sm">@PendingCount</span>
+                <span class="text-xs text-slate-400 font-label-bold uppercase">Chờ làm:</span>
+                <span class="bg-amber-900/40 text-amber-500 px-3 py-1 rounded-full font-bold text-sm">@PendingCount</span>
             </div>
             <div class="flex items-center gap-2 cursor-pointer" @onclick='() => SetFilterStatus("Processing")'>
-                <span class="text-xs text-on-surface-variant dark:text-outline font-label-bold uppercase">Đang làm:</span>
-                <span class="bg-primary/20 text-primary px-3 py-1 rounded-full font-bold text-sm">@ProcessingCount</span>
+                <span class="text-xs text-slate-400 font-label-bold uppercase">Đang làm:</span>
+                <span class="bg-emerald-900/40 text-emerald-400 px-3 py-1 rounded-full font-bold text-sm">@ProcessingCount</span>
             </div>
         </div>
 
         <div class="flex items-center gap-3">
-            <button class="px-4 py-2 text-on-surface dark:text-on-background hover:bg-surface-high dark:hover:bg-[#2a3441] rounded-lg transition-colors font-label-bold flex items-center gap-2 text-sm"
+            <button class="px-4 py-2 text-slate-200 hover:bg-slate-700 rounded-lg transition-colors font-label-bold flex items-center gap-2 text-sm border border-slate-600"
                     @onclick="ToggleCompletedViewAsync">
                 <span class="material-symbols-outlined text-[20px]">history</span>
                 @(ShowCompletedOnly ? "Xem Vé Đang Chờ" : "Xem Vé Đã Xong")
@@ -52,17 +52,17 @@
     }
 
     <!-- Main Workspace -->
-    <main class="flex-1 overflow-x-auto p-6 bg-surface-low dark:bg-[#121820]">
+    <main class="flex-1 overflow-x-auto p-6 bg-slate-900">
         @if (IsLoading)
         {
-            <div class="flex items-center justify-center h-full gap-3 text-on-surface-variant">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div class="flex items-center justify-center h-full gap-3 text-slate-400">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
                 <span class="font-medium text-sm">Đang tải danh sách phiếu bếp...</span>
             </div>
         }
         else if (!DisplayedTickets.Any())
         {
-            <div class="flex flex-col items-center justify-center h-full text-on-surface-variant py-12">
+            <div class="flex flex-col items-center justify-center h-full text-slate-400 py-12">
                 <span class="material-symbols-outlined text-4xl mb-2">skillet</span>
                 <p class="text-sm font-medium">Hiện không có phiếu bếp nào cần xử lý.</p>
             </div>
@@ -81,23 +81,23 @@
                             <div class="flex flex-col">
                                 @foreach (var item in ticket.Items)
                                 {
-                                    <div class="flex flex-col p-4 border-b border-outline-variant dark:border-outline last:border-b-0 @(item.KitchenStatus == 2 ? "opacity-50 bg-surface-low" : "")">
+                                    <div class="flex flex-col p-4 border-b border-slate-700 last:border-b-0 @(item.KitchenStatus == 2 ? "opacity-50 bg-slate-800" : "")">
                                         <div class="flex gap-4">
-                                            <div class="font-bold text-primary dark:text-inverse-primary bg-primary-container/10 dark:bg-primary-container/20 px-2 py-1 rounded h-fit shrink-0">@item.Quantity x</div>
+                                            <div class="font-bold text-white bg-slate-700 px-2 py-1 rounded h-fit shrink-0">@item.Quantity x</div>
                                             <div class="flex flex-col flex-1">
-                                                <div class="font-bold text-on-surface dark:text-on-background text-lg">
+                                                <div class="font-bold text-slate-200 text-lg">
                                                     @item.MenuItemName 
-                                                    <span class="text-xs text-gray-500 ml-2">(@item.KitchenStatusName)</span>
+                                                    <span class="text-xs text-slate-400 ml-2">(@item.KitchenStatusName)</span>
                                                 </div>
                                                 @if (item.Modifiers != null && item.Modifiers.Any())
                                                 {
-                                                    <div class="text-xs text-on-surface-variant dark:text-outline mt-1 font-medium bg-surface-high p-1.5 rounded">
+                                                    <div class="text-xs text-slate-300 mt-1 font-medium bg-slate-700 p-1.5 rounded">
                                                         + @string.Join(", ", item.Modifiers)
                                                     </div>
                                                 }
                                                 @if (!string.IsNullOrEmpty(item.Note))
                                                 {
-                                                    <div class="text-error dark:text-error-container text-xs mt-1 flex items-start gap-1 font-medium bg-error-container/10 p-2 rounded">
+                                                    <div class="text-rose-400 text-xs mt-1 flex items-start gap-1 font-medium bg-rose-900/30 p-2 rounded border border-rose-800">
                                                         <span class="material-symbols-outlined text-[14px]">warning</span>
                                                         @item.Note
                                                     </div>

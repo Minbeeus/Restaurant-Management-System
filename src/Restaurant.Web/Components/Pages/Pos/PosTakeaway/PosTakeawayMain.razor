@@ -316,8 +316,8 @@
 @if (ShowPaymentModalState && SelectedOrder != null)
 {
     <PosTakeawayPaymentModal 
+        @bind-IsOpen="ShowPaymentModalState"
         Order="@SelectedOrder" 
-        OnClose="() => ShowPaymentModalState = false" 
         OnPaymentSuccess="HandlePaymentCompletedAsync" />
 }
 
@@ -452,7 +452,7 @@
                 OrderId = SelectedOrder.OrderId,
                 Reason = SelectedOrder.IsPaid ? "Hoàn tiền đơn mang về" : "Hủy đơn mang về"
             };
-            var res = await Http.PostAsJsonAsync("api/v1/pos/orders/cancel", req);
+            var res = await Http.PostAsJsonAsync($"api/v1/pos/orders/{SelectedOrder.OrderId}/cancel", req);
             if (res.IsSuccessStatusCode)
             {
                 await LoadOrdersAsync();

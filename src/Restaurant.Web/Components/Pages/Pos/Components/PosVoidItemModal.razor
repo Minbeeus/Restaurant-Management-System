@@ -1,0 +1,147 @@
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Services
+@inject HttpClient Http
+@inject IAuthApiClient AuthApiClient
+
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-error/40 p-6 space-y-4">
+            
+            <div class="flex items-center gap-3 text-error border-b border-outline-variant pb-3">
+                <span class="material-symbols-outlined text-3xl">remove_shopping_cart</span>
+                <div>
+                    <h3 class="font-black text-lg text-on-surface m-0 tracking-wide">HỦY MÓN (VOID ITEM)</h3>
+                    <span class="text-xs text-on-surface-variant font-medium">Yêu cầu quyền Quản lý để hủy món đã gửi bếp</span>
+                </div>
+            </div>
+
+            <!-- Details Card -->
+            <div class="bg-surface-high p-4 rounded-xl border border-outline-variant space-y-2 text-xs">
+                <div class="flex justify-between font-bold text-on-surface">
+                    <span>Món cần hủy:</span>
+                    <span class="text-primary font-black">@ItemName</span>
+                </div>
+            </div>
+
+            <!-- Void Reason -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Lý do hủy</label>
+                <select class="w-full p-2.5 rounded-xl border border-outline-variant text-sm bg-surface-high mb-2"
+                        @bind="VoidReason">
+                    <option value="">-- Chọn lý do --</option>
+                    <option value="Khách đổi ý">Khách đổi ý</option>
+                    <option value="Khách đợi lâu">Khách đợi lâu</option>
+                    <option value="Hết nguyên liệu">Hết nguyên liệu (Báo sai)</option>
+                    <option value="Nhân viên order nhầm">Nhân viên order nhầm</option>
+                    <option value="Khác">Lý do khác...</option>
+                </select>
+                @if (VoidReason == "Khác")
+                {
+                    <input type="text" class="w-full p-2.5 rounded-xl border border-outline-variant text-sm bg-surface-high"
+                           placeholder="Nhập lý do khác..." @bind="CustomVoidReason" />
+                }
+            </div>
+
+            <!-- PIN Input -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Mã PIN Quản Lý (6 Chữ Số)</label>
+                <input type="password" maxlength="6" class="w-full p-3 text-center tracking-[1em] text-2xl font-black rounded-xl border border-outline-variant bg-surface-high focus:ring-2 focus:ring-error"
+                       placeholder="••••••" @bind="ManagerPin" @onkeyup="HandleKeyUp" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="p-2.5 bg-error-container text-error rounded-xl font-bold text-xs">
+                    @ErrorMessage
+                </div>
+            }
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end gap-3 pt-2">
+                <button class="px-5 py-2.5 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high cursor-pointer"
+                        @onclick="CloseAsync">
+                    HỦY BỎ
+                </button>
+                <button class="px-6 py-2.5 text-xs font-black bg-error hover:bg-error-container text-on-error rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                        disabled="@(IsProcessing || string.IsNullOrEmpty(ManagerPin))" @onclick="ConfirmVoidAsync">
+                    <span class="material-symbols-outlined text-lg">delete</span>
+                    XÁC NHẬN HỦY MÓN
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string ItemId { get; set; } = string.Empty;
+    [Parameter] public string ItemName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<bool> OnVoidCompleted { get; set; }
+
+    protected string ManagerPin { get; set; } = string.Empty;
+    protected string VoidReason { get; set; } = string.Empty;
+    protected string CustomVoidReason { get; set; } = string.Empty;
+    protected bool IsProcessing { get; set; } = false;
+    protected string ErrorMessage { get; set; } = string.Empty;
+
+    private string FinalReason => VoidReason == "Khác" ? CustomVoidReason : VoidReason;
+
+    private async Task HandleKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && ManagerPin.Length >= 6)
+        {
+            await ConfirmVoidAsync();
+        }
+    }
+
+    private async Task ConfirmVoidAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ManagerPin))
+        {
+            ErrorMessage = "Vui lòng nhập đầy đủ mã PIN Quản lý.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(FinalReason))
+        {
+            ErrorMessage = "Vui lòng cung cấp lý do hủy món.";
+            return;
+        }
+
+        IsProcessing = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var isValid = await AuthApiClient.VerifyManagerPinAsync(ManagerPin);
+            if (!isValid)
+            {
+                ErrorMessage = "Mã PIN Quản lý không chính xác.";
+                return;
+            }
+
+            await CloseAsync();
+            await OnVoidCompleted.InvokeAsync(true);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi xác thực: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        ManagerPin = string.Empty;
+        VoidReason = string.Empty;
+        CustomVoidReason = string.Empty;
+        ErrorMessage = string.Empty;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

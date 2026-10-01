@@ -103,6 +103,7 @@ public class BillViewerService : IBillViewerService
                 Quantity = i.Quantity,
                 UnitPrice = i.UnitPrice,
                 DiscountAmount = i.DiscountAmount,
+                IsComboChild = i.ParentItemId.HasValue,
                 Modifiers = i.Modifiers
             }).ToList()
         };
@@ -151,6 +152,7 @@ public class BillViewerService : IBillViewerService
                 Quantity = i.Quantity,
                 UnitPrice = i.UnitPrice,
                 DiscountAmount = i.DiscountAmount,
+                ParentItemId = i.ParentItemId,
                 Modifiers = i.OrderItemModifiers.Select(m => m.ModifierOption?.Name ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList()
             }).ToList()
         };

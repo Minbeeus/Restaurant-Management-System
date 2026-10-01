@@ -21,6 +21,19 @@
         </button>
     </div>
 
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="bg-rose-500/10 border border-rose-500/30 text-rose-700 p-4 rounded-xl flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined">error</span>
+                <span class="text-sm font-medium">@ErrorMessage</span>
+            </div>
+            <button class="hover:bg-rose-500/20 p-1 rounded-full transition-colors" @onclick="() => ErrorMessage = null">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+    }
+
     <!-- Shift Table List -->
     <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-4">
         <div class="overflow-x-auto">
@@ -92,6 +105,8 @@
     protected List<ShiftReportDto> ShiftList { get; set; } = new();
     protected bool IsLoading { get; set; } = true;
 
+    protected string? ErrorMessage { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadShiftsAsync();
@@ -100,17 +115,22 @@
     private async Task LoadShiftsAsync()
     {
         IsLoading = true;
+        ErrorMessage = null;
         try
         {
             var res = await Http.GetFromJsonAsync<ApiResponseWrapper<List<ShiftReportDto>>>("api/v1/shifts/all");
             ShiftList = res?.Data ?? new List<ShiftReportDto>();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi khi tải dữ liệu ca làm việc: {ex.Message}";
+        }
         finally { IsLoading = false; }
     }
 
     private async Task ReopenShiftAsync(int shiftId)
     {
+        ErrorMessage = null;
         try
         {
             var res = await Http.PostAsync($"api/v1/shifts/{shiftId}/reopen", null);
@@ -118,13 +138,26 @@
             {
                 await LoadShiftsAsync();
             }
+            else
+            {
+                var error = await res.Content.ReadFromJsonAsync<ErrorResponse>();
+                ErrorMessage = error?.Message ?? "Lỗi không xác định khi mở lại ca.";
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi hệ thống: {ex.Message}";
+        }
     }
 
     private class ApiResponseWrapper<T>
     {
         public bool Success { get; set; }
         public T? Data { get; set; }
+    }
+
+    private class ErrorResponse
+    {
+        public string? Message { get; set; }
     }
 }

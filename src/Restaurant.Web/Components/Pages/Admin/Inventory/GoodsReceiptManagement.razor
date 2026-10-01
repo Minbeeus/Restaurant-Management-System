@@ -203,9 +203,10 @@
             await ApiClient.CreatePurchaseOrderAsync(req);
             _showModal = false;
         }
-        catch
+        catch (Exception ex)
         {
-            _showModal = false;
+            _errorMessage = $"Có lỗi xảy ra: {ex.Message}";
+            Console.WriteLine(ex);
         }
         finally
         {

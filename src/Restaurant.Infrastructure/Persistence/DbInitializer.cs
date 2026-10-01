@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Restaurant.Domain.Entities;
+using Restaurant.Domain.Enums;
 
 namespace Restaurant.Infrastructure.Persistence;
 
@@ -102,6 +103,28 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
+        // 2.2 Default Shift
+        if (!await context.Shifts.AnyAsync())
+        {
+            var defaultUser = await context.Users.FirstOrDefaultAsync(u => u.EmployeeCode == "NV000001")
+                              ?? await context.Users.FirstOrDefaultAsync();
+            var register = await context.Registers.FirstOrDefaultAsync();
+            if (defaultUser != null)
+            {
+                var defaultShift = new Shift
+                {
+                    UserId = defaultUser.Id,
+                    RegisterId = register?.Id,
+                    OpeningBalance = 1000000m,
+                    Status = (int)ShiftStatus.Open,
+                    OpenedAt = DateTime.UtcNow,
+                    Note = "Ca đầu tiên tự động mở"
+                };
+                await context.Shifts.AddAsync(defaultShift);
+                await context.SaveChangesAsync();
+            }
+        }
+
         // 3. Categories
         if (!await context.Categories.AnyAsync())
         {
@@ -117,6 +140,22 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
+        // 3.1 KitchenStations
+        if (!await context.KitchenStations.AnyAsync())
+        {
+            var defaultStation = new KitchenStation
+            {
+                Code = "MAIN",
+                Name = "Main Kitchen",
+                SortOrder = 1,
+                IsActive = true
+            };
+            await context.KitchenStations.AddAsync(defaultStation);
+            await context.SaveChangesAsync();
+        }
+
+        var mainStation = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "MAIN");
+
         // 4. MenuItems & Modifiers
         if (!await context.MenuItems.AnyAsync())
         {
@@ -128,12 +167,12 @@ public static class DbInitializer
 
             var menuItems = new List<MenuItem>
             {
-                new MenuItem { CategoryId = catPizza?.Id ?? 1, Name = "Pizza Margherita Mozzarella", NameEn = "Margherita Mozzarella Pizza", Description = "Phô mai Mozzarella tươi, sốt cà chua San Marzano, lá Basil", DescriptionEn = "Fresh Mozzarella, San Marzano tomato sauce, fresh Basil", Price = 180000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=500" },
-                new MenuItem { CategoryId = catPizza?.Id ?? 1, Name = "Pizza Pepperoni Xúc xích Ý", NameEn = "Italian Pepperoni Pizza", Description = "Xúc xích Pepperoni cay nồng, lớp phô mai nung chảy", DescriptionEn = "Spicy Pepperoni sausage with melted cheese", Price = 210000, SortOrder = 2, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=500" },
-                new MenuItem { CategoryId = catPasta?.Id ?? 1, Name = "Mì Ý Bolognese Thịt bò Băm", NameEn = "Spaghetti Bolognese", Description = "Mì Spagheti sốt bò băm đút lò kiểu Ý", DescriptionEn = "Classic Italian minced beef spaghetti", Price = 145000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=500" },
-                new MenuItem { CategoryId = catKhaiVi?.Id ?? 1, Name = "Salad Caesar Gà Nướng", NameEn = "Grilled Chicken Caesar Salad", Description = "Rau xà lách Romaine, gà nướng tiêu đen, sốt Caesar", DescriptionEn = "Romaine lettuce, black pepper grilled chicken, Caesar dressing", Price = 115000, SortOrder = 1, IsActive = true },
-                new MenuItem { CategoryId = catDrink?.Id ?? 1, Name = "Trà Vải Khiếm Thị Đào Basil", NameEn = "Lychee Peach Basil Tea", Description = "Trà đen thanh mát kết hợp quả vải ngọt ngào & lá Basil tươi", DescriptionEn = "Refreshing black tea blended with sweet lychee & fresh basil", Price = 45000, SortOrder = 1, IsActive = true },
-                new MenuItem { CategoryId = catCombo?.Id ?? 1, Name = "Combo Gia Đình Pizza & Pasta", NameEn = "Family Pizza & Pasta Combo", Description = "1 Pizza Margherita + 1 Mì Ý Bolognese + 2 Trà Vải", DescriptionEn = "1 Margherita Pizza + 1 Spaghetti Bolognese + 2 Lychee Teas", Price = 349000, IsCombo = true, SortOrder = 1, IsActive = true }
+                new MenuItem { CategoryId = catPizza?.Id ?? 1, KitchenStationId = mainStation?.Id, Name = "Pizza Margherita Mozzarella", NameEn = "Margherita Mozzarella Pizza", Description = "Phô mai Mozzarella tươi, sốt cà chua San Marzano, lá Basil", DescriptionEn = "Fresh Mozzarella, San Marzano tomato sauce, fresh Basil", Price = 180000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=500" },
+                new MenuItem { CategoryId = catPizza?.Id ?? 1, KitchenStationId = mainStation?.Id, Name = "Pizza Pepperoni Xúc xích Ý", NameEn = "Italian Pepperoni Pizza", Description = "Xúc xích Pepperoni cay nồng, lớp phô mai nung chảy", DescriptionEn = "Spicy Pepperoni sausage with melted cheese", Price = 210000, SortOrder = 2, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=500" },
+                new MenuItem { CategoryId = catPasta?.Id ?? 1, KitchenStationId = mainStation?.Id, Name = "Mì Ý Bolognese Thịt bò Băm", NameEn = "Spaghetti Bolognese", Description = "Mì Spagheti sốt bò băm đút lò kiểu Ý", DescriptionEn = "Classic Italian minced beef spaghetti", Price = 145000, SortOrder = 1, IsActive = true, ImageUrl = "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=500" },
+                new MenuItem { CategoryId = catKhaiVi?.Id ?? 1, KitchenStationId = mainStation?.Id, Name = "Salad Caesar Gà Nướng", NameEn = "Grilled Chicken Caesar Salad", Description = "Rau xà lách Romaine, gà nướng tiêu đen, sốt Caesar", DescriptionEn = "Romaine lettuce, black pepper grilled chicken, Caesar dressing", Price = 115000, SortOrder = 1, IsActive = true },
+                new MenuItem { CategoryId = catDrink?.Id ?? 1, KitchenStationId = mainStation?.Id, Name = "Trà Vải Khiếm Thị Đào Basil", NameEn = "Lychee Peach Basil Tea", Description = "Trà đen thanh mát kết hợp quả vải ngọt ngào & lá Basil tươi", DescriptionEn = "Refreshing black tea blended with sweet lychee & fresh basil", Price = 45000, SortOrder = 1, IsActive = true },
+                new MenuItem { CategoryId = catCombo?.Id ?? 1, KitchenStationId = mainStation?.Id, Name = "Combo Gia Đình Pizza & Pasta", NameEn = "Family Pizza & Pasta Combo", Description = "1 Pizza Margherita + 1 Mì Ý Bolognese + 2 Trà Vải", DescriptionEn = "1 Margherita Pizza + 1 Spaghetti Bolognese + 2 Lychee Teas", Price = 349000, IsCombo = true, SortOrder = 1, IsActive = true }
             };
 
             await context.MenuItems.AddRangeAsync(menuItems);
@@ -323,6 +362,15 @@ public static class DbInitializer
             else if (mat.Name.Contains("Lá húng tây")) mat.NameEn = "Fresh Basil Leaves";
             else if (mat.Name.Contains("Thịt bò")) mat.NameEn = "Minced Beef";
             else mat.NameEn = mat.Name;
+        }
+
+        if (mainStation != null)
+        {
+            var unassignedItems = await context.MenuItems.Where(m => m.KitchenStationId == null).ToListAsync();
+            foreach (var item in unassignedItems)
+            {
+                item.KitchenStationId = mainStation.Id;
+            }
         }
 
         await context.SaveChangesAsync();

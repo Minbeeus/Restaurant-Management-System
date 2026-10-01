@@ -21,6 +21,19 @@
         </button>
     </div>
 
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="bg-rose-500/10 border border-rose-500/30 text-rose-700 p-4 rounded-xl flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined">error</span>
+                <span class="text-sm font-medium">@ErrorMessage</span>
+            </div>
+            <button class="hover:bg-rose-500/20 p-1 rounded-full transition-colors" @onclick="() => ErrorMessage = null">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+    }
+
     <!-- Status Tabs -->
     <div class="flex border-b border-outline-variant gap-3 bg-surface p-1 rounded-2xl border">
         <button class="px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 @(ActiveFilter == "Pending" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
@@ -125,6 +138,8 @@
 
     protected List<ApprovalRequestDto> DisplayedRequests => ActiveFilter == "Pending" ? PendingRequests : HistoryRequests;
 
+    protected string? ErrorMessage { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadRequestsAsync();
@@ -133,6 +148,7 @@
     private async Task LoadRequestsAsync()
     {
         IsLoading = true;
+        ErrorMessage = null;
         try
         {
             var pendingTask = Http.GetFromJsonAsync<ApiResponseWrapper<List<ApprovalRequestDto>>>("api/v1/approvals/pending");
@@ -143,7 +159,10 @@
             PendingRequests = (await pendingTask)?.Data ?? new List<ApprovalRequestDto>();
             HistoryRequests = (await historyTask)?.Data ?? new List<ApprovalRequestDto>();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi khi tải dữ liệu: {ex.Message}";
+        }
         finally { IsLoading = false; }
     }
 
@@ -151,6 +170,7 @@
 
     private async Task ApproveAsync(int requestId)
     {
+        ErrorMessage = null;
         try
         {
             var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = "Đã duyệt bởi Quản lý" };
@@ -159,12 +179,21 @@
             {
                 await LoadRequestsAsync();
             }
+            else
+            {
+                var error = await res.Content.ReadFromJsonAsync<ErrorResponse>();
+                ErrorMessage = error?.Message ?? "Lỗi không xác định khi duyệt yêu cầu.";
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi hệ thống: {ex.Message}";
+        }
     }
 
     private async Task RejectAsync(int requestId)
     {
+        ErrorMessage = null;
         try
         {
             var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = "Từ chối bởi Quản lý" };
@@ -173,8 +202,16 @@
             {
                 await LoadRequestsAsync();
             }
+            else
+            {
+                var error = await res.Content.ReadFromJsonAsync<ErrorResponse>();
+                ErrorMessage = error?.Message ?? "Lỗi không xác định khi từ chối yêu cầu.";
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi hệ thống: {ex.Message}";
+        }
     }
 
     private string GetStatusBadge(int status) => status switch
@@ -189,5 +226,10 @@
     {
         public bool Success { get; set; }
         public T? Data { get; set; }
+    }
+
+    private class ErrorResponse
+    {
+        public string? Message { get; set; }
     }
 }

@@ -80,6 +80,44 @@ public class InventoryService : IInventoryService
         };
     }
 
+    public async Task<MaterialDto?> UpdateMaterialAsync(int id, CreateMaterialRequest request)
+    {
+        var material = await _context.Materials.FindAsync(id);
+        if (material == null) return null;
+
+        material.Name = request.Name;
+        material.NameEn = request.NameEn?.Trim();
+        material.UnitOfMeasureId = request.UnitOfMeasureId;
+        material.MinStockLevel = request.MinStockLevel;
+        material.CostPerUnit = request.CostPerUnit;
+
+        await _context.SaveChangesAsync();
+
+        var unit = await _context.UnitOfMeasures.FindAsync(request.UnitOfMeasureId);
+        return new MaterialDto
+        {
+            Id = material.Id,
+            UnitOfMeasureId = material.UnitOfMeasureId,
+            UnitName = unit?.Name ?? string.Empty,
+            Name = material.Name,
+            NameEn = material.NameEn,
+            CurrentStock = material.CurrentStock,
+            MinStockLevel = material.MinStockLevel,
+            CostPerUnit = material.CostPerUnit,
+            IsActive = material.IsActive
+        };
+    }
+
+    public async Task<bool> DeleteMaterialAsync(int id)
+    {
+        var material = await _context.Materials.FindAsync(id);
+        if (material == null) return false;
+
+        material.IsActive = false;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<bool> CreatePurchaseOrderAsync(int userId, CreatePurchaseOrderRequest request)
     {
         if (request.Items == null || !request.Items.Any()) return false;

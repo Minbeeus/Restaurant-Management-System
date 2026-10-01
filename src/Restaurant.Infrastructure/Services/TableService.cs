@@ -108,7 +108,7 @@ public class TableService : ITableService
         var table = await _context.Tables.FindAsync(id);
         if (table == null) return false;
 
-        if (table.Status == (int)TableStatus.Occupied || table.Status == (int)TableStatus.Billing || table.Status == (int)TableStatus.NewOrder)
+        if (table.Status == (int)TableStatus.Occupied || table.Status == (int)TableStatus.Billing || table.Status == (int)TableStatus.Serving)
         {
             throw new InvalidOperationException("Không thể xóa bàn đang có khách hoặc đang phục vụ. Vui lòng thanh toán đơn hàng trước.");
         }

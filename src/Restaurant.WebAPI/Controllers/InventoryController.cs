@@ -46,6 +46,36 @@ public class InventoryController : ControllerBase
         });
     }
 
+    [HttpPut("materials/{id}")]
+    public async Task<IActionResult> UpdateMaterial(int id, [FromBody] CreateMaterialRequest request)
+    {
+        var result = await _inventoryService.UpdateMaterialAsync(id, request);
+        if (result == null) return NotFound();
+
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpDelete("materials/{id}")]
+    public async Task<IActionResult> DeleteMaterial(int id)
+    {
+        var success = await _inventoryService.DeleteMaterialAsync(id);
+        if (!success) return NotFound();
+
+        return Ok(new
+        {
+            success = true,
+            data = new { message = "Xóa nguyên vật liệu thành công." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
     [HttpPost("purchase-orders")]
     public async Task<IActionResult> CreatePurchaseOrder([FromBody] CreatePurchaseOrderRequest request)
     {

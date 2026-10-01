@@ -119,10 +119,15 @@ public class CancelOrderService : ICancelOrderService
             await _context.SaveChangesAsync();
             await dbTransaction.CommitAsync();
 
-            // Broadcast SignalR Table Status Sync
+            // Broadcast SignalR Table Status Sync & Kitchen Notifications
             if (order.TableId.HasValue)
             {
                 await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, "Available");
+            }
+
+            foreach (var item in order.OrderItems)
+            {
+                await _notificationService.NotifyOrderItemStatusChangedAsync(order.TableId ?? 0, order.Id, item.Id, item.KitchenStatus, "Cancelled");
             }
 
             return true;

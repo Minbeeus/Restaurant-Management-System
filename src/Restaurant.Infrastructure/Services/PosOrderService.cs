@@ -153,13 +153,14 @@ public class PosOrderService : IPosOrderService
             var activeOrder = await _context.Orders
                 .FirstOrDefaultAsync(o => o.TableId == request.SourceTableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled);
 
+            int oldStatus = sourceTable.Status;
             if (activeOrder != null)
             {
                 activeOrder.TableId = targetTable.Id;
             }
 
             sourceTable.Status = (int)TableStatus.Available;
-            targetTable.Status = activeOrder != null ? (int)TableStatus.Occupied : (int)TableStatus.Available;
+            targetTable.Status = activeOrder != null ? oldStatus : (int)TableStatus.Available;
 
             await _context.SaveChangesAsync();
             await dbTransaction.CommitAsync();
@@ -240,12 +241,14 @@ public class PosOrderService : IPosOrderService
                 srcOrder.Note = $"Merged into Order {targetOrder.OrderCode}";
             }
 
+            int maxStatus = targetTable.Status;
             foreach (var srcTable in sourceTables)
             {
+                if (srcTable.Status > maxStatus) maxStatus = srcTable.Status;
                 srcTable.Status = (int)TableStatus.Available;
             }
 
-            targetTable.Status = (int)TableStatus.Occupied;
+            targetTable.Status = maxStatus > (int)TableStatus.Available ? maxStatus : (int)TableStatus.Occupied;
 
             // Batch Single SaveChanges
             await _context.SaveChangesAsync();
@@ -258,7 +261,7 @@ public class PosOrderService : IPosOrderService
                 await _notificationService.NotifyTableStatusSyncAsync(srcTableId, Enum.GetName(typeof(TableStatus), (int)TableStatus.Available) ?? "Unknown");
                 await _notificationService.NotifyTableSessionMovedAsync(srcTableId, targetTable.Id, targetTable.Name);
             }
-            await _notificationService.NotifyTableStatusSyncAsync(targetTable.Id, Enum.GetName(typeof(TableStatus), (int)TableStatus.Occupied) ?? "Unknown");
+            await _notificationService.NotifyTableStatusSyncAsync(targetTable.Id, Enum.GetName(typeof(TableStatus), targetTable.Status) ?? "Unknown");
 
             return true;
         }
@@ -273,8 +276,9 @@ public class PosOrderService : IPosOrderService
     {
         (int)TableStatus.Available => "Available (Trống)",
         (int)TableStatus.Occupied => "Occupied (Đang có khách)",
-        (int)TableStatus.NewOrder => "NewOrder (Đơn mới QR)",
+        (int)TableStatus.Serving => "Serving (Đã gửi bếp)",
         (int)TableStatus.Billing => "Billing (Chờ thanh toán)",
+        (int)TableStatus.Paid => "Paid (Đã thanh toán)",
         _ => "Unknown"
     };
 
@@ -310,13 +314,38 @@ public class PosOrderService : IPosOrderService
             if (activeOrder != null)
             {
                 targetOrder = activeOrder;
+                if (request.CustomerId.HasValue)
+                {
+                    targetOrder.CustomerId = request.CustomerId;
+                }
+                if (!string.IsNullOrEmpty(request.CustomerName)) targetOrder.CustomerName = request.CustomerName;
+                if (!string.IsNullOrEmpty(request.CustomerPhone)) targetOrder.CustomerPhone = request.CustomerPhone;
             }
             else
             {
                 var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open)
                                  ?? await _context.Shifts.FirstOrDefaultAsync();
-                var shiftId = activeShift?.Id ?? 1;
-                var createdUserId = activeShift?.UserId ?? 1;
+
+                if (activeShift == null)
+                {
+                    var firstUser = await _context.Users.FirstOrDefaultAsync()
+                                    ?? throw new InvalidOperationException("Hệ thống chưa có tài khoản người dùng để gán đơn hàng.");
+                    var firstRegister = await _context.Registers.FirstOrDefaultAsync();
+                    activeShift = new Shift
+                    {
+                        UserId = firstUser.Id,
+                        RegisterId = firstRegister?.Id,
+                        OpeningBalance = 1000000m,
+                        Status = (int)ShiftStatus.Open,
+                        OpenedAt = DateTime.UtcNow,
+                        Note = "Tự động mở ca cho đơn POS"
+                    };
+                    _context.Shifts.Add(activeShift);
+                    await _context.SaveChangesAsync();
+                }
+
+                var shiftId = activeShift.Id;
+                var createdUserId = activeShift.UserId;
 
                 var isTakeaway = table == null;
                 targetOrder = new Order
@@ -326,6 +355,9 @@ public class PosOrderService : IPosOrderService
                     TableId = table?.Id,
                     ShiftId = shiftId,
                     CreatedByUserId = createdUserId,
+                    CustomerId = request.CustomerId,
+                    CustomerName = request.CustomerName,
+                    CustomerPhone = request.CustomerPhone,
                     Status = isTakeaway ? (int)OrderStatus.Pending : (int)OrderStatus.InPreparation,
                     SubTotal = 0,
                     DiscountAmount = 0,
@@ -383,14 +415,17 @@ public class PosOrderService : IPosOrderService
                     DiscountAmount = itemDiscount * itemReq.Quantity,
                     Quantity = itemReq.Quantity,
                     Note = itemReq.Note,
-                    KitchenStatus = (int)KitchenStatus.Pending,
+                    KitchenStatus = menuItem.IsCombo ? (int)KitchenStatus.Done : (int)KitchenStatus.Pending,
                     CreatedAt = DateTime.UtcNow
                 };
 
                 _context.OrderItems.Add(orderItem);
                 await _context.SaveChangesAsync();
                 
-                newItemsForKitchen.Add(orderItem);
+                if (!menuItem.IsCombo)
+                {
+                    newItemsForKitchen.Add(orderItem);
+                }
 
                 if (selectedOptions.Any())
                 {
@@ -409,6 +444,75 @@ public class PosOrderService : IPosOrderService
                     await _context.SaveChangesAsync();
                 }
 
+                // Handle Combo Items
+                if (menuItem.IsCombo && itemReq.SelectedComboItems != null && itemReq.SelectedComboItems.Any())
+                {
+                    var comboItemIds = itemReq.SelectedComboItems.Select(c => c.ComboItemId).ToList();
+                    var dbComboItems = await _context.ComboItems
+                        .Include(ci => ci.MenuItem)
+                        .Where(ci => comboItemIds.Contains(ci.Id))
+                        .ToListAsync();
+
+                    foreach (var comboReq in itemReq.SelectedComboItems)
+                    {
+                        var dbCi = dbComboItems.FirstOrDefault(c => c.Id == comboReq.ComboItemId);
+                        if (dbCi == null || dbCi.MenuItem == null) continue;
+
+                        var childUnitPrice = dbCi.AdditionalPrice; 
+                        // Note: If child item has modifiers, add them to childUnitPrice
+                        var childSelectedOptions = new List<ModifierOption>();
+                        if (comboReq.SelectedModifiers != null && comboReq.SelectedModifiers.Any())
+                        {
+                            childSelectedOptions = await _context.ModifierOptions
+                                .Where(o => comboReq.SelectedModifiers.Contains(o.Id))
+                                .ToListAsync();
+                                
+                            childUnitPrice += childSelectedOptions.Sum(o => o.ExtraPrice);
+                        }
+
+                        var childOrderItem = new OrderItem
+                        {
+                            OrderId = targetOrder.Id,
+                            MenuItemId = dbCi.MenuItemId,
+                            MenuItemName = dbCi.MenuItem.Name,
+                            UnitPrice = childUnitPrice, // Additional Price + Modifiers
+                            DiscountAmount = 0,
+                            Quantity = comboReq.Quantity * itemReq.Quantity, // Multiply by parent quantity
+                            Note = comboReq.Note,
+                            KitchenStatus = (int)KitchenStatus.Pending,
+                            CreatedAt = DateTime.UtcNow,
+                            ParentItemId = orderItem.Id,
+                            ComboGroupId = dbCi.ComboGroupId,
+                            AdditionalPrice = dbCi.AdditionalPrice
+                        };
+
+                        _context.OrderItems.Add(childOrderItem);
+                        await _context.SaveChangesAsync();
+                        newItemsForKitchen.Add(childOrderItem);
+
+                        if (childSelectedOptions.Any())
+                        {
+                            foreach (var opt in childSelectedOptions)
+                            {
+                                var orderItemModifier = new OrderItemModifier
+                                {
+                                    OrderItemId = childOrderItem.Id,
+                                    ModifierOptionId = opt.Id,
+                                    ModifierOptionName = opt.Name,
+                                    ExtraPrice = opt.ExtraPrice
+                                };
+                                _context.OrderItemModifiers.Add(orderItemModifier);
+                                childOrderItem.OrderItemModifiers.Add(orderItemModifier);
+                            }
+                            await _context.SaveChangesAsync();
+                        }
+
+                        // We only add the sub-item additional price to subtotal. 
+                        // The base price is already captured in parent orderItem.
+                        addedSubTotal += (childUnitPrice * comboReq.Quantity * itemReq.Quantity);
+                    }
+                }
+
                 addedSubTotal += (baseUnitPrice * itemReq.Quantity);
                 addedDiscount += (itemDiscount * itemReq.Quantity);
             }
@@ -417,10 +521,10 @@ public class PosOrderService : IPosOrderService
             targetOrder.DiscountAmount += addedDiscount;
             targetOrder.TotalAmount = Math.Max(0, targetOrder.SubTotal - targetOrder.DiscountAmount);
             
-            if (table != null && (table.Status == (int)TableStatus.Available || table.Status == (int)TableStatus.NewOrder))
+            if (table != null && (table.Status == (int)TableStatus.Available || table.Status == (int)TableStatus.Occupied))
             {
-                table.Status = (int)TableStatus.Occupied;
-                await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Occupied");
+                table.Status = (int)TableStatus.Serving;
+                await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Serving");
             }
 
             await _context.SaveChangesAsync();
@@ -489,6 +593,18 @@ public class PosOrderService : IPosOrderService
         return true;
     }
 
+    public async Task<bool> ClearTableAsync(int tableId)
+    {
+        var table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == tableId);
+        if (table == null) return false;
+
+        table.Status = (int)TableStatus.Available;
+        await _context.SaveChangesAsync();
+
+        await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Available");
+        return true;
+    }
+
     public async Task<List<TakeawayOrderDto>> GetTakeawayOrdersAsync()
     {
         var orders = await _context.Orders
@@ -515,6 +631,20 @@ public class PosOrderService : IPosOrderService
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemModifiers)
             .FirstOrDefaultAsync(o => o.Id == orderId);
+
+        return order == null ? null : MapToTakeawayDto(order);
+    }
+
+    public async Task<TakeawayOrderDto?> GetActiveOrderForTableAsync(int tableId)
+    {
+        var order = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Customer)
+            .Include(o => o.CreatedByUser)
+            .Include(o => o.Payments)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.OrderItemModifiers)
+            .FirstOrDefaultAsync(o => o.TableId == tableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled);
 
         return order == null ? null : MapToTakeawayDto(order);
     }
@@ -566,7 +696,8 @@ public class PosOrderService : IPosOrderService
                 Quantity = oi.Quantity,
                 UnitPrice = oi.UnitPrice,
                 Note = oi.Note,
-                Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList()
+                Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList(),
+                ModifierIds = oi.OrderItemModifiers.Select(m => m.ModifierOptionId).ToList()
             }).ToList()
         };
     }

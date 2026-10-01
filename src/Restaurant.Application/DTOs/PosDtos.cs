@@ -76,6 +76,7 @@ public class ShiftReportDto
 public class SubmitPosOrderRequest
 {
     public int? TableId { get; set; }
+    public int? CustomerId { get; set; }
     public string? CustomerNote { get; set; }
     public string? CustomerName { get; set; }
     public string? CustomerPhone { get; set; }
@@ -121,6 +122,7 @@ public class TakeawayOrderItemDto
     public decimal TotalPrice => UnitPrice * Quantity;
     public string? Note { get; set; }
     public List<string> Modifiers { get; set; } = new();
+    public List<int> ModifierIds { get; set; } = new();
 }
 
 public class VoucherValidationResponseDto
@@ -157,5 +159,6 @@ public class K80ReceiptItemDto
     public decimal UnitPrice { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal TotalPrice => (UnitPrice - DiscountAmount) * Quantity;
+    public bool IsComboChild { get; set; }
     public List<string> Modifiers { get; set; } = new();
 }

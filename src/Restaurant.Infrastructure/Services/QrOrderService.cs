@@ -433,7 +433,7 @@ public class QrOrderService : IQrOrderService
 
             if (table.Status == (int)TableStatus.Available)
             {
-                table.Status = (int)TableStatus.NewOrder;
+                table.Status = (int)TableStatus.Serving;
             }
 
             await _context.SaveChangesAsync();

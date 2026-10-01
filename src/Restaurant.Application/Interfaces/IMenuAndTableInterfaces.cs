@@ -22,6 +22,16 @@ public interface IMenuItemService
     Task<bool> ToggleSoldOutAsync(int id);
 }
 
+public interface IComboService
+{
+    Task<List<ComboDetailDto>> GetAllCombosAsync();
+    Task<ComboDetailDto?> GetComboByIdAsync(int id);
+    Task<ComboDetailDto> CreateComboAsync(CreateComboRequest request);
+    Task<ComboDetailDto?> UpdateComboAsync(int id, UpdateComboRequest request);
+    Task<bool> DeleteComboAsync(int id);
+    Task<bool> ToggleComboStatusAsync(int id);
+}
+
 public interface IModifierService
 {
     Task<List<ModifierGroupDto>> GetAllGroupsAsync();

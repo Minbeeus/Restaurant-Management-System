@@ -203,7 +203,9 @@ public partial class PosDashboard : IAsyncDisposable
 
     private class ApiResponseWrapper<T>
     {
+        [System.Text.Json.Serialization.JsonPropertyName("success")]
         public bool Success { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
         public T? Data { get; set; }
     }
 }

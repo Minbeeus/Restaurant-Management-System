@@ -10,8 +10,10 @@ public interface IPosOrderService
     Task<bool> MergeTablesAsync(MergeTableRequest request);
     Task<SubmitPosOrderResponse> SubmitPosOrderAsync(SubmitPosOrderRequest request);
     Task<bool> PrintTempBillAsync(int orderId);
+    Task<bool> ClearTableAsync(int tableId);
     Task<List<TakeawayOrderDto>> GetTakeawayOrdersAsync();
     Task<TakeawayOrderDto?> GetTakeawayOrderByIdAsync(int orderId);
+    Task<TakeawayOrderDto?> GetActiveOrderForTableAsync(int tableId);
 }
 
 public interface IShiftService

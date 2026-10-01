@@ -6,6 +6,7 @@
 @using Restaurant.Application.DTOs
 @using Restaurant.Web.Components.Pages.Pos.Components
 @using Microsoft.AspNetCore.SignalR.Client
+@using System.Text.Json.Serialization
 @inject NavigationManager Navigation
 @inject HttpClient Http
 @implements IAsyncDisposable
@@ -41,18 +42,21 @@
                 </div>
 
                 <!-- Canvas vs Grid Switcher -->
-                <div class="flex items-center bg-surface-high p-1 border border-outline-variant rounded-xl text-xs font-bold shrink-0">
-                    <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Canvas" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
-                            @onclick='() => ViewMode = "Canvas"'>
-                        <span class="material-symbols-outlined text-[16px]">dashboard</span>
-                        <span>Sơ Đồ Canvas</span>
-                    </button>
-                    <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Grid" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
-                            @onclick='() => ViewMode = "Grid"'>
-                        <span class="material-symbols-outlined text-[16px]">grid_view</span>
-                        <span>Dạng Lưới</span>
-                    </button>
-                </div>
+                @if (SelectedAreaId != 0)
+                {
+                    <div class="flex items-center bg-surface-high p-1 border border-outline-variant rounded-xl text-xs font-bold shrink-0">
+                        <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Canvas" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                                @onclick='() => ViewMode = "Canvas"'>
+                            <span class="material-symbols-outlined text-[16px]">dashboard</span>
+                            <span>Sơ Đồ Canvas</span>
+                        </button>
+                        <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Grid" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                                @onclick='() => ViewMode = "Grid"'>
+                            <span class="material-symbols-outlined text-[16px]">grid_view</span>
+                            <span>Dạng Lưới</span>
+                        </button>
+                    </div>
+                }
             </div>
 
             <!-- Main Content Area -->
@@ -82,8 +86,8 @@
                             var shapeClass = table.Shape == 0 ? "rounded-full" : "rounded-2xl";
                             var statusClass = GetStatusBadgeClass(table.Status);
 
-                            <div class="absolute select-none flex flex-col items-center justify-center cursor-pointer transition-all duration-150 transform hover:scale-105 shadow-md p-2 text-center border-2 @shapeClass @statusClass @(isSelected ? "ring-4 ring-primary ring-offset-2 z-20" : "z-10")"
-                                 style="left: 0; top: 0; transform: translate(@(table.PositionX > 0 ? table.PositionX : 20)px, @(table.PositionY > 0 ? table.PositionY : 20)px); width: @(table.Width > 0 ? table.Width : 100)px; height: @(table.Height > 0 ? table.Height : 90)px;"
+                            <div class="absolute select-none flex flex-col items-center justify-center cursor-pointer transition-shadow hover:shadow-lg shadow-md p-2 text-center border-2 @shapeClass @statusClass @(isSelected ? "ring-4 ring-primary ring-offset-2 z-20" : "z-10")"
+                                 style="left: 0; top: 0; transform: translate(@(table.PositionX)px, @(table.PositionY)px); width: @(table.Width > 0 ? table.Width : 100)px; height: @(table.Height > 0 ? table.Height : 90)px;"
                                  @onclick="() => SelectTableCard(table)"
                                  @onclick:stopPropagation="true"
                                  @ondblclick="() => OpenTableOrder(table)">
@@ -136,8 +140,7 @@
                     <span class="text-xs font-bold">In Hóa Đơn</span>
                 </button>
 
-                <button class="flex flex-col items-center justify-center p-3 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-emerald-700 dark:text-emerald-400 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
-                        disabled="@(SelectedTable?.CurrentOrderId == null)"
+                <button class="flex flex-col items-center justify-center p-3 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-emerald-700 dark:text-emerald-400 @(SelectedTable?.Status != 3 ? "opacity-50" : "")"
                         @onclick="OpenPaymentModal">
                     <span class="material-symbols-outlined text-2xl text-emerald-600 group-hover:text-white mb-1">payments</span>
                     <span class="text-xs font-bold">Thanh Toán</span>
@@ -170,6 +173,15 @@
                         <span class="material-symbols-outlined text-2xl mb-1">restaurant_menu</span>
                         <span class="text-xs font-bold">Đặt Món (@SelectedTable.TableName)</span>
                     </button>
+                    
+                    @if (SelectedTable.Status == 4)
+                    {
+                        <button class="flex flex-col items-center justify-center p-3 bg-blue-500 text-white hover:bg-blue-600 rounded-xl transition-all cursor-pointer text-center group shadow-xs mt-1"
+                                @onclick="ClearTableAsync">
+                            <span class="material-symbols-outlined text-2xl mb-1">cleaning_services</span>
+                            <span class="text-xs font-bold">Dọn Bàn (Hoàn tất)</span>
+                        </button>
+                    }
                 }
             </div>
 
@@ -189,13 +201,12 @@
 @if (ShowPaymentModalState && SelectedTable != null)
 {
     <PosPaymentModal 
+        @bind-IsOpen="ShowPaymentModalState"
         OrderId="@(SelectedTable.CurrentOrderId ?? 0)" 
-        TableId="@SelectedTable.TableId" 
-        TableName="@SelectedTable.TableName" 
         OrderCode="@(SelectedTable.CurrentOrderCode ?? "N/A")" 
-        TotalAmount="@SelectedTable.TotalAmount" 
-        OnClose="() => ShowPaymentModalState = false" 
-        OnPaymentSuccess="HandlePaymentCompleted" />
+        TableName="@SelectedTable.TableName" 
+        SubTotal="@SelectedTable.TotalAmount" 
+        OnPaymentCompleted="HandlePaymentCompleted" />
 }
 
 <!-- Move Table Modal -->
@@ -224,6 +235,13 @@
                 }
             </div>
 
+            @if (!string.IsNullOrEmpty(MoveErrorMessage))
+            {
+                <div class="p-2.5 bg-error-container text-error rounded-xl font-bold text-xs mb-4">
+                    @MoveErrorMessage
+                </div>
+            }
+
             <div class="flex justify-end gap-3 pt-3 border-t border-outline-variant">
                 <button class="px-4 py-2 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high"
                         @onclick="() => ShowMoveModalState = false">
@@ -236,6 +254,19 @@
                 </button>
             </div>
         </div>
+    </div>
+}
+
+<!-- Toast Notification -->
+@if (!string.IsNullOrEmpty(ToastMessage))
+{
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-gray-900/95 backdrop-blur-sm text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in-up border border-gray-800"
+         @onclick="() => ToastMessage = string.Empty">
+        <span class="material-symbols-outlined text-emerald-400 text-2xl">info</span>
+        <span class="font-bold text-sm tracking-wide">@ToastMessage</span>
+        <button class="ml-2 text-gray-400 hover:text-white transition-colors" @onclick:stopPropagation="true" @onclick="() => ToastMessage = string.Empty">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
     </div>
 }
 
@@ -341,6 +372,8 @@
 
 
 @code {
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
     protected List<AreaDto> Areas { get; set; } = new();
     protected List<TableStatusOverviewDto> Tables { get; set; } = new();
     protected int SelectedAreaId { get; set; } = 0;
@@ -350,8 +383,10 @@
     protected bool ShowMoveModalState { get; set; } = false;
     protected bool ShowMergeModalState { get; set; } = false;
     protected int TargetMoveTableId { get; set; } = 0;
+    protected string MoveErrorMessage { get; set; } = string.Empty;
+    protected string ToastMessage { get; set; } = string.Empty;
     protected List<int> SelectedSourceMergeTableIds { get; set; } = new();
-    protected string ViewMode { get; set; } = "Canvas"; // Default to 2D Floorplan Canvas
+    protected string ViewMode { get; set; } = "Grid"; // Default to Grid view initially since Area is 0
 
     private HubConnection? _hubConnection;
 
@@ -363,7 +398,7 @@
         await LoadDataAsync();
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=pos")
             .WithAutomaticReconnect()
             .Build();
 
@@ -425,7 +460,12 @@
         }
     }
 
-    private void SelectArea(int areaId) => SelectedAreaId = areaId;
+    private void SelectArea(int areaId)
+    {
+        SelectedAreaId = areaId;
+        ViewMode = areaId == 0 ? "Grid" : "Canvas";
+        SelectedTable = null;
+    }
 
     private void SelectTableCard(TableStatusOverviewDto table)
     {
@@ -434,6 +474,11 @@
 
     private void OpenTableOrder(TableStatusOverviewDto table)
     {
+        if (table.Status == 1) // Occupied
+        {
+            _ = ShowToastAsync("Bàn này đang được thao tác. Vui lòng chọn bàn khác.");
+            return;
+        }
         Navigation.NavigateTo($"/pos/order?tableId={table.TableId}");
     }
 
@@ -445,31 +490,72 @@
             var response = await Http.PostAsync($"api/v1/pos/orders/{SelectedTable.CurrentOrderId.Value}/print-temp-bill", null);
             if (response.IsSuccessStatusCode)
             {
+                _ = ShowToastAsync("Đã in tạm tính và chuyển bàn sang trạng thái Chờ thanh toán.");
+                await LoadTablesAsync();
+            }
+            else
+            {
+                _ = ShowToastAsync("Lỗi khi in tạm tính. Vui lòng thử lại.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _ = ShowToastAsync($"Lỗi: {ex.Message}");
+        }
+    }
+
+    protected async Task ShowToastAsync(string message)
+    {
+        ToastMessage = message;
+        StateHasChanged();
+        await Task.Delay(3000);
+        if (ToastMessage == message)
+        {
+            ToastMessage = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenPaymentModal()
+    {
+        if (SelectedTable == null) return;
+        if (SelectedTable.Status != 3)
+        {
+            await JS.InvokeVoidAsync("alert", "Chỉ thanh toán được sau khi hóa đơn đã in tạm tính (Bàn màu vàng).");
+            return;
+        }
+        ShowPaymentModalState = true;
+    }
+
+    private async Task ClearTableAsync()
+    {
+        if (SelectedTable == null) return;
+        try
+        {
+            var response = await Http.PostAsync($"api/v1/pos/tables/{SelectedTable.TableId}/clear", null);
+            if (response.IsSuccessStatusCode)
+            {
                 await LoadTablesAsync();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error printing pre-bill: {ex.Message}");
+            Console.WriteLine($"Error clearing table: {ex.Message}");
         }
-    }
-
-    private void OpenPaymentModal()
-    {
-        if (SelectedTable == null || SelectedTable.CurrentOrderId == null) return;
-        ShowPaymentModalState = true;
     }
 
     private void OpenMoveModal()
     {
         if (SelectedTable == null || SelectedTable.CurrentOrderId == null) return;
         TargetMoveTableId = 0;
+        MoveErrorMessage = string.Empty;
         ShowMoveModalState = true;
     }
 
     private async Task ConfirmMoveTableAsync()
     {
         if (SelectedTable == null || TargetMoveTableId == 0) return;
+        MoveErrorMessage = string.Empty;
         try
         {
             var req = new MoveTableRequest { SourceTableId = SelectedTable.TableId, TargetTableId = TargetMoveTableId };
@@ -477,12 +563,48 @@
             if (res.IsSuccessStatusCode)
             {
                 ShowMoveModalState = false;
+                _ = ShowToastAsync("Chuyển bàn thành công!");
                 await LoadTablesAsync();
+            }
+            else
+            {
+                var contentString = await res.Content.ReadAsStringAsync();
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(contentString))
+                    {
+                        var errorResponse = System.Text.Json.JsonSerializer.Deserialize<ApiResponseWrapper<object>>(contentString, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (errorResponse != null && errorResponse.Error != null)
+                        {
+                            var errorElement = (System.Text.Json.JsonElement)errorResponse.Error;
+                            if (errorElement.TryGetProperty("message", out var msgElement))
+                            {
+                                MoveErrorMessage = msgElement.GetString() ?? "Lỗi không xác định.";
+                            }
+                            else
+                            {
+                                MoveErrorMessage = errorElement.ToString() ?? "Lỗi chuyển bàn.";
+                            }
+                        }
+                        else
+                        {
+                            MoveErrorMessage = "Lỗi khi chuyển bàn (Mã lỗi: " + (int)res.StatusCode + ")";
+                        }
+                    }
+                    else
+                    {
+                        MoveErrorMessage = "Không thể kết nối đến máy chủ. (Mã: " + (int)res.StatusCode + ")";
+                    }
+                }
+                catch
+                {
+                    MoveErrorMessage = "Lỗi phản hồi từ máy chủ: " + contentString;
+                }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error moving table: {ex.Message}");
+            MoveErrorMessage = ex.Message;
         }
     }
 
@@ -526,12 +648,48 @@
             {
                 ShowMergeModalState = false;
                 ShowMergeConfirmModalState = false;
+                _ = ShowToastAsync("Gộp bàn thành công!");
                 await LoadTablesAsync();
+            }
+            else
+            {
+                var contentString = await res.Content.ReadAsStringAsync();
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(contentString))
+                    {
+                        var errorResponse = System.Text.Json.JsonSerializer.Deserialize<ApiResponseWrapper<object>>(contentString, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (errorResponse != null && errorResponse.Error != null)
+                        {
+                            var errorElement = (System.Text.Json.JsonElement)errorResponse.Error;
+                            if (errorElement.TryGetProperty("message", out var msgElement))
+                            {
+                                _ = ShowToastAsync("Lỗi gộp bàn: " + msgElement.GetString());
+                            }
+                            else
+                            {
+                                _ = ShowToastAsync("Lỗi gộp bàn: " + errorElement.ToString());
+                            }
+                        }
+                        else
+                        {
+                            _ = ShowToastAsync("Lỗi gộp bàn (Mã: " + (int)res.StatusCode + ")");
+                        }
+                    }
+                    else
+                    {
+                        _ = ShowToastAsync("Không thể kết nối đến máy chủ.");
+                    }
+                }
+                catch
+                {
+                    _ = ShowToastAsync("Lỗi gộp bàn: " + contentString);
+                }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error merging tables: {ex.Message}");
+            _ = ShowToastAsync($"Lỗi hệ thống: {ex.Message}");
         }
     }
 
@@ -543,10 +701,12 @@
 
     private string GetStatusBadgeClass(int status) => status switch
     {
-        1 => "bg-amber-500/15 border-amber-500 text-amber-900 dark:text-amber-200", // Occupied
-        2 => "bg-purple-500/15 border-purple-500 text-purple-900 dark:text-purple-200", // NewOrder
-        3 => "bg-rose-500/15 border-rose-500 text-rose-900 dark:text-rose-200", // Billing
-        _ => "bg-emerald-500/10 border-emerald-500/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20" // Available
+        0 => "bg-slate-200 border-slate-300 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300", // Available
+        1 => "bg-rose-500/15 border-rose-500 text-rose-800 dark:text-rose-300 animate-pulse", // Occupied
+        2 => "bg-emerald-500/15 border-emerald-500 text-emerald-800 dark:text-emerald-300", // Serving
+        3 => "bg-amber-500/20 border-amber-500 text-amber-900 dark:text-amber-200 ring-2 ring-amber-400", // Billing
+        4 => "bg-blue-500/15 border-blue-500 text-blue-800 dark:text-blue-300", // Paid
+        _ => "bg-slate-200 border-slate-300 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
     };
 
     public async ValueTask DisposeAsync()
@@ -559,8 +719,13 @@
 
     private class ApiResponseWrapper<T>
     {
+        [JsonPropertyName("success")]
         public bool Success { get; set; }
+
+        [JsonPropertyName("data")]
         public T? Data { get; set; }
+
+        [JsonPropertyName("error")]
         public object? Error { get; set; }
     }
 }

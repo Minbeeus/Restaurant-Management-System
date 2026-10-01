@@ -40,6 +40,27 @@ public class LoyaltyService : ILoyaltyService
         };
     }
 
+    public async Task<List<CustomerDto>> GetAllCustomersAsync()
+    {
+        var customers = await _context.Customers
+            .AsNoTracking()
+            .Include(c => c.Tier)
+            .Where(c => !c.IsDeleted)
+            .OrderByDescending(c => c.TotalPoints)
+            .ToListAsync();
+
+        return customers.Select(c => new CustomerDto
+        {
+            Id = c.Id,
+            PhoneNumber = c.PhoneNumber,
+            FullName = c.FullName,
+            TierId = c.TierId,
+            TierName = c.Tier?.Name ?? "Standard",
+            TotalPoints = c.TotalPoints,
+            AvailablePoints = c.AvailablePoints
+        }).ToList();
+    }
+
     public async Task<CustomerDto> CreateCustomerAsync(CreateCustomerRequest request)
     {
         var existing = await _context.Customers

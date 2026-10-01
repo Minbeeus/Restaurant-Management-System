@@ -113,61 +113,11 @@
     </div>
 </div>
 
-<!-- Cashier Tools Modal -->
 @if (_showCashierToolsModal)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-outline-variant p-6 space-y-5">
-            <div class="flex items-center justify-between border-b border-outline-variant pb-4">
-                <h3 class="font-bold text-lg text-on-surface flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">point_of_sale</span>
-                    Công Cụ Quản Lý Thu Ngân
-                </h3>
-                <button class="p-1 rounded-lg hover:bg-surface-high text-on-surface-variant cursor-pointer"
-                        @onclick="() => _showCashierToolsModal = false">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div class="p-4 bg-surface-high rounded-xl border border-outline-variant/60">
-                    <span class="text-xs text-on-surface-variant block font-medium">Ca làm việc</span>
-                    <span class="text-sm font-bold text-primary block mt-1">Ca Sáng (08:00 - 16:00)</span>
-                </div>
-                <div class="p-4 bg-surface-high rounded-xl border border-outline-variant/60">
-                    <span class="text-xs text-on-surface-variant block font-medium">Tiền đầu ca</span>
-                    <span class="text-sm font-bold text-emerald-600 block mt-1">2,000,000 VNĐ</span>
-                </div>
-            </div>
-
-            <div class="space-y-3">
-                <button class="w-full p-3 bg-surface-high hover:bg-primary/10 text-on-surface border border-outline-variant rounded-xl font-bold text-sm flex items-center justify-between transition-colors cursor-pointer"
-                        @onclick='() => Navigation.NavigateTo("/admin/orders")'>
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-primary">history</span>
-                        <span>Xem Lịch Sử Giao Dịch & Đơn Hàng</span>
-                    </div>
-                    <span class="material-symbols-outlined text-xs">arrow_forward_ios</span>
-                </button>
-
-                <button class="w-full p-3 bg-surface-high hover:bg-primary/10 text-on-surface border border-outline-variant rounded-xl font-bold text-sm flex items-center justify-between transition-colors cursor-pointer"
-                        @onclick='() => Navigation.NavigateTo("/admin/inventory/goods-receipt")'>
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-primary">inventory_2</span>
-                        <span>Kiểm Tra Tồn Kho Nguyên Liệu</span>
-                    </div>
-                    <span class="material-symbols-outlined text-xs">arrow_forward_ios</span>
-                </button>
-            </div>
-
-            <div class="flex justify-end pt-2 border-t border-outline-variant">
-                <button class="px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm cursor-pointer shadow-xs"
-                        @onclick="() => _showCashierToolsModal = false">
-                    Đóng
-                </button>
-            </div>
-        </div>
-    </div>
+    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
+        IsOpen="_showCashierToolsModal" 
+        IsOpenChanged="val => _showCashierToolsModal = val" />
 }
 
 @code {

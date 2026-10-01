@@ -87,7 +87,24 @@ public class PosOrdersController : ControllerBase
         });
     }
 
+    [HttpGet("tables/{tableId}/active-order")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetActiveOrderForTable(int tableId)
+    {
+        var result = await _posOrderService.GetActiveOrderForTableAsync(tableId);
+        if (result == null) return NotFound(new { success = false, message = "Không tìm thấy đơn hàng cho bàn này." });
+
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
     [HttpPost("orders/{id}/approve")]
+    [AllowAnonymous]
     public async Task<IActionResult> ApproveOrder(int id, [FromBody] ApproveOrderRequest? request)
     {
         var success = await _posOrderService.ApproveQrOrderAsync(id, request?.Note);
@@ -116,6 +133,7 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("tables/move")]
+    [AllowAnonymous]
     public async Task<IActionResult> MoveTable([FromBody] MoveTableRequest request)
     {
         try
@@ -161,6 +179,7 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("tables/merge")]
+    [AllowAnonymous]
     public async Task<IActionResult> MergeTables([FromBody] MergeTableRequest request)
     {
         var success = await _posOrderService.MergeTablesAsync(request);
@@ -265,6 +284,7 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("orders/{id}/print-temp-bill")]
+    [AllowAnonymous]
     public async Task<IActionResult> PrintTempBill(int id)
     {
         var success = await _posOrderService.PrintTempBillAsync(id);
@@ -287,6 +307,35 @@ public class PosOrdersController : ControllerBase
         {
             success = true,
             data = new { message = "Đã in tạm tính và chuyển bàn sang trạng thái Chờ thanh toán (Billing)." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost("tables/{id}/clear")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ClearTable(int id)
+    {
+        var success = await _posOrderService.ClearTableAsync(id);
+        if (!success)
+        {
+            return NotFound(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "TABLE_NOT_FOUND",
+                    message = "Không tìm thấy bàn để dọn."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = new { message = "Đã dọn bàn thành công." },
             error = (object?)null,
             timestamp = DateTime.UtcNow
         });

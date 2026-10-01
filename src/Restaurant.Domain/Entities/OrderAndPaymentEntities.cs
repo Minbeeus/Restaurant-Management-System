@@ -48,7 +48,14 @@ public class OrderItem : AuditableEntity
     public DateTime? SentToKitchenAt { get; set; }
     public DateTime? CompletedAt { get; set; }
 
+    // Combo Hierarchy Support
+    public int? ParentItemId { get; set; }
+    public OrderItem? ParentItem { get; set; }
+    public int? ComboGroupId { get; set; }
+    public decimal AdditionalPrice { get; set; } = 0;
+
     public ICollection<OrderItemModifier> OrderItemModifiers { get; set; } = new List<OrderItemModifier>();
+    public ICollection<OrderItem> ChildItems { get; set; } = new List<OrderItem>();
 }
 
 public class Refund : AuditableEntity

@@ -1,5 +1,6 @@
 @using System.Net.Http.Json
 @using Restaurant.Application.DTOs
+@using Microsoft.AspNetCore.SignalR.Client
 @inject HttpClient Http
 
 @if (IsOpen)
@@ -25,11 +26,19 @@
                 <!-- Summary Card -->
                 <div class="bg-surface-low dark:bg-surface-high p-4 rounded-xl border border-outline-variant grid grid-cols-2 gap-4">
                     <div>
-                        <span class="text-xs text-on-surface-variant block">TỔNG TIỀN MÓN</span>
+                        <span class="text-xs text-on-surface-variant block">TẠM TÍNH MÓN</span>
                         <span class="font-bold text-lg text-on-surface">@SubTotal.ToString("N0") đ</span>
                     </div>
                     <div>
-                        <span class="text-xs text-on-surface-variant block">THÀNH TIỀN CẦN THU</span>
+                        <span class="text-xs text-on-surface-variant block">GIẢM GIÁ</span>
+                        <span class="font-bold text-lg text-on-surface">@_totalDiscount.ToString("N0") đ</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-on-surface-variant block">THUẾ VAT (8%)</span>
+                        <span class="font-bold text-lg text-on-surface">@TaxAmount.ToString("N0") đ</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-on-surface-variant block">TỔNG TIỀN CẦN THU</span>
                         <span class="font-bold text-2xl text-primary">@FinalAmount.ToString("N0") đ</span>
                     </div>
                 </div>
@@ -139,6 +148,13 @@
                                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                                 <span class="text-sm text-on-surface-variant font-medium">Đang tạo mã VietQR...</span>
                             }
+                            else if (_isPaymentSuccess)
+                            {
+                                <div class="bg-white p-6 rounded-xl border shadow-md flex flex-col items-center">
+                                    <span class="material-symbols-outlined text-6xl text-success mb-2">check_circle</span>
+                                    <span class="font-bold text-lg text-success">Thanh toán thành công!</span>
+                                </div>
+                            }
                             else if (_qrData != null)
                             {
                                 <div class="bg-white p-3 rounded-xl border shadow-md">
@@ -201,6 +217,9 @@
     [Parameter] public string OrderCode { get; set; } = string.Empty;
     [Parameter] public string TableName { get; set; } = string.Empty;
     [Parameter] public decimal SubTotal { get; set; }
+    [Parameter] public decimal AppliedDiscount { get; set; } = 0m;
+    [Parameter] public int? CustomerId { get; set; }
+    [Parameter] public string? CustomerPhone { get; set; }
     [Parameter] public EventCallback<bool> OnPaymentCompleted { get; set; }
 
     private string _activeTab = "Cash";
@@ -212,9 +231,48 @@
     private VietQrResponse? _qrData;
     private bool _isLoadingQr;
     private string _errorMessage = string.Empty;
+    private bool _isPaymentSuccess = false;
+    private HubConnection? _hubConnection;
 
-    private decimal FinalAmount => Math.Max(0, SubTotal - _discountAmount);
+    private decimal _totalDiscount => _discountAmount + AppliedDiscount;
+    private decimal TaxAmount => Math.Round(Math.Max(0, SubTotal - _totalDiscount) * 0.08m, 0);
+    private decimal FinalAmount => Math.Max(0, SubTotal - _totalDiscount + TaxAmount);
     private decimal ChangeAmount => _cashReceived - FinalAmount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customerPhone = CustomerPhone ?? string.Empty;
+        if (!string.IsNullOrEmpty(_customerPhone))
+        {
+            await SearchCustomerAsync();
+        }
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<int>("OrderPaid", async (orderId) =>
+        {
+            if (orderId == OrderId)
+            {
+                _isPaymentSuccess = true;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(1500);
+                await CloseAsync();
+                await OnPaymentCompleted.InvokeAsync(true);
+            }
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR error: {ex.Message}");
+        }
+    }
 
     protected override void OnParametersSet()
     {
@@ -331,24 +389,31 @@
         _errorMessage = string.Empty;
         try
         {
-            var request = new ProcessCashPaymentRequest
+            if (_activeTab == "Cash")
             {
-                OrderId = OrderId,
-                CashReceived = _cashReceived,
-                CustomerId = _foundCustomer?.Id,
-                VoucherCode = _voucherCode
-            };
+                var request = new ProcessCashPaymentRequest
+                {
+                    OrderId = OrderId,
+                    CashReceived = _cashReceived,
+                    CustomerId = _foundCustomer?.Id ?? CustomerId,
+                    VoucherCode = _voucherCode
+                };
 
-            var res = await Http.PostAsJsonAsync("api/v1/payments/cash", request);
-            if (res.IsSuccessStatusCode)
-            {
-                await CloseAsync();
-                await OnPaymentCompleted.InvokeAsync(true);
+                var res = await Http.PostAsJsonAsync("api/v1/payments/cash", request);
+                if (res.IsSuccessStatusCode)
+                {
+                    await CloseAsync();
+                    await OnPaymentCompleted.InvokeAsync(true);
+                }
+                else
+                {
+                    var err = await res.Content.ReadAsStringAsync();
+                    _errorMessage = $"Thanh toán thất bại: {err}";
+                }
             }
-            else
+            else if (_activeTab == "VietQR")
             {
-                var err = await res.Content.ReadAsStringAsync();
-                _errorMessage = $"Thanh toán thất bại: {err}";
+                _errorMessage = "Vui lòng chờ khách hàng quét mã VietQR và hệ thống xác nhận tự động.";
             }
         }
         catch (Exception ex)
@@ -367,6 +432,14 @@
     {
         IsOpen = false;
         await IsOpenChanged.InvokeAsync(false);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 
     private class ApiResponseWrapper<T>

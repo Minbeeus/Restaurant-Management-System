@@ -281,6 +281,95 @@ namespace Restaurant.Infrastructure.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("Restaurant.Domain.Entities.ComboGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ComboId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MaxSelections")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinSelections")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComboId");
+
+                    b.ToTable("ComboGroups");
+                });
+
+            modelBuilder.Entity("Restaurant.Domain.Entities.ComboItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AdditionalPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("ComboGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ComboId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ComponentType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DefaultQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MenuItemId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComboGroupId");
+
+                    b.HasIndex("ComboId");
+
+                    b.HasIndex("MenuItemId");
+
+                    b.ToTable("ComboItems");
+                });
+
             modelBuilder.Entity("Restaurant.Domain.Entities.Customer", b =>
                 {
                     b.Property<int>("Id")
@@ -470,6 +559,39 @@ namespace Restaurant.Infrastructure.Migrations
                     b.ToTable("InventoryTransactions");
                 });
 
+            modelBuilder.Entity("Restaurant.Domain.Entities.KitchenStation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("KitchenStations");
+                });
+
             modelBuilder.Entity("Restaurant.Domain.Entities.LoyaltyTransaction", b =>
                 {
                     b.Property<int>("Id")
@@ -598,6 +720,9 @@ namespace Restaurant.Infrastructure.Migrations
                     b.Property<bool>("IsSoldOut")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("KitchenStationId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -617,6 +742,8 @@ namespace Restaurant.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("KitchenStationId");
 
                     b.ToTable("MenuItems");
                 });
@@ -832,6 +959,9 @@ namespace Restaurant.Infrastructure.Migrations
                     b.Property<int>("OrderType")
                         .HasColumnType("int");
 
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("int");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -883,6 +1013,12 @@ namespace Restaurant.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("AdditionalPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("ComboGroupId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
@@ -908,11 +1044,17 @@ namespace Restaurant.Infrastructure.Migrations
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ParentItemId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("SentToKitchenAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18,2)");
@@ -925,6 +1067,8 @@ namespace Restaurant.Infrastructure.Migrations
                     b.HasIndex("MenuItemId");
 
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("ParentItemId");
 
                     b.ToTable("OrderItems");
                 });
@@ -1813,6 +1957,43 @@ namespace Restaurant.Infrastructure.Migrations
                     b.Navigation("Shift");
                 });
 
+            modelBuilder.Entity("Restaurant.Domain.Entities.ComboGroup", b =>
+                {
+                    b.HasOne("Restaurant.Domain.Entities.MenuItem", "Combo")
+                        .WithMany("ComboGroups")
+                        .HasForeignKey("ComboId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Combo");
+                });
+
+            modelBuilder.Entity("Restaurant.Domain.Entities.ComboItem", b =>
+                {
+                    b.HasOne("Restaurant.Domain.Entities.ComboGroup", "ComboGroup")
+                        .WithMany("ComboItems")
+                        .HasForeignKey("ComboGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Restaurant.Domain.Entities.MenuItem", "Combo")
+                        .WithMany("ComboItems")
+                        .HasForeignKey("ComboId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Restaurant.Domain.Entities.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Combo");
+
+                    b.Navigation("ComboGroup");
+
+                    b.Navigation("MenuItem");
+                });
+
             modelBuilder.Entity("Restaurant.Domain.Entities.Customer", b =>
                 {
                     b.HasOne("Restaurant.Domain.Entities.CustomerTier", "Tier")
@@ -1925,7 +2106,13 @@ namespace Restaurant.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Restaurant.Domain.Entities.KitchenStation", "KitchenStation")
+                        .WithMany("MenuItems")
+                        .HasForeignKey("KitchenStationId");
+
                     b.Navigation("Category");
+
+                    b.Navigation("KitchenStation");
                 });
 
             modelBuilder.Entity("Restaurant.Domain.Entities.MenuItemModifierGroup", b =>
@@ -2041,9 +2228,16 @@ namespace Restaurant.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Restaurant.Domain.Entities.OrderItem", "ParentItem")
+                        .WithMany("ChildItems")
+                        .HasForeignKey("ParentItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("MenuItem");
 
                     b.Navigation("Order");
+
+                    b.Navigation("ParentItem");
                 });
 
             modelBuilder.Entity("Restaurant.Domain.Entities.OrderItemModifier", b =>
@@ -2317,6 +2511,11 @@ namespace Restaurant.Infrastructure.Migrations
                     b.Navigation("MenuItems");
                 });
 
+            modelBuilder.Entity("Restaurant.Domain.Entities.ComboGroup", b =>
+                {
+                    b.Navigation("ComboItems");
+                });
+
             modelBuilder.Entity("Restaurant.Domain.Entities.Customer", b =>
                 {
                     b.Navigation("LoyaltyTransactions");
@@ -2334,6 +2533,11 @@ namespace Restaurant.Infrastructure.Migrations
                     b.Navigation("GoodsReceiptItems");
                 });
 
+            modelBuilder.Entity("Restaurant.Domain.Entities.KitchenStation", b =>
+                {
+                    b.Navigation("MenuItems");
+                });
+
             modelBuilder.Entity("Restaurant.Domain.Entities.Material", b =>
                 {
                     b.Navigation("GoodsReceiptItems");
@@ -2349,6 +2553,10 @@ namespace Restaurant.Infrastructure.Migrations
 
             modelBuilder.Entity("Restaurant.Domain.Entities.MenuItem", b =>
                 {
+                    b.Navigation("ComboGroups");
+
+                    b.Navigation("ComboItems");
+
                     b.Navigation("MenuItemModifierGroups");
 
                     b.Navigation("Recipe");
@@ -2382,6 +2590,8 @@ namespace Restaurant.Infrastructure.Migrations
 
             modelBuilder.Entity("Restaurant.Domain.Entities.OrderItem", b =>
                 {
+                    b.Navigation("ChildItems");
+
                     b.Navigation("OrderItemModifiers");
                 });
 

@@ -135,4 +135,69 @@ public class KdsServicesTests
         // Assert: SignalR Warning event broadcasted
         _hubClientMock.Verify(c => c.ReceiveKitchenSlaWarning(item.Id, It.Is<int>(mins => mins >= 15)), Times.AtLeastOnce());
     }
+
+    [Fact]
+    public async Task UpdateItemStatus_RevertFromDone_ShouldBeRejected()
+    {
+        // Arrange
+        var order = new Order
+        {
+            OrderCode = "ORD-REVERT",
+            ShiftId = 1,
+            CreatedByUserId = 1,
+            Status = (int)OrderStatus.InPreparation
+        };
+        var item = new OrderItem
+        {
+            Order = order,
+            MenuItemId = 20,
+            MenuItemName = "Lẩu Thái",
+            Quantity = 1,
+            KitchenStatus = (int)KitchenStatus.Done
+        };
+
+        _context.Orders.Add(order);
+        _context.OrderItems.Add(item);
+        await _context.SaveChangesAsync();
+
+        // Act: Attempt to revert Done item to Processing
+        var result = await _kitchenService.UpdateItemStatusAsync(item.Id, (int)KitchenStatus.Processing);
+
+        // Assert: Revert is rejected (returns null)
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetActiveTickets_WithStationFilter_ShouldFilterCorrectly()
+    {
+        // Arrange
+        var station1 = new KitchenStation { Code = "ST1", Name = "Station 1" };
+        var station2 = new KitchenStation { Code = "ST2", Name = "Station 2" };
+        _context.KitchenStations.AddRange(station1, station2);
+
+        var menu1 = new MenuItem { Name = "Pizza", CategoryId = 1, Price = 100, KitchenStation = station1 };
+        var menu2 = new MenuItem { Name = "Soda", CategoryId = 1, Price = 50, KitchenStation = station2 };
+        _context.MenuItems.AddRange(menu1, menu2);
+
+        var order = new Order { OrderCode = "ORD-STATION", ShiftId = 1, CreatedByUserId = 1, Status = (int)OrderStatus.InPreparation };
+        var item1 = new OrderItem { Order = order, MenuItem = menu1, MenuItemName = "Pizza", Quantity = 1, KitchenStatus = (int)KitchenStatus.Pending };
+        var item2 = new OrderItem { Order = order, MenuItem = menu2, MenuItemName = "Soda", Quantity = 1, KitchenStatus = (int)KitchenStatus.Pending };
+
+        _context.Orders.Add(order);
+        _context.OrderItems.AddRange(item1, item2);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var station1Tickets = await _kitchenService.GetActiveTicketsAsync(stationId: station1.Id);
+        var station2Tickets = await _kitchenService.GetActiveTicketsAsync(stationId: station2.Id);
+
+        // Assert
+        Assert.Single(station1Tickets);
+        Assert.Single(station1Tickets[0].Items);
+        Assert.Equal("Pizza", station1Tickets[0].Items[0].MenuItemName);
+
+        Assert.Single(station2Tickets);
+        Assert.Single(station2Tickets[0].Items);
+        Assert.Equal("Soda", station2Tickets[0].Items[0].MenuItemName);
+    }
 }

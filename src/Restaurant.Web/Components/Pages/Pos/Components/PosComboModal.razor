@@ -1,0 +1,274 @@
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Components.UI.Feedback
+@using Restaurant.Web.Components.UI.Buttons
+
+@if (IsOpen)
+{
+    <AppModal Title="@($"Chọn Combo: {ComboDetail?.Name}")" IsOpen="IsOpen" IsOpenChanged="CloseModal">
+        <ChildContent>
+            @if (IsLoading)
+            {
+                <div class="flex justify-center p-8">
+                    <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+                </div>
+            }
+            else if (ComboDetail != null)
+            {
+                <div class="combo-builder">
+                    <p class="text-gray-600 mb-4 font-bold text-lg">Giá: @ComboDetail.Price.ToString("N0")đ</p>
+
+                    @if (ComboDetail.Groups != null && ComboDetail.Groups.Any())
+                    {
+                        @foreach (var group in ComboDetail.Groups.OrderBy(g => g.SortOrder))
+                        {
+                            <div class="mb-4 bg-surface-container-low rounded-lg p-3 border border-outline-variant/30">
+                                <h4 class="font-bold text-base mb-1">
+                                    @group.Name 
+                                    @if(group.IsRequired) { <span class="text-error">*</span> }
+                                </h4>
+                                <div class="flex justify-between items-center mb-3">
+                                    <p class="text-xs text-on-surface-variant">Chọn tối thiểu @group.MinSelections, tối đa @group.MaxSelections</p>
+                                    <p class="text-xs font-bold @(GetGroupSelectedCount(group.Id) >= group.MinSelections ? "text-primary" : "text-error")">
+                                        Đã chọn: @GetGroupSelectedCount(group.Id) / @group.MaxSelections
+                                    </p>
+                                </div>
+                                
+                                @foreach (var opt in group.Items.OrderBy(i => i.SortOrder))
+                                {
+                                    var qty = GetSelectedOptionQuantity(group.Id, opt.MenuItemId);
+                                    <div class="flex items-center justify-between py-2 border-t border-outline-variant/30">
+                                        <div>
+                                            <div class="font-bold text-sm">@opt.MenuItemName</div>
+                                            @if (opt.AdditionalPrice > 0)
+                                            {
+                                                <div class="text-xs text-primary font-bold">Phụ thu: +@opt.AdditionalPrice.ToString("N0")đ</div>
+                                            }
+                                        </div>
+                                        
+                                        <div class="flex items-center gap-3">
+                                            <button class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center hover:bg-surface-high transition-colors" 
+                                                    disabled="@(qty <= 0)" 
+                                                    @onclick="() => DecreaseOption(group, opt)">
+                                                <span class="material-symbols-outlined text-sm" data-icon="remove">remove</span>
+                                            </button>
+                                            <span class="font-bold w-4 text-center">@qty</span>
+                                            <button class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-on-primary transition-colors disabled:opacity-50" 
+                                                    disabled="@(GetGroupSelectedCount(group.Id) >= group.MaxSelections)" 
+                                                    @onclick="() => IncreaseOption(group, opt)">
+                                                <span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-on-surface-variant italic">Combo này chưa cấu hình nhóm tuỳ chọn.</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="p-4 bg-error-container text-on-error-container rounded">Lỗi không tải được dữ liệu Combo.</div>
+            }
+        </ChildContent>
+        <FooterButtons>
+            <div class="flex justify-between w-full">
+                <div class="flex items-center gap-2">
+                    <button class="px-3 py-1 bg-surface-container rounded hover:bg-surface-high transition-colors" disabled="@(Quantity <= 1 || IsProcessing)" @onclick="() => Quantity = Math.Max(1, Quantity - 1)">-</button>
+                    <span class="font-bold w-6 text-center">@Quantity</span>
+                    <button class="px-3 py-1 bg-surface-container rounded hover:bg-surface-high transition-colors" disabled="@IsProcessing" @onclick="() => Quantity++">+</button>
+                </div>
+                <AppButton Variant="Primary" Disabled="!IsValid() || IsProcessing || IsLoading" OnClick="HandleConfirm">
+                    @if (IsProcessing)
+                    {
+                        <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
+                        <span>Đang xử lý...</span>
+                    }
+                    else
+                    {
+                        <span>Thêm vào đơn (@CalculateTotal().ToString("N0")đ)</span>
+                    }
+                </AppButton>
+            </div>
+        </FooterButtons>
+    </AppModal>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public ComboDetailDto? ComboDetail { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public EventCallback<(ComboDetailDto combo, int qty, List<CartComboItemRequest> selectedItems)> OnConfirm { get; set; }
+
+    private int Quantity { get; set; } = 1;
+    private bool IsProcessing { get; set; }
+
+    // State for selections: Dictionary<GroupId, Dictionary<MenuItemId, Quantity>>
+    private Dictionary<int, Dictionary<int, int>> _selections = new();
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && ComboDetail != null && _selections.Count == 0)
+        {
+            Quantity = 1;
+            _selections.Clear();
+            
+            // Khởi tạo state cho các group
+            if (ComboDetail.Groups != null)
+            {
+                foreach (var group in ComboDetail.Groups)
+                {
+                    _selections[group.Id] = new Dictionary<int, int>();
+                    
+                    // Tự động chọn món đầu tiên nếu Require và Max > 0
+                    if (group.IsRequired && group.MinSelections > 0 && group.Items.Any())
+                    {
+                        var firstItem = group.Items.OrderBy(i => i.SortOrder).First();
+                        _selections[group.Id][firstItem.MenuItemId] = group.MinSelections;
+                    }
+                }
+            }
+        }
+    }
+
+    private int GetGroupSelectedCount(int groupId)
+    {
+        if (_selections.TryGetValue(groupId, out var groupSelection))
+        {
+            return groupSelection.Values.Sum();
+        }
+        return 0;
+    }
+
+    private int GetSelectedOptionQuantity(int groupId, int menuItemId)
+    {
+        if (_selections.TryGetValue(groupId, out var groupSelection))
+        {
+            if (groupSelection.TryGetValue(menuItemId, out var qty))
+            {
+                return qty;
+            }
+        }
+        return 0;
+    }
+
+    private void IncreaseOption(ComboGroupDto group, ComboItemDto opt)
+    {
+        if (!_selections.ContainsKey(group.Id))
+        {
+            _selections[group.Id] = new Dictionary<int, int>();
+        }
+
+        var currentSelected = GetGroupSelectedCount(group.Id);
+        if (currentSelected < group.MaxSelections)
+        {
+            var qty = GetSelectedOptionQuantity(group.Id, opt.MenuItemId);
+            _selections[group.Id][opt.MenuItemId] = qty + 1;
+        }
+    }
+
+    private void DecreaseOption(ComboGroupDto group, ComboItemDto opt)
+    {
+        if (_selections.TryGetValue(group.Id, out var groupSelection))
+        {
+            if (groupSelection.TryGetValue(opt.MenuItemId, out var qty) && qty > 0)
+            {
+                groupSelection[opt.MenuItemId] = qty - 1;
+                if (groupSelection[opt.MenuItemId] == 0)
+                {
+                    groupSelection.Remove(opt.MenuItemId);
+                }
+            }
+        }
+    }
+
+    private bool IsValid()
+    {
+        if (ComboDetail == null || ComboDetail.Groups == null) return false;
+
+        foreach (var group in ComboDetail.Groups)
+        {
+            var selectedCount = GetGroupSelectedCount(group.Id);
+            if (group.IsRequired && selectedCount < group.MinSelections) return false;
+            if (selectedCount > group.MaxSelections) return false;
+        }
+
+        return true;
+    }
+
+    private decimal CalculateTotal()
+    {
+        if (ComboDetail == null) return 0;
+        
+        decimal total = ComboDetail.Price;
+        
+        foreach (var group in ComboDetail.Groups)
+        {
+            if (_selections.TryGetValue(group.Id, out var groupSelection))
+            {
+                foreach (var kvp in groupSelection)
+                {
+                    var opt = group.Items.FirstOrDefault(i => i.MenuItemId == kvp.Key);
+                    if (opt != null)
+                    {
+                        total += (opt.AdditionalPrice * kvp.Value);
+                    }
+                }
+            }
+        }
+        return total * Quantity;
+    }
+
+    private async Task HandleConfirm()
+    {
+        if (IsProcessing) return;
+        
+        if (ComboDetail != null && IsValid())
+        {
+            IsProcessing = true;
+            StateHasChanged();
+            
+            try
+            {
+                var selectedItems = new List<CartComboItemRequest>();
+                
+                foreach (var group in ComboDetail.Groups)
+                {
+                    if (_selections.TryGetValue(group.Id, out var groupSelection))
+                    {
+                        foreach (var kvp in groupSelection)
+                        {
+                            var qty = kvp.Value;
+                            if (qty > 0)
+                            {
+                                selectedItems.Add(new CartComboItemRequest
+                                {
+                                    MenuItemId = kvp.Key,
+                                    Quantity = qty
+                                });
+                            }
+                        }
+                    }
+                }
+
+                await OnConfirm.InvokeAsync((ComboDetail, Quantity, selectedItems));
+                await CloseModal();
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+        _selections.Clear();
+    }
+}

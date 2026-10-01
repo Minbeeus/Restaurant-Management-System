@@ -17,6 +17,14 @@ public class LoyaltyController : ControllerBase
         _loyaltyService = loyaltyService;
     }
 
+    [HttpGet("customers")]
+    [AllowAnonymous] // For Admin UI access simplicity in this phase
+    public async Task<IActionResult> GetCustomers()
+    {
+        var customers = await _loyaltyService.GetAllCustomersAsync();
+        return Ok(customers);
+    }
+
     [HttpGet("customers/by-phone/{phoneNumber}")]
     public async Task<IActionResult> GetCustomerByPhone(string phoneNumber)
     {

@@ -16,10 +16,13 @@ public class ApplicationDbContext : DbContext
     public DbSet<Area> Areas => Set<Area>();
     public DbSet<Table> Tables => Set<Table>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<ModifierGroup> ModifierGroups => Set<ModifierGroup>();
     public DbSet<ModifierOption> ModifierOptions => Set<ModifierOption>();
     public DbSet<MenuItemModifierGroup> MenuItemModifierGroups => Set<MenuItemModifierGroup>();
+    public DbSet<ComboGroup> ComboGroups => Set<ComboGroup>();
+    public DbSet<ComboItem> ComboItems => Set<ComboItem>();
 
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
