@@ -69,26 +69,39 @@
                     <div class="space-y-2 pb-3 border-b border-dashed border-black/40 mb-3 text-[11px]">
                         @foreach (var item in OrderData.Items)
                         {
-                            <div>
-                                <div class="grid grid-cols-12 font-bold">
-                                    <div class="col-span-6 leading-tight">@item.MenuItemName</div>
-                                    <div class="col-span-2 text-center">@item.Quantity</div>
-                                    <div class="col-span-4 text-right">@item.TotalPrice.ToString("N0")đ</div>
-                                </div>
-                                <div class="text-[10px] text-gray-600">
-                                    Đơn giá: @item.UnitPrice.ToString("N0")đ
-                                    @if (item.DiscountAmount > 0)
+                            @if (item.IsComboChild)
+                            {
+                                <div class="pl-3 py-0.5 text-gray-700 flex justify-between items-center text-[10px]">
+                                    <span class="italic font-medium">+ @item.Quantity x @item.MenuItemName</span>
+                                    @if (item.TotalPrice > 0)
                                     {
-                                        <span> (-@item.DiscountAmount.ToString("N0")đ)</span>
+                                        <span class="text-gray-600">+@item.TotalPrice.ToString("N0")đ</span>
                                     }
                                 </div>
-                                @if (item.Modifiers != null && item.Modifiers.Any())
-                                {
-                                    <div class="text-[10px] text-gray-500 italic pl-2">
-                                        + @string.Join(", ", item.Modifiers)
+                            }
+                            else
+                            {
+                                <div>
+                                    <div class="grid grid-cols-12 font-bold">
+                                        <div class="col-span-6 leading-tight">@item.MenuItemName</div>
+                                        <div class="col-span-2 text-center">@item.Quantity</div>
+                                        <div class="col-span-4 text-right">@item.TotalPrice.ToString("N0")đ</div>
                                     </div>
-                                }
-                            </div>
+                                    <div class="text-[10px] text-gray-600">
+                                        Đơn giá: @item.UnitPrice.ToString("N0")đ
+                                        @if (item.DiscountAmount > 0)
+                                        {
+                                            <span> (-@item.DiscountAmount.ToString("N0")đ)</span>
+                                        }
+                                    </div>
+                                    @if (item.Modifiers != null && item.Modifiers.Any())
+                                    {
+                                        <div class="text-[10px] text-gray-500 italic pl-2">
+                                            + @string.Join(", ", item.Modifiers)
+                                        </div>
+                                    }
+                                </div>
+                            }
                         }
                     </div>
 

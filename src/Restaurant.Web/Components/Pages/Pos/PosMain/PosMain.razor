@@ -9,7 +9,18 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
 
-<div class="flex flex-col h-full bg-background overflow-hidden">
+@if (IsComboBuilderActive)
+{
+    <PosComboBuilder
+        ComboDetail="SelectedComboDetail"
+        IsLoading="IsComboLoading"
+        AllMenuItems="AllMenuItems"
+        OnConfirm="HandleConfirmCombo"
+        OnCancel="HandleCancelComboBuilder" />
+}
+else
+{
+    <div class="flex flex-col h-full bg-background overflow-hidden">
     <!-- Dedicated Action Menu Toolbar for Order Placement (No Top Nav) -->
     <header class="h-14 bg-surface border-b border-outline-variant px-4 flex items-center justify-between shrink-0 shadow-xs z-30 select-none">
         <!-- Left: Table / Order Info -->
@@ -52,9 +63,16 @@
 
             <!-- 3. In hóa đơn -->
             <button class="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled="@(CartItems == null || !CartItems.Any())"
+                    disabled="@(CartItems == null || !CartItems.Any() || IsProcessing)"
                     @onclick="HandlePrintPreBill">
-                <span class="material-symbols-outlined text-[20px] text-amber-600 dark:text-amber-400">print</span>
+                @if (IsProcessing)
+                {
+                    <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></span>
+                }
+                else
+                {
+                    <span class="material-symbols-outlined text-[20px] text-amber-600 dark:text-amber-400">print</span>
+                }
                 <span>In Hóa Đơn</span>
             </button>
 
@@ -82,18 +100,20 @@
         </div>
     </header>
 
-    <!-- Main Workspace -->
+    <!-- Main Workspace: Strict 30% Left Cart / 70% Right Menu or Modify Area -->
     <div class="flex flex-1 overflow-hidden">
-        <!-- Cart Left Section -->
-        <div class="w-[380px] lg:w-[420px] bg-surface border-r border-outline-variant flex flex-col shrink-0">
+        <!-- Cart Left Section (Strict ~30% Width - Always visible!) -->
+        <div class="w-[30%] min-w-[320px] max-w-[440px] bg-surface border-r border-outline-variant flex flex-col shrink-0 shadow-xs z-20">
             <OrderCart 
                 Items="CartItems" 
+                SelectedItemId="@EditingCartItemId"
                 TableName="@CurrentTableName"
                 OrderCode="@CurrentOrderCode"
                 IsTakeaway="IsTakeaway"
                 AppliedDiscount="AppliedDiscountAmount"
                 OnQuantityChanged="HandleCartQuantityChanged"
                 OnItemRemoved="HandleCartItemRemoved"
+                OnItemClicked="HandleCartItemClicked"
                 OnItemVoidRequested="HandleItemVoidRequested"
                 OnSendToKitchen="HandleSendToKitchenAsync"
                 OnPrintPreBill="HandlePrintPreBill"
@@ -101,58 +121,225 @@
                 OnMergeTable="HandleMergeTable" />
         </div>
 
-        <!-- Menu Right Section -->
-        <div class="flex-1 bg-surface-low p-4 flex flex-col overflow-hidden">
-            @if (!string.IsNullOrEmpty(ToastMessage))
+        <!-- Right Section (Strict ~70% Width): Menu Grid OR In-place Modify Option Builder -->
+        <div class="flex-1 bg-surface-low flex flex-col overflow-hidden">
+            @if (IsOptionBuilderActive && SelectedItemDetail != null)
             {
-                <div class="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-4 py-2.5 mb-3 rounded-xl font-bold text-xs flex items-center justify-between shadow-2xs">
-                    <span>@ToastMessage</span>
-                    <button class="text-xs border border-emerald-500/40 px-2 py-0.5 rounded-lg hover:bg-emerald-500/10 cursor-pointer"
-                            @onclick="() => ToastMessage = string.Empty">Đóng</button>
-                </div>
+                <!-- TRẠNG THÁI B — Chỉnh sửa món trong khu vực 70% bên phải -->
+                <PosOptionBuilder
+                    Item="SelectedItemDetail"
+                    ModifierGroups="SelectedModifierGroups"
+                    InitialSelectedModifiers="@(CartItems?.FirstOrDefault(i => i.Id == EditingCartItemId)?.SelectedModifiers)"
+                    OnSave="HandleSaveModifyItem"
+                    OnCancel="HandleCancelModifyItem" />
             }
+            else
+            {
+                <!-- TRẠNG THÁI A — Menu & Categories (Bố cục 35:65 theo chiều dọc bên trong khu vực Menu ~70% bên phải) -->
+                <div class="flex-1 p-3 flex flex-col overflow-hidden gap-2">
+                    @if (!string.IsNullOrEmpty(ToastMessage))
+                    {
+                        <div class="fixed top-5 right-5 z-50 max-w-md bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-emerald-500 pointer-events-auto">
+                            <span class="material-symbols-outlined text-lg shrink-0">check_circle</span>
+                            <span class="text-xs font-bold flex-1 leading-snug">@ToastMessage</span>
+                            <button class="text-white/80 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer"
+                                    @onclick="() => ToastMessage = string.Empty">✕</button>
+                        </div>
+                    }
 
-            @if (ShowAlert)
-            {
-                <div class="bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-4 py-2.5 mb-3 rounded-xl font-bold text-xs flex items-center justify-between shadow-2xs">
-                    <span>CÓ ĐƠN HÀNG MỚI TỪ QR! BÀN @NewOrderTableName</span>
-                    <button class="text-xs border border-amber-500/40 px-2 py-0.5 rounded-lg hover:bg-amber-500/10 cursor-pointer"
-                            @onclick="() => ShowAlert = false">Đóng</button>
+                    @if (ShowAlert)
+                    {
+                        <div class="fixed top-5 left-1/2 -translate-x-1/2 z-50 max-w-md bg-amber-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-amber-500 pointer-events-auto">
+                            <span class="material-symbols-outlined text-lg shrink-0">notifications_active</span>
+                            <span class="text-xs font-black flex-1 uppercase">CÓ ĐƠN HÀNG MỚI TỪ QR! BÀN @NewOrderTableName</span>
+                            <button class="text-white/80 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer"
+                                    @onclick="() => ShowAlert = false">✕</button>
+                        </div>
+                    }
+
+                    <!-- PHẦN TRÊN 35%: Danh mục món & Tìm kiếm (Lưới 5 cột thẳng hàng, bằng nhau) -->
+                    <div class="h-[35%] min-h-[190px] flex flex-col shrink-0 bg-surface rounded-2xl border border-outline-variant p-3 md:p-3.5 shadow-2xs select-none gap-2.5 justify-between">
+                        <!-- Toolbar hàng 1: Tìm kiếm -->
+                        <div class="flex items-center justify-between gap-3 shrink-0">
+                            <div class="relative flex items-center flex-1 max-w-lg">
+                                <span class="material-symbols-outlined text-lg absolute left-3 text-on-surface-variant pointer-events-none">search</span>
+                                <input type="text"
+                                       value="@SearchQuery"
+                                       @oninput="e => HandleSearchQueryChanged(e.Value?.ToString() ?? string.Empty)"
+                                       @onkeydown="HandleSearchKeyDown"
+                                       placeholder="Tìm nhanh món ăn (F2 hoặc /)..."
+                                       class="w-full pl-9 pr-3 py-2 text-xs md:text-sm font-medium bg-surface-high border border-outline-variant rounded-xl text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-2xs" />
+                                @if (!string.IsNullOrEmpty(SearchQuery))
+                                {
+                                    <button class="absolute right-2.5 text-on-surface-variant hover:text-on-surface text-xs font-bold"
+                                            @onclick="() => SearchQuery = string.Empty">✕</button>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Hàng 2: Lưới Danh mục (Mỗi hàng 5 thẻ, thẳng cột, độ rộng bằng nhau) -->
+                        <div class="flex-1 overflow-y-auto pr-1">
+                            <div class="grid grid-cols-5 gap-2.5 w-full">
+                                @foreach (var cat in Categories)
+                                {
+                                    bool isCatActive = ActiveCategoryId == cat.Id;
+                                    <button class="w-full py-2.5 px-3 rounded-xl text-xs md:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-2 shadow-2xs truncate text-center @(isCatActive ? "bg-primary text-on-primary ring-2 ring-primary/40 shadow-sm scale-[1.02]" : "bg-surface-high text-on-surface hover:bg-surface-high/80 border border-outline-variant/60")"
+                                            @onclick="() => HandleCategoryChanged(cat.Id)"
+                                            title="@cat.DisplayName">
+                                        <span class="material-symbols-outlined text-base md:text-lg shrink-0">@GetCategoryIcon(cat.Name)</span>
+                                        <span class="truncate">@GetCleanCategoryName(cat.DisplayName)</span>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PHẦN DƯỚI: Chọn cấu hình Pizza HOẶC Chọn vị bánh / Món ăn (Thẻ text thuần) -->
+                    <div class="flex-1 overflow-y-auto min-h-0 flex flex-col bg-surface/50 rounded-2xl border border-outline-variant/60 p-3 md:p-3.5 shadow-2xs">
+                        @if (IsActiveCategoryPizza && !IsPizzaConfigSelected && string.IsNullOrWhiteSpace(SearchQuery))
+                        {
+                            <!-- TRẠNG THÁI 1: BƯỚC 1 — CHỌN CỠ VÀ ĐẾ BÁNH PIZZA (BẤM THẺ ĐỂ CHỌN, KHÔNG GIÁ, KHÔNG MÔ TẢ) -->
+                            <div class="flex flex-col h-full overflow-y-auto">
+                                <!-- Header Bước 1 gọn gàng -->
+                                <div class="flex items-center justify-between pb-2 mb-3 border-b border-outline-variant/60 shrink-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-xl text-primary">local_pizza</span>
+                                        <div>
+                                            <h2 class="text-xs md:text-sm font-black uppercase text-on-surface tracking-wide">
+                                                Bước 1: Chọn Kích Thước & Kiểu Đế Pizza
+                                            </h2>
+                                            <p class="text-[11px] text-on-surface-variant font-medium">
+                                                Bấm vào thẻ bên dưới để chuyển sang chọn vị bánh
+                                            </p>
+                                        </div>
+                                    </div>
+                                    @if (SelectedPizzaConfig != null)
+                                    {
+                                        <span class="text-xs text-on-surface-variant font-bold">
+                                            Đã chọn: <span class="text-primary font-black">@SelectedPizzaConfig.Label</span>
+                                        </span>
+                                    }
+                                </div>
+
+                                <!-- Grid các card cấu hình Cỡ - Đế bánh: 5 cột bằng với danh mục, độ rộng tràn viền w-full -->
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-4 w-full">
+                                    @foreach (var config in PizzaConfigurations)
+                                    {
+                                        bool isSelected = SelectedPizzaConfig?.Id == config.Id;
+                                        <button class="w-full p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-center items-center text-center shadow-2xs group min-h-[85px] @(isSelected ? "bg-primary/10 border-primary ring-2 ring-primary/40 shadow-sm" : "bg-surface hover:bg-surface-high border-outline-variant hover:border-primary/50")"
+                                                @onclick="() => SelectPizzaConfig(config)">
+                                            <span class="px-2.5 py-1 mb-2 rounded-lg text-[11px] font-black uppercase tracking-wider @(isSelected ? "bg-primary text-on-primary" : "bg-surface-high text-on-surface-variant border border-outline-variant/50")">
+                                                @(config.SizeName.Contains("Nhỏ") ? "20cm - Nhỏ" : config.SizeName.Contains("Vừa") ? "25cm - Vừa" : "30cm - Lớn")
+                                            </span>
+                                            <h3 class="text-xs md:text-sm font-black text-on-surface group-hover:text-primary transition-colors leading-snug">
+                                                @config.CrustName
+                                            </h3>
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- TRẠNG THÁI 2: BƯỚC 2 — CHỌN VỊ PIZZA (HOẶC DANH SÁCH MÓN CHO DANH MỤC KHÁC / TÌM KIẾM) -->
+                            <div class="flex flex-col h-full overflow-hidden">
+                                <!-- Header Thanh điều hướng / Đổi cấu hình -->
+                                <div class="flex items-center justify-between pb-3 mb-3 border-b border-outline-variant/60 shrink-0">
+                                    @if (!string.IsNullOrWhiteSpace(SearchQuery))
+                                    {
+                                        <div class="flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-xl text-primary">search</span>
+                                            <span class="text-xs md:text-sm font-black uppercase text-on-surface tracking-wide">
+                                                Tìm kiếm: "@SearchQuery"
+                                            </span>
+                                            <span class="text-xs text-on-surface-variant font-medium">(@(FilteredMenuItems.Count) món)</span>
+                                        </div>
+                                    }
+                                    else if (IsActiveCategoryPizza)
+                                    {
+                                        <div class="flex items-center gap-3">
+                                            <button class="px-3.5 py-2 bg-surface-high hover:bg-surface-high/80 text-on-surface border border-outline-variant rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs hover:border-primary"
+                                                    @onclick="HandleBackToConfigSelection">
+                                                <span class="material-symbols-outlined text-base">arrow_back</span>
+                                                <span>Đổi Cỡ & Đế Bánh</span>
+                                            </button>
+
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-black uppercase text-on-surface tracking-wide">
+                                                    Bước 2: Chọn Vị Pizza
+                                                </span>
+                                                <span class="text-xs px-2.5 py-1 rounded-xl bg-primary text-on-primary font-bold shadow-2xs">
+                                                    @(SelectedPizzaConfig?.Label ?? "Mặc định")
+                                                    @if (SelectedPizzaConfig != null && SelectedPizzaConfig.ExtraPrice > 0)
+                                                    {
+                                                        <span class="ml-1 opacity-90">(+@SelectedPizzaConfig.ExtraPrice.ToString("N0")đ)</span>
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span class="text-[11px] text-on-surface-variant font-medium hidden sm:inline">
+                                            Bấm vào vị bánh để thêm ngay vào giỏ hàng
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs md:text-sm font-black uppercase text-on-surface tracking-wide">
+                                                Danh Sách Món • @ActiveCategoryName
+                                            </span>
+                                            <span class="text-xs text-on-surface-variant font-medium">(@(FilteredMenuItems.Count) món)</span>
+                                        </div>
+                                    }
+                                </div>
+
+                                <!-- Lưới thẻ món ăn (70%) -->
+                                <div class="flex-1 overflow-y-auto min-h-0">
+                                    @if (IsMenuLoading)
+                                    {
+                                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-6 w-full animate-pulse">
+                                            @for (int i = 0; i < 10; i++)
+                                            {
+                                                <div class="bg-surface rounded-xl p-3.5 border border-outline-variant/50 flex flex-col justify-between h-24 w-full">
+                                                    <div>
+                                                        <div class="h-3.5 bg-surface-high rounded w-3/4 mb-2"></div>
+                                                    </div>
+                                                    <div class="h-4 bg-surface-high rounded w-1/3"></div>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else if (IsMenuLoadingError)
+                                    {
+                                        <div class="flex flex-col items-center justify-center h-full text-center p-8">
+                                            <div class="w-16 h-16 rounded-full bg-error/10 text-error flex items-center justify-center mb-4">
+                                                <span class="material-symbols-outlined text-3xl">cloud_off</span>
+                                            </div>
+                                            <h3 class="text-base font-extrabold text-on-surface mb-2">Không thể tải danh sách món</h3>
+                                            <p class="text-xs text-on-surface-variant mb-4">Đã xảy ra lỗi khi kết nối máy chủ.</p>
+                                            <button class="px-4 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+                                                    @onclick="OnInitializedAsync">
+                                                Thử lại
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <MenuGrid 
+                                            Items="FilteredMenuItems"
+                                            ShowImage="false"
+                                            ExtraPriceForConfig="@(IsActiveCategoryPizza ? (SelectedPizzaConfig?.ExtraPrice ?? 0m) : 0m)"
+                                            OnItemClicked="HandleMenuItemClicked" />
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
                 </div>
             }
-            
-            <CategoryTabs 
-                Categories="Categories"
-                ActiveCategoryId="ActiveCategoryId"
-                ShowImages="ShowImages"
-                SearchQuery="@SearchQuery"
-                SearchQueryChanged="HandleSearchQueryChanged"
-                OnSearchEnterPressed="HandleSearchEnterPressed"
-                OnCategoryChanged="HandleCategoryChanged"
-                OnImageToggleChanged="HandleImageToggle" />
-                
-            <div class="flex-1 overflow-y-auto pt-2">
-                <MenuGrid 
-                    Items="FilteredMenuItems"
-                    ShowImage="ShowImages"
-                    OnItemClicked="HandleMenuItemClicked" />
-            </div>
         </div>
     </div>
 </div>
-
-<!-- Modals -->
-<ComboBuilderModal 
-    @bind-IsOpen="ShowModifierModal"
-    MenuItem="SelectedItemDetail"
-    ModifierGroups="SelectedModifierGroups"
-    OnConfirm="HandleConfirmModifier" />
-
-<PosComboModal
-    @bind-IsOpen="ShowComboModal"
-    ComboDetail="SelectedComboDetail"
-    IsLoading="IsComboLoading"
-    OnConfirm="HandleConfirmCombo" />
+}
 
 
 

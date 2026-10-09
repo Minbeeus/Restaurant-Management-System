@@ -131,7 +131,7 @@ public static class DbInitializer
             var categories = new List<Category>
             {
                 new Category { Name = "Khai vị (Appetizers)", NameEn = "Appetizers", Description = "Món ăn nhẹ khởi đầu bữa tiệc", DescriptionEn = "Light appetizers to start your meal", SortOrder = 1, IsActive = true },
-                new Category { Name = "Pizza Ý Thượng hạng", NameEn = "Premium Italian Pizza", Description = "Pizza nướng lò củi bột ủ 48 giờ", DescriptionEn = "Wood-fired pizza with 48h fermented dough", SortOrder = 2, IsActive = true },
+                new Category { Name = "Pizza Truyền Thống", NameEn = "Pizza", Description = "Pizza nướng lò củi bột ủ 48 giờ", DescriptionEn = "Wood-fired pizza with 48h fermented dough", SortOrder = 2, IsActive = true },
                 new Category { Name = "Mì Ý (Pasta)", NameEn = "Italian Pasta", Description = "Mì Ý tươi xào sốt truyền thống", DescriptionEn = "Fresh pasta tossed in traditional sauces", SortOrder = 3, IsActive = true },
                 new Category { Name = "Đồ uống & Tráng miệng", NameEn = "Drinks & Desserts", Description = "Trà tươi, Cà phê & Bánh ngọt Ý", DescriptionEn = "Fresh tea, coffee & Italian desserts", SortOrder = 4, IsActive = true },
                 new Category { Name = "Combo Ưu đãi", NameEn = "Special Combos", Description = "Set đồ ăn tiết kiệm cho gia đình & nhóm", DescriptionEn = "Value meal sets for families & groups", SortOrder = 5, IsActive = true }
@@ -374,5 +374,8 @@ public static class DbInitializer
         }
 
         await context.SaveChangesAsync();
+
+        // 13. Pizza Restaurant Complete Sample Data (POS + KDS + Combo + Inventory + BOM)
+        await SampleDataSeeder.SeedSampleRestaurantDataAsync(context);
     }
 }

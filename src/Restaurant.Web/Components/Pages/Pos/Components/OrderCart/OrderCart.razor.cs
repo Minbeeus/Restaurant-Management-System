@@ -6,6 +6,7 @@ namespace Restaurant.Web.Components.Pages.Pos.Components.OrderCart;
 public class OrderCartItemLocal
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public int? OrderItemId { get; set; }
     public int MenuItemId { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
@@ -16,6 +17,7 @@ public class OrderCartItemLocal
     public List<string>? ComboItemNames { get; set; }
     public string? Note { get; set; }
     public bool IsSentToKitchen { get; set; } = false;
+    public bool NeedsConfiguration { get; set; } = false;
 }
 
 public partial class OrderCart
@@ -23,6 +25,7 @@ public partial class OrderCart
     [Parameter] public string TableName { get; set; } = "Mang về";
     [Parameter] public string OrderCode { get; set; } = "#NEW";
     [Parameter] public List<OrderCartItemLocal> Items { get; set; } = new();
+    [Parameter] public string? SelectedItemId { get; set; }
     [Parameter] public bool IsTakeaway { get; set; } = false;
     [Parameter] public decimal AppliedDiscount { get; set; } = 0m;
     

@@ -7,6 +7,7 @@ using Restaurant.Application.Common;
 namespace Restaurant.WebAPI.Controllers;
 
 [Route("api/v1/[controller]")]
+[Route("api/v1/combos")]
 [ApiController]
 [Authorize]
 public class ComboController : ControllerBase
@@ -39,26 +40,63 @@ public class ComboController : ControllerBase
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Create([FromBody] CreateComboRequest request)
     {
-        var combo = await _comboService.CreateComboAsync(request);
-        return CreatedAtAction(nameof(GetById), new { id = combo.Id }, combo);
+        try
+        {
+            var combo = await _comboService.CreateComboAsync(request);
+            return StatusCode(StatusCodes.Status201Created, combo);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = $"Lỗi xử lý hệ thống: {ex.Message}" });
+        }
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateComboRequest request)
     {
-        var combo = await _comboService.UpdateComboAsync(id, request);
-        if (combo == null) return NotFound();
-        return Ok(combo);
+        try
+        {
+            var combo = await _comboService.UpdateComboAsync(id, request);
+            if (combo == null) return NotFound(new { message = "Không tìm thấy Combo." });
+            return Ok(combo);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = $"Lỗi xử lý hệ thống: {ex.Message}" });
+        }
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(int id)
     {
-        var success = await _comboService.DeleteComboAsync(id);
-        if (!success) return NotFound();
-        return NoContent();
+        try
+        {
+            var success = await _comboService.DeleteComboAsync(id);
+            if (!success) return NotFound(new { message = "Không tìm thấy Combo." });
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = $"Lỗi khi xóa Combo: {ex.Message}" });
+        }
     }
 
     [HttpPatch("{id}/toggle-status")]

@@ -302,6 +302,122 @@ public class PosOrderService : IPosOrderService
                 }
             }
 
+            // 0. Pre-validate all items and combo child items before mutating DB or creating Order
+            foreach (var itemReq in request.Items)
+            {
+                var m = await _context.MenuItems.FirstOrDefaultAsync(x => x.Id == itemReq.MenuItemId);
+                if (m == null || !m.IsActive)
+                {
+                    throw new InvalidOperationException($"Món ăn (ID: {itemReq.MenuItemId}) không tồn tại hoặc đã ngừng phục vụ.");
+                }
+
+                if (itemReq.Quantity <= 0)
+                {
+                    throw new InvalidOperationException($"Số lượng món '{m.Name}' phải lớn hơn 0.");
+                }
+
+                if (m.IsCombo)
+                {
+                    if (itemReq.SelectedComboItems == null || !itemReq.SelectedComboItems.Any())
+                    {
+                        throw new InvalidOperationException($"Combo '{m.Name}' yêu cầu phải chọn các món thành phần.");
+                    }
+
+                    // 1. Validate all combo child items first (existence, association, active state, not nested)
+                    var resolvedComboItems = new List<(CartComboItemRequest Req, ComboItem DbCi)>();
+                    foreach (var comboReq in itemReq.SelectedComboItems)
+                    {
+                        if (comboReq.Quantity <= 0)
+                        {
+                            throw new InvalidOperationException($"Số lượng món thành phần trong Combo '{m.Name}' phải lớn hơn 0.");
+                        }
+
+                        ComboItem? dbCi = null;
+                        if (comboReq.ComboItemId > 0)
+                        {
+                            dbCi = await _context.ComboItems
+                                .Include(ci => ci.MenuItem)
+                                .FirstOrDefaultAsync(ci => ci.Id == comboReq.ComboItemId);
+
+                            if (dbCi == null || dbCi.ComboId != m.Id)
+                            {
+                                throw new InvalidOperationException($"Món thành phần (ComboItemId: {comboReq.ComboItemId}) không tồn tại hoặc không thuộc Combo '{m.Name}'.");
+                            }
+                        }
+                        else
+                        {
+                            dbCi = await _context.ComboItems
+                                .Include(ci => ci.MenuItem)
+                                .FirstOrDefaultAsync(ci => ci.ComboId == m.Id && ci.MenuItemId == comboReq.MenuItemId);
+
+                            if (dbCi == null)
+                            {
+                                throw new InvalidOperationException($"Món (MenuItemId: {comboReq.MenuItemId}) không thuộc cấu hình của Combo '{m.Name}'.");
+                            }
+                        }
+
+                        if (dbCi.MenuItem == null || !dbCi.MenuItem.IsActive)
+                        {
+                            throw new InvalidOperationException($"Món thành phần '{dbCi.MenuItem?.Name ?? comboReq.MenuItemId.ToString()}' trong combo không tồn tại hoặc đã ngừng phục vụ.");
+                        }
+
+                        if (dbCi.MenuItem.IsCombo)
+                        {
+                            throw new InvalidOperationException($"Không được phép lồng Combo '{dbCi.MenuItem.Name}' bên trong Combo '{m.Name}'.");
+                        }
+
+                        // Auto-fill ComboGroupId and ComboItemId if omitted
+                        if (!comboReq.ComboGroupId.HasValue && dbCi.ComboGroupId.HasValue)
+                        {
+                            comboReq.ComboGroupId = dbCi.ComboGroupId;
+                        }
+                        if (comboReq.ComboItemId <= 0)
+                        {
+                            comboReq.ComboItemId = dbCi.Id;
+                        }
+
+                        resolvedComboItems.Add((comboReq, dbCi));
+                    }
+
+                    // Check for duplicate combo child selections
+                    var childItemKeys = new HashSet<(int? GroupId, int MenuItemId)>();
+                    foreach (var (cReq, _) in resolvedComboItems)
+                    {
+                        if (!childItemKeys.Add((cReq.ComboGroupId, cReq.MenuItemId)))
+                        {
+                            throw new InvalidOperationException($"Món ăn (MenuItemId: {cReq.MenuItemId}) bị chọn trùng lặp trong cùng một nhóm của Combo '{m.Name}'.");
+                        }
+                    }
+
+                    // 2. Group-level validation: MinSelections, MaxSelections, IsRequired
+                    var comboEntity = await _context.MenuItems
+                        .Include(c => c.ComboGroups)
+                            .ThenInclude(g => g.ComboItems)
+                        .Include(c => c.ComboItems)
+                        .FirstOrDefaultAsync(c => c.Id == m.Id);
+
+                    if (comboEntity != null && comboEntity.ComboGroups.Any())
+                    {
+                        foreach (var group in comboEntity.ComboGroups)
+                        {
+                            var selectedInGroup = resolvedComboItems
+                                .Where(x => x.Req.ComboGroupId == group.Id || x.DbCi.ComboGroupId == group.Id)
+                                .Sum(x => x.Req.Quantity);
+
+                            if (group.IsRequired && selectedInGroup < group.MinSelections)
+                            {
+                                throw new InvalidOperationException($"Nhóm '{group.Name}' trong Combo '{m.Name}' yêu cầu chọn ít nhất {group.MinSelections} món (đã chọn: {selectedInGroup}).");
+                            }
+
+                            if (group.MaxSelections > 0 && selectedInGroup > group.MaxSelections)
+                            {
+                                throw new InvalidOperationException($"Nhóm '{group.Name}' trong Combo '{m.Name}' chỉ được chọn tối đa {group.MaxSelections} món (đã chọn: {selectedInGroup}).");
+                            }
+                        }
+                    }
+                }
+            }
+
             Order? activeOrder = null;
             if (table != null)
             {
@@ -376,10 +492,16 @@ public class PosOrderService : IPosOrderService
             
             foreach (var itemReq in request.Items)
             {
-                if (itemReq.Quantity <= 0) continue;
-
                 var menuItem = await _context.MenuItems.FirstOrDefaultAsync(m => m.Id == itemReq.MenuItemId);
-                if (menuItem == null) continue;
+                if (menuItem == null || !menuItem.IsActive)
+                {
+                    throw new InvalidOperationException($"Món ăn (ID: {itemReq.MenuItemId}) không tồn tại hoặc đã ngừng phục vụ.");
+                }
+
+                if (itemReq.Quantity <= 0)
+                {
+                    throw new InvalidOperationException($"Số lượng món '{menuItem.Name}' phải lớn hơn 0.");
+                }
                 
                 decimal baseUnitPrice = menuItem.Price;
                 var selectedOptions = new List<ModifierOption>();
@@ -406,6 +528,7 @@ public class PosOrderService : IPosOrderService
 
                 decimal finalUnitPrice = Math.Max(0, baseUnitPrice - itemDiscount);
 
+                // Step 1: Create Combo Header (or standard item)
                 var orderItem = new OrderItem
                 {
                     OrderId = targetOrder.Id,
@@ -415,7 +538,7 @@ public class PosOrderService : IPosOrderService
                     DiscountAmount = itemDiscount * itemReq.Quantity,
                     Quantity = itemReq.Quantity,
                     Note = itemReq.Note,
-                    KitchenStatus = menuItem.IsCombo ? (int)KitchenStatus.Done : (int)KitchenStatus.Pending,
+                    KitchenStatus = (int)KitchenStatus.Pending, // Do not mark Done prematurely
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -444,22 +567,52 @@ public class PosOrderService : IPosOrderService
                     await _context.SaveChangesAsync();
                 }
 
-                // Handle Combo Items
-                if (menuItem.IsCombo && itemReq.SelectedComboItems != null && itemReq.SelectedComboItems.Any())
+                // Step 2: Handle Combo Items
+                if (menuItem.IsCombo)
                 {
-                    var comboItemIds = itemReq.SelectedComboItems.Select(c => c.ComboItemId).ToList();
-                    var dbComboItems = await _context.ComboItems
-                        .Include(ci => ci.MenuItem)
-                        .Where(ci => comboItemIds.Contains(ci.Id))
-                        .ToListAsync();
+                    if (itemReq.SelectedComboItems == null || !itemReq.SelectedComboItems.Any())
+                    {
+                        throw new InvalidOperationException($"Combo '{menuItem.Name}' yêu cầu phải chọn các món thành phần.");
+                    }
 
                     foreach (var comboReq in itemReq.SelectedComboItems)
                     {
-                        var dbCi = dbComboItems.FirstOrDefault(c => c.Id == comboReq.ComboItemId);
-                        if (dbCi == null || dbCi.MenuItem == null) continue;
+                        if (comboReq.Quantity <= 0)
+                        {
+                            throw new InvalidOperationException($"Số lượng món thành phần trong Combo '{menuItem.Name}' phải lớn hơn 0.");
+                        }
+
+                        ComboItem? dbCi = null;
+                        if (comboReq.ComboItemId > 0)
+                        {
+                            dbCi = await _context.ComboItems
+                                .Include(ci => ci.MenuItem)
+                                .FirstOrDefaultAsync(ci => ci.Id == comboReq.ComboItemId);
+
+                            if (dbCi == null || dbCi.ComboId != menuItem.Id)
+                            {
+                                throw new InvalidOperationException($"Món thành phần (ComboItemId: {comboReq.ComboItemId}) không tồn tại hoặc không thuộc Combo '{menuItem.Name}'.");
+                            }
+                        }
+                        else
+                        {
+                            // Fallback by MenuItemId within this Combo
+                            dbCi = await _context.ComboItems
+                                .Include(ci => ci.MenuItem)
+                                .FirstOrDefaultAsync(ci => ci.ComboId == menuItem.Id && ci.MenuItemId == comboReq.MenuItemId);
+
+                            if (dbCi == null)
+                            {
+                                throw new InvalidOperationException($"Món (MenuItemId: {comboReq.MenuItemId}) không thuộc cấu hình của Combo '{menuItem.Name}'.");
+                            }
+                        }
+
+                        if (dbCi.MenuItem == null || !dbCi.MenuItem.IsActive)
+                        {
+                            throw new InvalidOperationException($"Món thành phần '{dbCi.MenuItem?.Name ?? comboReq.MenuItemId.ToString()}' trong combo không tồn tại hoặc đã ngừng phục vụ.");
+                        }
 
                         var childUnitPrice = dbCi.AdditionalPrice; 
-                        // Note: If child item has modifiers, add them to childUnitPrice
                         var childSelectedOptions = new List<ModifierOption>();
                         if (comboReq.SelectedModifiers != null && comboReq.SelectedModifiers.Any())
                         {
@@ -507,8 +660,6 @@ public class PosOrderService : IPosOrderService
                             await _context.SaveChangesAsync();
                         }
 
-                        // We only add the sub-item additional price to subtotal. 
-                        // The base price is already captured in parent orderItem.
                         addedSubTotal += (childUnitPrice * comboReq.Quantity * itemReq.Quantity);
                     }
                 }
@@ -550,7 +701,12 @@ public class PosOrderService : IPosOrderService
                         Note = oi.Note,
                         KitchenStatus = oi.KitchenStatus,
                         KitchenStatusName = "Pending",
-                        Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList()
+                        Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList(),
+                        ParentItemId = oi.ParentItemId,
+                        ParentItemName = oi.ParentItemId.HasValue ? targetOrder.OrderItems.FirstOrDefault(p => p.Id == oi.ParentItemId.Value)?.MenuItemName : null,
+                        IsComboHeader = false,
+                        ComboGroupId = oi.ComboGroupId,
+                        KitchenStationId = oi.MenuItem?.KitchenStationId
                     }).ToList()
                 };
 
@@ -696,9 +852,112 @@ public class PosOrderService : IPosOrderService
                 Quantity = oi.Quantity,
                 UnitPrice = oi.UnitPrice,
                 Note = oi.Note,
+                ParentItemId = oi.ParentItemId,
+                ComboGroupId = oi.ComboGroupId,
+                Status = oi.Status,
                 Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList(),
                 ModifierIds = oi.OrderItemModifiers.Select(m => m.ModifierOptionId).ToList()
             }).ToList()
         };
+    }
+
+    public async Task<bool> VoidOrderItemAsync(int orderId, int orderItemId, string reason, int userId)
+    {
+        var order = await _context.Orders
+            .Include(o => o.OrderItems)
+            .Include(o => o.Table)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+
+        if (order == null || order.Status == (int)OrderStatus.Completed || order.Status == (int)OrderStatus.Cancelled)
+        {
+            return false;
+        }
+
+        var targetItem = order.OrderItems.FirstOrDefault(oi => oi.Id == orderItemId);
+        if (targetItem == null || targetItem.Status == (int)OrderItemStatus.Voided)
+        {
+            return false;
+        }
+
+        var executionStrategy = _context.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var utcNow = DateTime.UtcNow;
+                var voidReason = string.IsNullOrWhiteSpace(reason) ? "Hủy món từ POS" : reason;
+
+                // 1. Mark target item as voided
+                targetItem.Status = (int)OrderItemStatus.Voided;
+                _context.VoidLogs.Add(new VoidLog
+                {
+                    OrderId = order.Id,
+                    OrderItemId = targetItem.Id,
+                    MenuItemId = targetItem.MenuItemId,
+                    MenuItemName = targetItem.MenuItemName,
+                    Quantity = targetItem.Quantity,
+                    UnitPrice = targetItem.UnitPrice,
+                    Reason = voidReason,
+                    VoidByUserId = userId,
+                    CreatedAt = utcNow
+                });
+
+                var voidedItems = new List<OrderItem> { targetItem };
+
+                // 2. If target item is a Combo Header (ParentItemId == null), void all its child items
+                if (targetItem.ParentItemId == null)
+                {
+                    var children = order.OrderItems.Where(oi => oi.ParentItemId == targetItem.Id && oi.Status != (int)OrderItemStatus.Voided).ToList();
+                    foreach (var child in children)
+                    {
+                        child.Status = (int)OrderItemStatus.Voided;
+                        _context.VoidLogs.Add(new VoidLog
+                        {
+                            OrderId = order.Id,
+                            OrderItemId = child.Id,
+                            MenuItemId = child.MenuItemId,
+                            MenuItemName = child.MenuItemName,
+                            Quantity = child.Quantity,
+                            UnitPrice = child.UnitPrice,
+                            Reason = $"Hủy theo Combo Header #{targetItem.Id} ({voidReason})",
+                            VoidByUserId = userId,
+                            CreatedAt = utcNow
+                        });
+                        voidedItems.Add(child);
+                    }
+                }
+
+                // 3. Recalculate Order SubTotal and TotalAmount
+                order.SubTotal = order.OrderItems
+                    .Where(oi => oi.Status != (int)OrderItemStatus.Voided)
+                    .Sum(oi => oi.UnitPrice * oi.Quantity);
+
+                order.TotalAmount = Math.Max(0, order.SubTotal - order.DiscountAmount);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // 4. Send SignalR Notifications
+                int tableId = order.TableId ?? 0;
+                foreach (var vItem in voidedItems)
+                {
+                    await _notificationService.NotifyOrderItemStatusChangedAsync(
+                        tableId,
+                        order.Id,
+                        vItem.Id,
+                        (int)vItem.KitchenStatus,
+                        "Voided"
+                    );
+                }
+
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 }

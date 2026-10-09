@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Restaurant.Application.Interfaces;
+using Restaurant.Domain.Common;
 using Restaurant.Infrastructure.Hubs;
 
 namespace Restaurant.Infrastructure.Services;
@@ -28,6 +29,10 @@ public class RestaurantNotificationService : IRestaurantNotificationService
         await _hubContext.Clients.Group(RestaurantHub.CashiersGroup)
             .ReceiveItemStatusUpdate(orderItemId, kitchenStatusName, orderId);
 
+        // Broadcast to Chefs Group (so KDS receives Cancel/Void events in real-time)
+        await _hubContext.Clients.Group(RestaurantHub.ChefsGroup)
+            .ReceiveItemStatusUpdate(orderItemId, kitchenStatusName, orderId);
+
         // Broadcast to specific Table Group
         await _hubContext.Clients.Group($"TableGroup_{tableId}")
             .ReceiveOrderItemStatusChanged(tableId, orderId, orderItemId, kitchenStatus, kitchenStatusName);
@@ -47,8 +52,35 @@ public class RestaurantNotificationService : IRestaurantNotificationService
 
     public async Task NotifyKitchenTicketAsync(Application.DTOs.KitchenTicketDto ticket)
     {
+        // Broadcast to general Chefs group
         await _hubContext.Clients.Group(RestaurantHub.ChefsGroup)
             .ReceiveKitchenTicket(ticket);
+
+        // Also route sub-tickets or tickets to specific station groups if items specify KitchenStationId
+        var stationIds = ticket.Items
+            .Where(i => i.KitchenStationId.HasValue)
+            .Select(i => i.KitchenStationId!.Value)
+            .Distinct()
+            .ToList();
+
+        foreach (var sId in stationIds)
+        {
+            var stationItems = ticket.Items.Where(i => i.KitchenStationId == sId || (i.ParentItemId.HasValue && ticket.Items.Any(p => p.OrderItemId == i.ParentItemId && p.KitchenStationId == sId))).ToList();
+            if (stationItems.Any())
+            {
+                var stationTicket = new Application.DTOs.KitchenTicketDto
+                {
+                    OrderId = ticket.OrderId,
+                    OrderCode = ticket.OrderCode,
+                    TableId = ticket.TableId,
+                    TableName = ticket.TableName,
+                    CreatedAt = ticket.CreatedAt,
+                    Items = stationItems
+                };
+                await _hubContext.Clients.Group(SystemConstants.SignalRGroups.StationGroup(sId))
+                    .ReceiveKitchenTicket(stationTicket);
+            }
+        }
     }
 
     public async Task NotifyLowStockWarningAsync(int materialId, string materialName, decimal currentStock, decimal minStockLevel)

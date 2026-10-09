@@ -52,6 +52,7 @@ public class CartComboItemRequest
     public int MenuItemId { get; set; }
     public int Quantity { get; set; }
     public decimal AdditionalPrice { get; set; }
+    public int? ComboGroupId { get; set; }
     public List<int> SelectedModifiers { get; set; } = new();
     public string? Note { get; set; }
 }

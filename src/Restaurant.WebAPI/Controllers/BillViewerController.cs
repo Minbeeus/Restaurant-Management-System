@@ -60,4 +60,25 @@ public class BillViewerController : ControllerBase
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    [HttpGet("/api/pos/orders")]
+    [HttpGet("/api/v1/orders")]
+    public async Task<IActionResult> GetOrdersHistory([FromQuery] string? search)
+    {
+        try
+        {
+            var req = new BillQueryRequest
+            {
+                SearchKeyword = search,
+                Page = 1,
+                PageSize = 200
+            };
+            var data = await _billViewerService.QueryBillsAsync(req);
+            return Ok(data);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
 }

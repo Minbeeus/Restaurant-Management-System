@@ -161,7 +161,7 @@ public class MenuApiClient
     {
         await SetAuthorizationHeaderAsync();
         var response = await _httpClient.PostAsJsonAsync("/api/v1/combos", request);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessWithDetailAsync(response);
         return await response.Content.ReadFromJsonAsync<ComboDetailDto>();
     }
 
@@ -169,7 +169,7 @@ public class MenuApiClient
     {
         await SetAuthorizationHeaderAsync();
         var response = await _httpClient.PutAsJsonAsync($"/api/v1/combos/{id}", request);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessWithDetailAsync(response);
         return await response.Content.ReadFromJsonAsync<ComboDetailDto>();
     }
 
@@ -178,5 +178,33 @@ public class MenuApiClient
         await SetAuthorizationHeaderAsync();
         var response = await _httpClient.DeleteAsync($"/api/v1/combos/{id}");
         return response.IsSuccessStatusCode;
+    }
+
+    private async Task EnsureSuccessWithDetailAsync(HttpResponseMessage response)
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            try
+            {
+                var errorObj = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                if (errorObj.TryGetProperty("message", out var msgProp) && !string.IsNullOrWhiteSpace(msgProp.GetString()))
+                {
+                    throw new InvalidOperationException(msgProp.GetString());
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch
+            {
+                var errorStr = await response.Content.ReadAsStringAsync();
+                if (!string.IsNullOrWhiteSpace(errorStr))
+                {
+                    throw new InvalidOperationException(errorStr);
+                }
+            }
+            response.EnsureSuccessStatusCode();
+        }
     }
 }

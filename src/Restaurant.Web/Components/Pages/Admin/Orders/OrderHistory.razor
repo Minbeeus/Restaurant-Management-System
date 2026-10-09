@@ -3,12 +3,20 @@
 @layout Restaurant.Web.Components.Layout.AdminLayout
 @using Restaurant.Application.DTOs
 @using Restaurant.Web.Services
+@using Restaurant.Web.Components.Pages.Pos.Components
 @inject AdminApiClient ApiClient
 
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
     <div>
         <h2 class="text-2xl font-headline-sm text-primary m-0">@L["Order_History_Title"]</h2>
         <p class="text-on-surface-variant text-sm mt-1">@L["Order_Sub"]</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <button class="px-4 py-2 bg-surface-container-high hover:bg-surface-variant text-on-surface rounded-xl text-sm font-bold border border-outline-variant/60 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                @onclick="LoadData" title="Tải lại danh sách đơn hàng">
+            <span class="material-symbols-outlined text-base">refresh</span>
+            <span>Làm mới</span>
+        </button>
     </div>
 </div>
 
@@ -19,21 +27,24 @@
         <input type="text" @bind="_searchKeyword" @bind:event="oninput" class="w-full pl-9 pr-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary text-sm" placeholder="@L["Order_Search_Placeholder"]" />
     </div>
     
-    <div class="w-full md:w-48 shrink-0">
+    <div class="w-full md:w-56 shrink-0">
         <select @bind="_filterStatus" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary cursor-pointer">
             <option value="">@L["MenuItem_Filter_All_Status"]</option>
-            <option value="Paid">@L["Order_Status_Paid"]</option>
-            <option value="Completed">@L["Order_Status_Completed"]</option>
-            <option value="Confirmed">@L["Order_Status_Confirmed"]</option>
-            <option value="Cancelled">@L["Order_Status_Cancelled"]</option>
+            <option value="Paid">Đã thanh toán (Paid)</option>
+            <option value="Completed">Hoàn thành (Completed)</option>
+            <option value="Ready">Sẵn sàng (Ready)</option>
+            <option value="InPreparation">Đang chuẩn bị</option>
+            <option value="Pending">Chờ xử lý (Pending)</option>
+            <option value="Cancelled">Đã hủy (Cancelled)</option>
         </select>
     </div>
 </div>
 
 @if (_isLoading)
 {
-    <div class="flex justify-center p-12">
-        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    <div class="flex flex-col items-center justify-center p-16">
+        <span class="material-symbols-outlined animate-spin text-5xl text-primary mb-3" data-icon="progress_activity">progress_activity</span>
+        <p class="text-sm font-bold text-on-surface-variant">Đang tải lịch sử đơn hàng...</p>
     </div>
 }
 else
@@ -54,7 +65,10 @@ else
                 @if (!FilteredOrders.Any())
                 {
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-on-surface-variant">@L["Order_No_Orders"]</td>
+                        <td colspan="6" class="p-10 text-center text-on-surface-variant">
+                            <span class="material-symbols-outlined text-4xl text-on-surface-variant/40 block mb-2">receipt_long</span>
+                            <span class="font-bold text-sm">@L["Order_No_Orders"]</span>
+                        </td>
                     </tr>
                 }
                 @foreach (var order in FilteredOrders)
@@ -63,30 +77,40 @@ else
                         <td class="p-4 font-mono font-bold text-primary">@order.OrderCode</td>
                         <td class="p-4">
                             <div class="font-bold text-on-surface">@order.TableName</div>
-                            <div class="text-xs text-on-surface-variant">@order.TableAreaName • @(order.OrderType == "DineIn" ? L["Order_DineIn"] : L["Order_Takeaway"])</div>
+                            <div class="text-xs text-on-surface-variant">
+                                @(string.IsNullOrEmpty(order.TableAreaName) ? "Khu vực chung" : order.TableAreaName) • @(order.OrderType == "Takeaway" ? "Mang về" : "Tại bàn")
+                            </div>
                         </td>
                         <td class="p-4 text-center text-sm text-on-surface-variant font-mono">@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
                         <td class="p-4 text-right font-mono font-bold text-base text-primary">@order.TotalAmount.ToString("N0")đ</td>
                         <td class="p-4 text-center">
-                            @if (order.Status == "Paid")
+                            @if (IsStatusEqual(order, "Paid", "Đã thanh toán"))
                             {
-                                <span class="px-2.5 py-1 bg-success-green/10 text-success-green rounded-full text-xs font-bold border border-success-green/20">@L["Order_Status_Paid"]</span>
+                                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">Đã thanh toán</span>
                             }
-                            else if (order.Status == "Completed")
+                            else if (IsStatusEqual(order, "Completed", "Hoàn thành"))
                             {
-                                <span class="px-2.5 py-1 bg-secondary-container/40 text-secondary rounded-full text-xs font-bold border border-secondary/20">@L["Order_Badge_KitchenDone"]</span>
+                                <span class="px-2.5 py-1 bg-secondary-container/40 text-secondary rounded-full text-xs font-bold border border-secondary/20">Hoàn thành</span>
                             }
-                            else if (order.Status == "Cancelled")
+                            else if (IsStatusEqual(order, "Ready", "Sẵn sàng"))
                             {
-                                <span class="px-2.5 py-1 bg-error-container text-error rounded-full text-xs font-bold border border-error/20">@L["Order_Status_Cancelled"]</span>
+                                <span class="px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-full text-xs font-bold border border-blue-500/20">Sẵn sàng</span>
+                            }
+                            else if (IsStatusEqual(order, "InPreparation", "Đang chuẩn bị"))
+                            {
+                                <span class="px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-full text-xs font-bold border border-amber-500/20">Đang chuẩn bị</span>
+                            }
+                            else if (IsStatusEqual(order, "Cancelled", "Đã hủy"))
+                            {
+                                <span class="px-2.5 py-1 bg-error-container text-error rounded-full text-xs font-bold border border-error/20">Đã hủy</span>
                             }
                             else
                             {
-                                <span class="px-2.5 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-bold">@order.Status</span>
+                                <span class="px-2.5 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-bold">@order.DisplayStatus</span>
                             }
                         </td>
                         <td class="p-4 text-center">
-                            <button class="px-3 py-1.5 bg-primary-container text-on-primary-container rounded text-xs font-bold hover:bg-primary/20 transition-colors" @onclick="() => ViewOrderDetails(order)">
+                            <button class="px-3 py-1.5 bg-primary-container text-on-primary-container rounded-lg text-xs font-bold hover:bg-primary/20 transition-colors cursor-pointer" @onclick="() => ViewOrderDetails(order)">
                                 @L["Order_Details_Btn"]
                             </button>
                         </td>
@@ -97,41 +121,217 @@ else
     </div>
 }
 
-<!-- Modal Order Details -->
+<!-- Modal Order Details (TOÀN BỘ HÓA ĐƠN) -->
 @if (_showDetailsModal && _selectedOrder != null)
 {
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
-                <div>
-                    <h3 class="font-bold text-on-background m-0">@string.Format(L["Order_Details_Title"], _selectedOrder.OrderCode)</h3>
-                    <p class="text-xs text-on-surface-variant mt-0.5">@_selectedOrder.TableName (@_selectedOrder.TableAreaName)</p>
+    <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+        <div class="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-outline-variant flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-outline-variant/40 flex justify-between items-center bg-surface-container-low shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary text-2xl">receipt_long</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-black text-lg text-on-surface m-0 leading-tight">Chi tiết Hóa đơn @_selectedOrder.OrderCode</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-black @GetStatusBadgeClass(_selectedOrder)">
+                                @_selectedOrder.DisplayStatus
+                            </span>
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-0.5">
+                            @_selectedOrder.TableName (@(string.IsNullOrEmpty(_selectedOrder.TableAreaName) ? "Khu vực chung" : _selectedOrder.TableAreaName)) • @(_selectedOrder.OrderType == "Takeaway" ? "Mang về" : "Tại bàn")
+                        </p>
+                    </div>
                 </div>
-                <button class="text-on-surface-variant hover:text-error" @onclick="CloseDetailsModal">
-                    <span class="material-symbols-outlined" data-icon="close">close</span>
+                <button class="text-on-surface-variant hover:text-error p-1 rounded-lg hover:bg-surface-high transition-colors cursor-pointer" @onclick="CloseDetailsModal">
+                    <span class="material-symbols-outlined text-xl" data-icon="close">close</span>
                 </button>
             </div>
 
-            <div class="p-6 space-y-4">
-                <div class="bg-surface-low p-3 rounded border border-outline-variant/30 space-y-2 text-sm">
-                    <div class="flex justify-between"><span class="text-on-surface-variant">@L["Order_Subtotal_Label"]</span><span class="font-mono font-bold">@_selectedOrder.SubTotal.ToString("N0")đ</span></div>
-                    <div class="flex justify-between"><span class="text-on-surface-variant">@L["Order_Discount_Label"]</span><span class="font-mono text-error">-0đ</span></div>
-                    <div class="flex justify-between pt-2 border-t border-outline-variant/30 font-bold text-base"><span class="text-on-surface">@L["Order_Total_Label"]</span><span class="font-mono text-primary">@_selectedOrder.TotalAmount.ToString("N0")đ</span></div>
+            <!-- Body (Scrollable Full Invoice Details) -->
+            <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                <!-- 1. Metadata Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-surface-low p-3.5 rounded-xl border border-outline-variant/40 text-xs">
+                    <div>
+                        <span class="text-on-surface-variant block text-[11px] font-bold uppercase">Thời gian</span>
+                        <span class="font-bold text-on-surface font-mono">@_selectedOrder.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                    <div>
+                        <span class="text-on-surface-variant block text-[11px] font-bold uppercase">Thu ngân</span>
+                        <span class="font-bold text-on-surface">@(string.IsNullOrEmpty(_selectedOrder.CashierName) ? "Thu ngân" : _selectedOrder.CashierName)</span>
+                    </div>
+                    <div>
+                        <span class="text-on-surface-variant block text-[11px] font-bold uppercase">Khách hàng</span>
+                        <span class="font-bold text-on-surface truncate block" title="@_selectedOrder.CustomerName">
+                            @(string.IsNullOrEmpty(_selectedOrder.CustomerName) ? "Khách lẻ" : _selectedOrder.CustomerName)
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-on-surface-variant block text-[11px] font-bold uppercase">Thanh toán</span>
+                        <span class="font-bold text-emerald-600 dark:text-emerald-400">@_selectedOrder.PaymentMethodName</span>
+                    </div>
                 </div>
 
-                <div class="text-xs text-on-surface-variant">
-                    @L["Order_Audit_Note"]
+                <!-- 2. Danh sách toàn bộ món ăn trong hóa đơn -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-black text-xs uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[15px] text-primary">restaurant_menu</span>
+                            <span>Danh sách món ăn trong hóa đơn (@_selectedOrder.Items.Count)</span>
+                        </h4>
+                    </div>
+
+                    <div class="border border-outline-variant/60 rounded-xl overflow-hidden bg-surface">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead class="bg-surface-container-low border-b border-outline-variant/40 text-on-surface-variant uppercase font-bold text-[11px]">
+                                <tr>
+                                    <th class="p-3 w-10 text-center">#</th>
+                                    <th class="p-3">Tên Món</th>
+                                    <th class="p-3 text-center w-16">SL</th>
+                                    <th class="p-3 text-right w-24">Đơn Giá</th>
+                                    <th class="p-3 text-right w-28">Thành Tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-outline-variant/30">
+                                @if (!_selectedOrder.Items.Any())
+                                {
+                                    <tr>
+                                        <td colspan="5" class="p-6 text-center text-on-surface-variant italic">
+                                            Không có chi tiết từng món cho đơn hàng này.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    var index = 1;
+                                    @foreach (var item in _selectedOrder.Items)
+                                    {
+                                        var isChild = item.IsComboChild || item.ParentItemId.HasValue;
+                                        <tr class="@(isChild ? "bg-surface-low/60" : "hover:bg-surface-low/30") transition-colors">
+                                            <td class="p-3 text-center font-mono text-on-surface-variant">
+                                                @(isChild ? "" : (index++).ToString())
+                                            </td>
+                                            <td class="p-3">
+                                                <div class="flex items-start gap-1.5">
+                                                    @if (isChild)
+                                                    {
+                                                        <span class="material-symbols-outlined text-[14px] text-primary/70 shrink-0 mt-0.5 ml-2">subdirectory_arrow_right</span>
+                                                        <div class="text-on-surface-variant font-medium">
+                                                            <span>@item.MenuItemName</span>
+                                                            @if (!string.IsNullOrEmpty(item.Note))
+                                                            {
+                                                                <span class="block text-[11px] text-on-surface-variant/70 italic">Ghi chú: @item.Note</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div>
+                                                            <span class="font-bold text-on-surface text-sm">@item.MenuItemName</span>
+                                                            @if (!string.IsNullOrEmpty(item.Note))
+                                                            {
+                                                                <span class="block text-[11px] text-on-surface-variant/70 italic">Ghi chú: @item.Note</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+
+                                                @if (item.Modifiers != null && item.Modifiers.Any())
+                                                {
+                                                    <div class="text-[11px] text-primary mt-0.5 ml-4 flex flex-wrap gap-1">
+                                                        @foreach (var mod in item.Modifiers)
+                                                        {
+                                                            <span class="px-1.5 py-0.2 bg-primary/10 rounded font-semibold">+ @mod</span>
+                                                        }
+                                                    </div>
+                                                }
+                                            </td>
+                                            <td class="p-3 text-center font-mono font-bold text-on-surface">
+                                                ×@item.Quantity
+                                            </td>
+                                            <td class="p-3 text-right font-mono text-on-surface-variant">
+                                                @if (item.UnitPrice > 0)
+                                                {
+                                                    <span>@item.UnitPrice.ToString("N0")đ</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-emerald-600 font-bold text-[11px]">Bao gồm</span>
+                                                }
+                                            </td>
+                                            <td class="p-3 text-right font-mono font-bold @(item.TotalPrice > 0 ? "text-primary" : "text-on-surface-variant")">
+                                                @(item.TotalPrice > 0 ? $"{item.TotalPrice:N0}đ" : "0đ")
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. Chi tiết Tổng kết Tài chính -->
+                <div class="bg-surface-low p-4 rounded-xl border border-outline-variant/40 space-y-2 text-xs">
+                    <div class="flex justify-between items-center text-on-surface-variant">
+                        <span>@L["Order_Subtotal_Label"]</span>
+                        <span class="font-mono font-bold text-on-surface text-sm">@_selectedOrder.SubTotal.ToString("N0") ₫</span>
+                    </div>
+
+                    @if (_selectedOrder.DiscountAmount > 0)
+                    {
+                        <div class="flex justify-between items-center text-error">
+                            <span>@L["Order_Discount_Label"]</span>
+                            <span class="font-mono font-bold">-@_selectedOrder.DiscountAmount.ToString("N0") ₫</span>
+                        </div>
+                    }
+
+                    <div class="flex justify-between items-baseline pt-2.5 border-t border-outline-variant/50 font-bold">
+                        <span class="text-sm font-black text-on-surface uppercase">@L["Order_Total_Label"]</span>
+                        <span class="font-mono font-black text-xl text-primary">@_selectedOrder.TotalAmount.ToString("N0") ₫</span>
+                    </div>
+
+                    @if (_selectedOrder.CashReceived > 0 && _selectedOrder.PaymentMethodName == "Tiền Mặt")
+                    {
+                        <div class="flex justify-between items-center pt-2 border-t border-outline-variant/30 text-[11px] text-on-surface-variant">
+                            <span>Tiền khách đưa:</span>
+                            <span class="font-mono font-bold text-on-surface">@_selectedOrder.CashReceived.ToString("N0") ₫</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] text-on-surface-variant">
+                            <span>Tiền thừa thối lại:</span>
+                            <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">@_selectedOrder.ChangeAmount.ToString("N0") ₫</span>
+                        </div>
+                    }
+                </div>
+
+                <!-- 4. Ghi chú Audit -->
+                <div class="text-[11px] text-on-surface-variant/80 italic flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[13px] text-primary">verified</span>
+                    <span>@L["Order_Audit_Note"]</span>
                 </div>
             </div>
 
-            <div class="px-6 py-4 border-t border-outline-variant/30 flex justify-end gap-2 bg-surface-container-low">
-                <button class="px-4 py-2 border border-outline text-on-surface rounded text-sm font-bold hover:bg-surface-low" @onclick="CloseDetailsModal">@L["Common_Close"]</button>
-                <button class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-bold shadow-sm hover:bg-primary/90 flex items-center" @onclick="PrintInvoice">
-                    <span class="material-symbols-outlined text-sm mr-1" data-icon="print">print</span> @L["Order_Print_Invoice"]
+            <!-- Footer Buttons -->
+            <div class="px-6 py-4 border-t border-outline-variant/40 flex justify-end gap-3 bg-surface-container-low shrink-0">
+                <button class="px-5 py-2.5 border border-outline text-on-surface rounded-xl text-sm font-bold hover:bg-surface-low transition-colors cursor-pointer"
+                        @onclick="CloseDetailsModal">
+                    @L["Common_Close"]
+                </button>
+                <button class="px-6 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-bold shadow-sm hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer transition-all active:scale-98"
+                        @onclick="PrintInvoice">
+                    <span class="material-symbols-outlined text-base" data-icon="print">print</span>
+                    <span>@L["Order_Print_Invoice"]</span>
                 </button>
             </div>
         </div>
     </div>
+}
+
+<!-- Thermal K80 Receipt Modal Preview -->
+@if (_showK80Modal && _selectedOrderK80 != null)
+{
+    <K80ReceiptModal
+        IsOpen="_showK80Modal"
+        IsOpenChanged="val => _showK80Modal = val"
+        OrderData="_selectedOrderK80" />
 }
 
 @code {
@@ -143,11 +343,16 @@ else
     private OrderDto? _selectedOrder;
     private bool _showDetailsModal = false;
 
+    private K80ReceiptDto? _selectedOrderK80;
+    private bool _showK80Modal = false;
+
     private IEnumerable<OrderDto> FilteredOrders => _orders
         .Where(o => string.IsNullOrWhiteSpace(_searchKeyword) 
                  || o.OrderCode.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)
-                 || o.TableName.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase))
-        .Where(o => string.IsNullOrWhiteSpace(_filterStatus) || o.Status == _filterStatus);
+                 || o.TableName.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)
+                 || (o.CustomerName != null && o.CustomerName.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase))
+                 || (o.CustomerPhone != null && o.CustomerPhone.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)))
+        .Where(o => string.IsNullOrWhiteSpace(_filterStatus) || MatchesFilterStatus(o, _filterStatus));
 
     protected override async Task OnInitializedAsync()
     {
@@ -157,6 +362,7 @@ else
     private async Task LoadData()
     {
         _isLoading = true;
+        StateHasChanged();
         try
         {
             _orders = await ApiClient.GetOrderHistoryAsync();
@@ -164,6 +370,7 @@ else
         finally
         {
             _isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -175,8 +382,76 @@ else
 
     private void CloseDetailsModal() => _showDetailsModal = false;
 
-    private void PrintInvoice()
+    private async Task PrintInvoice()
     {
-        // Print action handler
+        if (_selectedOrder == null) return;
+
+        // Try to fetch official K80 receipt format from BE
+        var k80Data = await ApiClient.GetOrderK80ReceiptAsync(_selectedOrder.DisplayId);
+        if (k80Data != null)
+        {
+            _selectedOrderK80 = k80Data;
+        }
+        else
+        {
+            // Construct from current order details
+            _selectedOrderK80 = new K80ReceiptDto
+            {
+                OrderCode = _selectedOrder.OrderCode,
+                CreatedAt = _selectedOrder.CreatedAt,
+                TableName = _selectedOrder.TableName,
+                CashierName = string.IsNullOrEmpty(_selectedOrder.CashierName) ? "Thu ngân" : _selectedOrder.CashierName,
+                CustomerName = string.IsNullOrEmpty(_selectedOrder.CustomerName) ? "Khách lẻ" : _selectedOrder.CustomerName,
+                CustomerPhone = _selectedOrder.CustomerPhone,
+                SubTotal = _selectedOrder.SubTotal,
+                DiscountAmount = _selectedOrder.DiscountAmount,
+                TotalAmount = _selectedOrder.TotalAmount,
+                PaymentMethod = _selectedOrder.PaymentMethodName,
+                CashReceived = _selectedOrder.CashReceived,
+                Items = _selectedOrder.Items.Select(i => new K80ReceiptItemDto
+                {
+                    MenuItemName = i.MenuItemName,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    DiscountAmount = i.DiscountAmount,
+                    IsComboChild = i.IsComboChild || i.ParentItemId.HasValue,
+                    Modifiers = i.Modifiers
+                }).ToList()
+            };
+        }
+
+        _showK80Modal = true;
+    }
+
+    private bool MatchesFilterStatus(OrderDto o, string statusFilter)
+    {
+        if (string.IsNullOrWhiteSpace(statusFilter)) return true;
+
+        var status = o.DisplayStatus.ToLower();
+        var filter = statusFilter.ToLower();
+
+        return status.Contains(filter) ||
+            (filter == "paid" && (status.Contains("paid") || status.Contains("đã thanh toán"))) ||
+            (filter == "completed" && (status.Contains("completed") || status.Contains("hoàn thành"))) ||
+            (filter == "ready" && (status.Contains("ready") || status.Contains("sẵn sàng"))) ||
+            (filter == "inpreparation" && (status.Contains("chuẩn bị") || status.Contains("inpreparation"))) ||
+            (filter == "pending" && (status.Contains("pending") || status.Contains("chờ xử lý"))) ||
+            (filter == "cancelled" && (status.Contains("cancelled") || status.Contains("đã hủy") || status.Contains("huỷ")));
+    }
+
+    private bool IsStatusEqual(OrderDto o, string enStatus, string viStatus)
+    {
+        var current = o.DisplayStatus.ToLower();
+        return current.Contains(enStatus.ToLower()) || current.Contains(viStatus.ToLower());
+    }
+
+    private string GetStatusBadgeClass(OrderDto o)
+    {
+        if (IsStatusEqual(o, "Paid", "Đã thanh toán")) return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20";
+        if (IsStatusEqual(o, "Completed", "Hoàn thành")) return "bg-secondary-container/40 text-secondary border border-secondary/20";
+        if (IsStatusEqual(o, "Ready", "Sẵn sàng")) return "bg-blue-500/10 text-blue-600 border border-blue-500/20";
+        if (IsStatusEqual(o, "InPreparation", "Đang chuẩn bị")) return "bg-amber-500/10 text-amber-600 border border-amber-500/20";
+        if (IsStatusEqual(o, "Cancelled", "Đã hủy")) return "bg-error-container text-error border border-error/20";
+        return "bg-surface-variant text-on-surface-variant";
     }
 }

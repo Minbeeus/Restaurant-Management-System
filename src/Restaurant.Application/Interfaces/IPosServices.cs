@@ -14,6 +14,7 @@ public interface IPosOrderService
     Task<List<TakeawayOrderDto>> GetTakeawayOrdersAsync();
     Task<TakeawayOrderDto?> GetTakeawayOrderByIdAsync(int orderId);
     Task<TakeawayOrderDto?> GetActiveOrderForTableAsync(int tableId);
+    Task<bool> VoidOrderItemAsync(int orderId, int orderItemId, string reason, int userId);
 }
 
 public interface IShiftService

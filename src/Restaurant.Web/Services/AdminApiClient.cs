@@ -119,13 +119,59 @@ public class AdminApiClient
     {
         try
         {
-            var result = await _httpClient.GetFromJsonAsync<List<OrderDto>>("api/pos/orders");
-            return result ?? new List<OrderDto>();
+            var result = await _httpClient.GetFromJsonAsync<List<BillDetailDto>>("api/pos/orders");
+            if (result != null)
+            {
+                return result.Select(b => new OrderDto
+                {
+                    Id = b.OrderId,
+                    OrderId = b.OrderId,
+                    OrderCode = b.OrderCode,
+                    TableName = b.TableName,
+                    TableAreaName = b.TableAreaName,
+                    SubTotal = b.SubTotal,
+                    DiscountAmount = b.DiscountAmount,
+                    TotalAmount = b.TotalAmount,
+                    Status = b.OrderStatusName,
+                    OrderStatusName = b.OrderStatusName,
+                    OrderType = b.OrderType,
+                    CreatedAt = b.CreatedAt,
+                    CashierName = b.CashierName,
+                    CustomerName = b.CustomerName,
+                    CustomerPhone = b.CustomerPhone,
+                    PaymentMethodName = b.PaymentMethodName,
+                    CashReceived = b.CashReceived,
+                    ChangeAmount = b.ChangeAmount,
+                    Items = b.Items
+                }).ToList();
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            return GetMockOrders();
+            Console.WriteLine($"Error fetching order history: {ex.Message}");
         }
+
+        return new List<OrderDto>();
+    }
+
+    public async Task<K80ReceiptDto?> GetOrderK80ReceiptAsync(int orderId)
+    {
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{orderId}/k80");
+            return res?.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching K80 receipt: {ex.Message}");
+            return null;
+        }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
     }
 
     // Customers / Loyalty
@@ -203,14 +249,27 @@ public class CreateUserRequest
 public class OrderDto
 {
     public int Id { get; set; }
+    public int OrderId { get; set; }
     public string OrderCode { get; set; } = string.Empty;
     public string TableName { get; set; } = string.Empty;
     public string TableAreaName { get; set; } = string.Empty;
     public decimal SubTotal { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string OrderStatusName { get; set; } = string.Empty;
     public string OrderType { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public string CashierName { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
+    public string CustomerPhone { get; set; } = string.Empty;
+    public string PaymentMethodName { get; set; } = "Tiền Mặt";
+    public decimal CashReceived { get; set; }
+    public decimal ChangeAmount { get; set; }
+    public List<BillItemDto> Items { get; set; } = new();
+
+    public int DisplayId => OrderId > 0 ? OrderId : Id;
+    public string DisplayStatus => !string.IsNullOrEmpty(OrderStatusName) ? OrderStatusName : Status;
 }
 
 public class VoucherDto

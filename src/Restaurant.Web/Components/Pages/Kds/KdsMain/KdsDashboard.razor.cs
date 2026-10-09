@@ -17,11 +17,12 @@ public partial class KdsDashboard : IAsyncDisposable
     protected string FilterStatus { get; set; } = "All";
     protected bool ShowCompletedOnly { get; set; } = false;
     protected bool NewTicketNotification { get; set; } = false;
+    protected string SelectedStationId { get; set; } = string.Empty;
 
     private HubConnection? _hubConnection;
 
-    protected int PendingCount => ActiveTickets.SelectMany(t => t.Items).Count(i => i.KitchenStatus == 0);
-    protected int ProcessingCount => ActiveTickets.SelectMany(t => t.Items).Count(i => i.KitchenStatus == 1);
+    protected int PendingCount => ActiveTickets.SelectMany(t => t.Items).Count(i => i.KitchenStatus == 0 && i.Status != 1);
+    protected int ProcessingCount => ActiveTickets.SelectMany(t => t.Items).Count(i => i.KitchenStatus == 1 && i.Status != 1);
 
     protected List<KitchenTicketDto> DisplayedTickets
     {
@@ -29,15 +30,15 @@ public partial class KdsDashboard : IAsyncDisposable
         {
             if (ShowCompletedOnly)
             {
-                return ActiveTickets.Where(t => t.Items.All(i => i.KitchenStatus == 2)).ToList();
+                return ActiveTickets.Where(t => t.Items.All(i => i.KitchenStatus == 2 || i.Status == 1)).ToList();
             }
 
-            var uncompleted = ActiveTickets.Where(t => t.Items.Any(i => i.KitchenStatus != 2)).ToList();
+            var uncompleted = ActiveTickets.Where(t => t.Items.Any(i => i.KitchenStatus != 2 && i.Status != 1)).ToList();
 
             if (FilterStatus == "Pending")
-                return uncompleted.Where(t => t.Items.Any(i => i.KitchenStatus == 0)).ToList();
+                return uncompleted.Where(t => t.Items.Any(i => i.KitchenStatus == 0 && i.Status != 1)).ToList();
             if (FilterStatus == "Processing")
-                return uncompleted.Where(t => t.Items.Any(i => i.KitchenStatus == 1)).ToList();
+                return uncompleted.Where(t => t.Items.Any(i => i.KitchenStatus == 1 && i.Status != 1)).ToList();
 
             return uncompleted;
         }
@@ -47,9 +48,13 @@ public partial class KdsDashboard : IAsyncDisposable
     {
         await LoadActiveTicketsAsync();
 
-        // Hub Connection setup for Chefs
+        // Hub Connection setup for Chefs with stationId query if present
+        var hubUrl = string.IsNullOrWhiteSpace(SelectedStationId) 
+            ? "http://localhost:5011/hubs/restaurant?clientType=kds" 
+            : $"http://localhost:5011/hubs/restaurant?clientType=kds&stationId={SelectedStationId}";
+
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=kds")
+            .WithUrl(hubUrl)
             .WithAutomaticReconnect()
             .Build();
 
@@ -97,12 +102,33 @@ public partial class KdsDashboard : IAsyncDisposable
         }
     }
 
+    protected async Task OnStationChangedAsync()
+    {
+        await LoadActiveTicketsAsync();
+        if (_hubConnection != null && int.TryParse(SelectedStationId, out var sId) && sId > 0)
+        {
+            try
+            {
+                await _hubConnection.InvokeAsync("JoinStationGroup", sId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error joining station group: {ex.Message}");
+            }
+        }
+    }
+
     private async Task LoadActiveTicketsAsync()
     {
         IsLoading = true;
         try
         {
-            var url = ShowCompletedOnly ? "api/v1/kds/tickets/active?includeCompleted=true" : "api/v1/kds/tickets/active";
+            var url = $"api/v1/kds/tickets/active?includeCompleted={ShowCompletedOnly}";
+            if (int.TryParse(SelectedStationId, out var parsedStationId) && parsedStationId > 0)
+            {
+                url += $"&stationId={parsedStationId}";
+            }
+
             var tickets = await Http.GetFromJsonAsync<List<KitchenTicketDto>>(url);
             if (tickets != null)
             {
@@ -140,14 +166,38 @@ public partial class KdsDashboard : IAsyncDisposable
 
             if (response.IsSuccessStatusCode)
             {
-                foreach (var ticket in ActiveTickets)
+                var updatedItem = await response.Content.ReadFromJsonAsync<KitchenItemDto>();
+                if (updatedItem != null)
                 {
-                    var item = ticket.Items.FirstOrDefault(i => i.OrderItemId == orderItemId);
-                    if (item != null)
+                    foreach (var ticket in ActiveTickets)
                     {
-                        item.KitchenStatus = newStatus;
-                        item.KitchenStatusName = newStatus == 1 ? "Processing" : (newStatus == 2 ? "Done" : "Pending");
-                        break;
+                        var item = ticket.Items.FirstOrDefault(i => i.OrderItemId == orderItemId);
+                        if (item != null)
+                        {
+                            item.KitchenStatus = updatedItem.KitchenStatus;
+                            item.KitchenStatusName = updatedItem.KitchenStatusName;
+                            
+                            // If this was a child item, check and update its Combo Header in memory
+                            if (item.ParentItemId.HasValue)
+                            {
+                                var header = ticket.Items.FirstOrDefault(i => i.OrderItemId == item.ParentItemId.Value);
+                                if (header != null)
+                                {
+                                    var siblings = ticket.Items.Where(i => i.ParentItemId == item.ParentItemId.Value).ToList();
+                                    if (siblings.All(s => s.KitchenStatus == 2))
+                                    {
+                                        header.KitchenStatus = 2;
+                                        header.KitchenStatusName = "Done";
+                                    }
+                                    else if (siblings.Any(s => s.KitchenStatus == 1 || s.KitchenStatus == 2))
+                                    {
+                                        header.KitchenStatus = 1;
+                                        header.KitchenStatusName = "Processing";
+                                    }
+                                }
+                            }
+                            break;
+                        }
                     }
                 }
             }

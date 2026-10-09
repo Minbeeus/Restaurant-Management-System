@@ -42,6 +42,9 @@ public class KitchenService : IKitchenService
             .Include(o => o.Table)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.MenuItem)
+                    .ThenInclude(m => m.KitchenStation)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.ParentItem)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemModifiers)
             .AsQueryable();
@@ -85,7 +88,14 @@ public class KitchenService : IKitchenService
                         CompletedAt = oi.CompletedAt,
                         WaitingMinutes = (int)waitingTime,
                         IsSlaWarning = waitingTime > 15 && oi.KitchenStatus != (int)KitchenStatus.Done,
-                        Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList()
+                        Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList(),
+                        ParentItemId = oi.ParentItemId,
+                        ParentItemName = oi.ParentItem?.MenuItemName,
+                        IsComboHeader = oi.MenuItem != null && oi.MenuItem.IsCombo && !oi.ParentItemId.HasValue,
+                        ComboGroupId = oi.ComboGroupId,
+                        KitchenStationId = oi.MenuItem?.KitchenStationId,
+                        KitchenStationName = oi.MenuItem?.KitchenStation?.Name,
+                        Status = oi.Status
                     };
                 }).ToList()
         }).Where(t => t.Items.Any()).ToList();
@@ -100,13 +110,16 @@ public class KitchenService : IKitchenService
         }
 
         var item = await _context.OrderItems
+            .Include(oi => oi.MenuItem)
+                .ThenInclude(m => m.KitchenStation)
+            .Include(oi => oi.ParentItem)
             .Include(oi => oi.Order)
                 .ThenInclude(o => o.Table)
             .Include(oi => oi.OrderItemModifiers)
             .FirstOrDefaultAsync(oi => oi.Id == orderItemId);
 
         // 2. Reject if item missing, voided, or order cancelled
-        if (item == null || item.Status == (int)OrderItemStatus.Voided || item.Order.Status == (int)OrderStatus.Cancelled)
+        if (item == null || item.Status == (int)OrderItemStatus.Voided || (item.Order != null && item.Order.Status == (int)OrderStatus.Cancelled))
         {
             return null;
         }
@@ -132,7 +145,14 @@ public class KitchenService : IKitchenService
                 CompletedAt = item.CompletedAt,
                 WaitingMinutes = (int)existingWaitingTime,
                 IsSlaWarning = existingWaitingTime > 15 && item.KitchenStatus != (int)KitchenStatus.Done,
-                Modifiers = item.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList()
+                Modifiers = item.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList(),
+                ParentItemId = item.ParentItemId,
+                ParentItemName = item.ParentItem?.MenuItemName,
+                IsComboHeader = item.MenuItem != null && item.MenuItem.IsCombo && !item.ParentItemId.HasValue,
+                ComboGroupId = item.ComboGroupId,
+                KitchenStationId = item.MenuItem?.KitchenStationId,
+                KitchenStationName = item.MenuItem?.KitchenStation?.Name,
+                Status = item.Status
             };
         }
 
@@ -153,9 +173,34 @@ public class KitchenService : IKitchenService
             item.CompletedAt = utcNow;
         }
 
+        // 5. If this item has a Parent (Combo Header), evaluate and update Combo Header KitchenStatus
+        if (item.ParentItemId.HasValue)
+        {
+            var siblings = await _context.OrderItems
+                .Where(oi => oi.ParentItemId == item.ParentItemId.Value && oi.Status == (int)OrderItemStatus.Active && oi.Id != item.Id)
+                .ToListAsync();
+
+            var allChildren = siblings.Concat(new[] { item }).ToList();
+            var parentItem = await _context.OrderItems.FindAsync(item.ParentItemId.Value);
+
+            if (parentItem != null && parentItem.Status == (int)OrderItemStatus.Active)
+            {
+                if (allChildren.All(c => c.KitchenStatus == (int)KitchenStatus.Done))
+                {
+                    parentItem.KitchenStatus = (int)KitchenStatus.Done;
+                    parentItem.CompletedAt = utcNow;
+                }
+                else if (allChildren.Any(c => c.KitchenStatus == (int)KitchenStatus.Processing || c.KitchenStatus == (int)KitchenStatus.Done))
+                {
+                    parentItem.KitchenStatus = (int)KitchenStatus.Processing;
+                    if (parentItem.SentToKitchenAt == null) parentItem.SentToKitchenAt = utcNow;
+                }
+            }
+        }
+
         await _context.SaveChangesAsync();
 
-        // 5. Audit Log logging
+        // 6. Audit Log logging
         if (_auditService != null)
         {
             var actingUserId = _currentUserService?.UserId ?? 1;
@@ -168,13 +213,18 @@ public class KitchenService : IKitchenService
             );
         }
 
-        // 6. Domain Event publishing for BOM Inventory Deduction on Done
+        // 7. Domain Event publishing for BOM Inventory Deduction on Done (only for non-combo headers)
         if (newStatus == (int)KitchenStatus.Done && oldStatus != (int)KitchenStatus.Done)
         {
-            await _mediator.Publish(new OrderItemKitchenDoneDomainEvent(item.Id, item.OrderId));
+            // Do not deduct for Combo header itself; deduct for child items and standalone items
+            bool isComboHeader = item.MenuItem != null && item.MenuItem.IsCombo && !item.ParentItemId.HasValue;
+            if (!isComboHeader)
+            {
+                await _mediator.Publish(new OrderItemKitchenDoneDomainEvent(item.Id, item.OrderId));
+            }
         }
 
-        // Check if all items in this order are completed
+        // 8. Check if all items in this order are completed
         var allItemsInOrder = await _context.OrderItems
             .Where(oi => oi.OrderId == item.OrderId && oi.Status == (int)OrderItemStatus.Active)
             .ToListAsync();
@@ -182,18 +232,25 @@ public class KitchenService : IKitchenService
         var isAllDone = allItemsInOrder.All(oi => oi.KitchenStatus == (int)KitchenStatus.Done);
         if (isAllDone && item.Order.Status != (int)OrderStatus.Completed && item.Order.Status != (int)OrderStatus.Cancelled)
         {
-            item.Order.Status = (int)OrderStatus.Completed;
+            // Bếp hoàn thành toàn bộ -> Order.Status = Ready (Sẵn sàng phục vụ), KHÔNG tự động chuyển Completed trước thanh toán
+            item.Order.Status = (int)OrderStatus.Ready;
             await _context.SaveChangesAsync();
         }
 
         var statusName = Enum.GetName(typeof(KitchenStatus), newStatus) ?? "Unknown";
 
-        // SignalR Broadcast to Cashiers, Chefs, and Table
+        // 9. SignalR Broadcast to Cashiers, Chefs, and Table
         await _hubContext.Clients.Group(SystemConstants.SignalRGroups.Cashiers)
             .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
 
         await _hubContext.Clients.Group(SystemConstants.SignalRGroups.Chefs)
             .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
+
+        if (item.MenuItem?.KitchenStationId.HasValue == true)
+        {
+            await _hubContext.Clients.Group(SystemConstants.SignalRGroups.StationGroup(item.MenuItem.KitchenStationId.Value))
+                .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
+        }
 
         if (item.Order.TableId.HasValue)
         {
@@ -219,7 +276,14 @@ public class KitchenService : IKitchenService
             CompletedAt = item.CompletedAt,
             WaitingMinutes = (int)waitingTime,
             IsSlaWarning = waitingTime > 15 && item.KitchenStatus != (int)KitchenStatus.Done,
-            Modifiers = item.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList()
+            Modifiers = item.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList(),
+            ParentItemId = item.ParentItemId,
+            ParentItemName = item.ParentItem?.MenuItemName,
+            IsComboHeader = item.MenuItem != null && item.MenuItem.IsCombo && !item.ParentItemId.HasValue,
+            ComboGroupId = item.ComboGroupId,
+            KitchenStationId = item.MenuItem?.KitchenStationId,
+            KitchenStationName = item.MenuItem?.KitchenStation?.Name,
+            Status = item.Status
         };
     }
 

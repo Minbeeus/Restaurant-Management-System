@@ -115,6 +115,8 @@ public class BillDetailDto
     public string OrderCode { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public string TableName { get; set; } = string.Empty;
+    public string TableAreaName { get; set; } = string.Empty;
+    public string OrderType { get; set; } = "DineIn";
     public string CashierName { get; set; } = string.Empty;
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerPhone { get; set; } = string.Empty;
@@ -130,6 +132,7 @@ public class BillDetailDto
 
 public class BillItemDto
 {
+    public int Id { get; set; }
     public string MenuItemName { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
@@ -138,6 +141,7 @@ public class BillItemDto
     public int? ParentItemId { get; set; }
     public bool IsComboChild => ParentItemId.HasValue;
     public List<string> Modifiers { get; set; } = new();
+    public string? Note { get; set; }
 }
 
 public class SaveReconciliationRequest

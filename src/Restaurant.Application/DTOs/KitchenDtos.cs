@@ -25,6 +25,17 @@ public class KitchenItemDto
     public int WaitingMinutes { get; set; }
     public bool IsSlaWarning { get; set; }
     public List<string> Modifiers { get; set; } = new();
+
+    // Combo Hierarchy and Station Support for KDS Foundation
+    public int? ParentItemId { get; set; }
+    public string? ParentItemName { get; set; }
+    public bool IsComboHeader { get; set; }
+    public bool IsComboChild => ParentItemId.HasValue;
+    public int? ComboGroupId { get; set; }
+    public int? KitchenStationId { get; set; }
+    public string? KitchenStationName { get; set; }
+    public int Status { get; set; } = 0; // 0: Active, 1: Voided
+    public string StatusName => Status == 1 ? "Voided" : "Active";
 }
 
 public class UpdateKitchenStatusRequest

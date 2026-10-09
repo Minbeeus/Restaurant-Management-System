@@ -31,7 +31,16 @@
             </div>
         </div>
 
+        <!-- Station and View Filters -->
         <div class="flex items-center gap-3">
+            <select class="bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+                    @bind="SelectedStationId" @bind:after="OnStationChangedAsync">
+                <option value="">-- Tất cả Trạm Bếp --</option>
+                <option value="1">Bếp Nóng (Kitchen)</option>
+                <option value="2">Quầy Pha Chế (Bar)</option>
+                <option value="3">Trạm Chiên/Nướng (Fry/Grill)</option>
+            </select>
+
             <button class="px-4 py-2 text-slate-200 hover:bg-slate-700 rounded-lg transition-colors font-label-bold flex items-center gap-2 text-sm border border-slate-600"
                     @onclick="ToggleCompletedViewAsync">
                 <span class="material-symbols-outlined text-[20px]">history</span>
@@ -79,49 +88,191 @@
                         OnComplete="() => CompleteAllItemsInTicketAsync(ticket)">
                         <ItemsList>
                             <div class="flex flex-col">
-                                @foreach (var item in ticket.Items)
+                                @{
+                                    var parentGrouped = ticket.Items.Where(i => !i.ParentItemId.HasValue).ToList();
+                                    var childrenByParent = ticket.Items.Where(i => i.ParentItemId.HasValue)
+                                        .GroupBy(i => i.ParentItemId!.Value)
+                                        .ToDictionary(g => g.Key, g => g.ToList());
+                                    var processedChildrenIds = childrenByParent.Values.SelectMany(x => x).Select(x => x.OrderItemId).ToHashSet();
+                                    var orphanChildren = ticket.Items.Where(i => i.ParentItemId.HasValue && !processedChildrenIds.Contains(i.OrderItemId)).ToList();
+                                }
+
+                                @foreach (var topItem in parentGrouped)
                                 {
-                                    <div class="flex flex-col p-4 border-b border-slate-700 last:border-b-0 @(item.KitchenStatus == 2 ? "opacity-50 bg-slate-800" : "")">
-                                        <div class="flex gap-4">
-                                            <div class="font-bold text-white bg-slate-700 px-2 py-1 rounded h-fit shrink-0">@item.Quantity x</div>
-                                            <div class="flex flex-col flex-1">
-                                                <div class="font-bold text-slate-200 text-lg">
-                                                    @item.MenuItemName 
-                                                    <span class="text-xs text-slate-400 ml-2">(@item.KitchenStatusName)</span>
+                                    @if (topItem.IsComboHeader)
+                                    {
+                                        <!-- Combo Header Container -->
+                                        <div class="flex flex-col p-3 border-b border-slate-700 bg-slate-800/80 rounded-lg my-1.5 border border-slate-600">
+                                            <div class="flex justify-between items-center mb-2 pb-1 border-b border-slate-700">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="material-symbols-outlined text-amber-400 text-lg">lunch_dining</span>
+                                                    <span class="font-bold text-amber-300 text-sm tracking-wide uppercase">@topItem.MenuItemName</span>
+                                                    <span class="bg-amber-950/60 text-amber-400 text-xs px-2 py-0.5 rounded font-bold">x@topItem.Quantity</span>
                                                 </div>
-                                                @if (item.Modifiers != null && item.Modifiers.Any())
+                                                <span class="text-[11px] font-semibold px-2 py-0.5 rounded @(topItem.KitchenStatus == 2 ? "bg-emerald-950 text-emerald-400" : (topItem.KitchenStatus == 1 ? "bg-amber-950 text-amber-400" : "bg-slate-700 text-slate-300"))">
+                                                    @(topItem.KitchenStatus == 2 ? "Đã Xong Hết" : (topItem.KitchenStatus == 1 ? "Đang Làm" : "Chờ Làm"))
+                                                </span>
+                                            </div>
+
+                                            <!-- Children Inside Combo -->
+                                            <div class="space-y-2 pl-2">
+                                                @if (childrenByParent.TryGetValue(topItem.OrderItemId, out var comboChildren))
                                                 {
-                                                    <div class="text-xs text-slate-300 mt-1 font-medium bg-slate-700 p-1.5 rounded">
-                                                        + @string.Join(", ", item.Modifiers)
-                                                    </div>
-                                                }
-                                                @if (!string.IsNullOrEmpty(item.Note))
-                                                {
-                                                    <div class="text-rose-400 text-xs mt-1 flex items-start gap-1 font-medium bg-rose-900/30 p-2 rounded border border-rose-800">
-                                                        <span class="material-symbols-outlined text-[14px]">warning</span>
-                                                        @item.Note
-                                                    </div>
+                                                    @foreach (var child in comboChildren)
+                                                    {
+                                                        <div class="flex flex-col p-2.5 rounded bg-slate-900/90 border border-slate-700/80 @(child.KitchenStatus == 2 ? "opacity-50" : "") @(child.Status == 1 ? "border-rose-700/60 bg-rose-950/20" : "")">
+                                                            <div class="flex gap-3">
+                                                                <div class="font-bold text-white bg-slate-700 px-2 py-0.5 rounded text-xs h-fit shrink-0">@child.Quantity x</div>
+                                                                <div class="flex flex-col flex-1">
+                                                                    <div class="font-bold text-slate-200 text-sm flex items-center justify-between">
+                                                                        <span>
+                                                                            @child.MenuItemName
+                                                                            @if (!string.IsNullOrEmpty(child.KitchenStationName))
+                                                                            {
+                                                                                <span class="text-[10px] text-cyan-400 bg-cyan-950/60 px-1.5 py-0.5 rounded ml-1 font-normal">@child.KitchenStationName</span>
+                                                                            }
+                                                                        </span>
+                                                                        <span class="text-[11px] text-slate-400">(@child.KitchenStatusName)</span>
+                                                                    </div>
+                                                                    @if (child.Status == 1)
+                                                                    {
+                                                                        <div class="text-rose-400 font-bold text-xs mt-1 flex items-center gap-1">
+                                                                            <span class="material-symbols-outlined text-[14px]">cancel</span>
+                                                                            MÓN ĐÃ ĐƯỢC HỦY TỪ POS!
+                                                                        </div>
+                                                                    }
+                                                                    @if (child.Modifiers != null && child.Modifiers.Any())
+                                                                    {
+                                                                        <div class="text-xs text-slate-300 mt-1 font-medium bg-slate-800 p-1 rounded">
+                                                                            + @string.Join(", ", child.Modifiers)
+                                                                        </div>
+                                                                    }
+                                                                    @if (!string.IsNullOrEmpty(child.Note))
+                                                                    {
+                                                                        <div class="text-rose-400 text-xs mt-1 flex items-start gap-1 font-medium bg-rose-900/30 p-1.5 rounded border border-rose-800">
+                                                                            <span class="material-symbols-outlined text-[14px]">warning</span>
+                                                                            @child.Note
+                                                                        </div>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex gap-2 justify-end mt-2">
+                                                                @if (child.Status == 1)
+                                                                {
+                                                                    <span class="text-rose-400 text-xs italic font-bold">Đã hủy bỏ</span>
+                                                                }
+                                                                else if (child.KitchenStatus == 0) // Pending
+                                                                {
+                                                                    <AppButton Variant="Outline" Disabled="ProcessingItems.Contains(child.OrderItemId)" OnClick="() => UpdateItemStatusAsync(child.OrderItemId, 1)">Nhận Làm</AppButton>
+                                                                }
+                                                                else if (child.KitchenStatus == 1) // Processing
+                                                                {
+                                                                    <AppButton Variant="Primary" Disabled="ProcessingItems.Contains(child.OrderItemId)" OnClick="() => UpdateItemStatusAsync(child.OrderItemId, 2)">Xong</AppButton>
+                                                                }
+                                                                else if (child.KitchenStatus == 2)
+                                                                {
+                                                                    <span class="text-success font-bold text-xs flex items-center gap-1">
+                                                                        <span class="material-symbols-outlined text-[14px]">check</span>
+                                                                        Đã Xong
+                                                                    </span>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    }
                                                 }
                                             </div>
                                         </div>
-                                        <div class="flex gap-2 justify-end mt-3">
-                                            @if (item.KitchenStatus == 0) // Pending
-                                            {
-                                                <AppButton Variant="Outline" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatusAsync(item.OrderItemId, 1)">Nhận Chế Biến</AppButton>
-                                            }
-                                            else if (item.KitchenStatus == 1) // Processing
-                                            {
-                                                <AppButton Variant="Primary" Disabled="ProcessingItems.Contains(item.OrderItemId)" OnClick="() => UpdateItemStatusAsync(item.OrderItemId, 2)">Hoàn Thành Món</AppButton>
-                                            }
-                                            else if (item.KitchenStatus == 2)
-                                            {
-                                                <span class="text-success font-bold text-xs flex items-center gap-1">
-                                                    <span class="material-symbols-outlined text-[16px]">check</span>
-                                                    Đã Xong
-                                                </span>
-                                            }
+                                    }
+                                    else
+                                    {
+                                        <!-- Regular Standalone Item -->
+                                        <div class="flex flex-col p-4 border-b border-slate-700 last:border-b-0 @(topItem.KitchenStatus == 2 ? "opacity-50 bg-slate-800" : "") @(topItem.Status == 1 ? "border-rose-700/60 bg-rose-950/20" : "")">
+                                            <div class="flex gap-4">
+                                                <div class="font-bold text-white bg-slate-700 px-2 py-1 rounded h-fit shrink-0">@topItem.Quantity x</div>
+                                                <div class="flex flex-col flex-1">
+                                                    <div class="font-bold text-slate-200 text-lg flex items-center justify-between">
+                                                        <span>
+                                                            @topItem.MenuItemName
+                                                            @if (!string.IsNullOrEmpty(topItem.KitchenStationName))
+                                                            {
+                                                                <span class="text-xs text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded ml-2 font-normal">@topItem.KitchenStationName</span>
+                                                            }
+                                                        </span>
+                                                        <span class="text-xs text-slate-400 ml-2">(@topItem.KitchenStatusName)</span>
+                                                    </div>
+                                                    @if (topItem.Status == 1)
+                                                    {
+                                                        <div class="text-rose-400 font-bold text-xs mt-1 flex items-center gap-1">
+                                                            <span class="material-symbols-outlined text-[14px]">cancel</span>
+                                                            MÓN ĐÃ ĐƯỢC HỦY TỪ POS!
+                                                        </div>
+                                                    }
+                                                    @if (topItem.Modifiers != null && topItem.Modifiers.Any())
+                                                    {
+                                                        <div class="text-xs text-slate-300 mt-1 font-medium bg-slate-700 p-1.5 rounded">
+                                                            + @string.Join(", ", topItem.Modifiers)
+                                                        </div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(topItem.Note))
+                                                    {
+                                                        <div class="text-rose-400 text-xs mt-1 flex items-start gap-1 font-medium bg-rose-900/30 p-2 rounded border border-rose-800">
+                                                            <span class="material-symbols-outlined text-[14px]">warning</span>
+                                                            @topItem.Note
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-2 justify-end mt-3">
+                                                @if (topItem.Status == 1)
+                                                {
+                                                    <span class="text-rose-400 text-xs italic font-bold">Đã hủy bỏ</span>
+                                                }
+                                                else if (topItem.KitchenStatus == 0) // Pending
+                                                {
+                                                    <AppButton Variant="Outline" Disabled="ProcessingItems.Contains(topItem.OrderItemId)" OnClick="() => UpdateItemStatusAsync(topItem.OrderItemId, 1)">Nhận Chế Biến</AppButton>
+                                                }
+                                                else if (topItem.KitchenStatus == 1) // Processing
+                                                {
+                                                    <AppButton Variant="Primary" Disabled="ProcessingItems.Contains(topItem.OrderItemId)" OnClick="() => UpdateItemStatusAsync(topItem.OrderItemId, 2)">Hoàn Thành Món</AppButton>
+                                                }
+                                                else if (topItem.KitchenStatus == 2)
+                                                {
+                                                    <span class="text-success font-bold text-xs flex items-center gap-1">
+                                                        <span class="material-symbols-outlined text-[16px]">check</span>
+                                                        Đã Xong
+                                                    </span>
+                                                }
+                                            </div>
                                         </div>
-                                    </div>
+                                    }
+                                }
+
+                                @if (orphanChildren.Any())
+                                {
+                                    @foreach (var orphan in orphanChildren)
+                                    {
+                                        <div class="flex flex-col p-3 border-b border-slate-700 @(orphan.KitchenStatus == 2 ? "opacity-50 bg-slate-800" : "")">
+                                            <div class="flex gap-3">
+                                                <div class="font-bold text-white bg-slate-700 px-2 py-1 rounded h-fit shrink-0">@orphan.Quantity x</div>
+                                                <div class="flex flex-col flex-1">
+                                                    <div class="font-bold text-slate-200 text-md">
+                                                        @orphan.MenuItemName
+                                                        <span class="text-xs text-slate-400 ml-2">(@orphan.KitchenStatusName)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-2 justify-end mt-2">
+                                                @if (orphan.KitchenStatus == 0)
+                                                {
+                                                    <AppButton Variant="Outline" Disabled="ProcessingItems.Contains(orphan.OrderItemId)" OnClick="() => UpdateItemStatusAsync(orphan.OrderItemId, 1)">Nhận Chế Biến</AppButton>
+                                                }
+                                                else if (orphan.KitchenStatus == 1)
+                                                {
+                                                    <AppButton Variant="Primary" Disabled="ProcessingItems.Contains(orphan.OrderItemId)" OnClick="() => UpdateItemStatusAsync(orphan.OrderItemId, 2)">Hoàn Thành Món</AppButton>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
                                 }
                             </div>
                         </ItemsList>

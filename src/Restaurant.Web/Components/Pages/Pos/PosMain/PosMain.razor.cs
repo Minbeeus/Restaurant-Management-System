@@ -41,19 +41,69 @@ public partial class PosMain : IAsyncDisposable
     protected List<MenuItemDto> AllMenuItems { get; set; } = new();
     protected List<ModifierGroupDto> AllModifierGroups { get; set; } = new();
 
+    protected List<PizzaSalesConfiguration> PizzaConfigurations { get; set; } = new();
+    protected PizzaSalesConfiguration? SelectedPizzaConfig { get; set; }
+    protected bool IsPizzaConfigSelected { get; set; } = false;
+
+    protected bool IsActiveCategoryPizza
+    {
+        get
+        {
+            var activeCat = Categories.FirstOrDefault(c => c.Id == ActiveCategoryId);
+            if (activeCat != null)
+            {
+                if (activeCat.Name.Contains("Melts", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                if (activeCat.Name.Contains("Pizza", StringComparison.OrdinalIgnoreCase) ||
+                    (activeCat.NameEn != null && activeCat.NameEn.Contains("Pizza", StringComparison.OrdinalIgnoreCase)))
+                    return true;
+            }
+
+            return AllMenuItems.Any(m => m.CategoryId == ActiveCategoryId &&
+                m.ModifierGroups != null &&
+                m.ModifierGroups.Any(g => g.Id == 1 || g.Name.Contains("Kích thước", StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
+    protected string ActiveCategoryName => Categories.FirstOrDefault(c => c.Id == ActiveCategoryId)?.DisplayName ?? "Món Ăn";
+
+    protected string GetCategoryIcon(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "restaurant_menu";
+        var n = name.ToLowerInvariant();
+        if (n.Contains("pizza")) return "local_pizza";
+        if (n.Contains("melts")) return "bakery_dining";
+        if (n.Contains("mì") || n.Contains("pasta") || n.Contains("spaghetti")) return "ramen_dining";
+        if (n.Contains("gà") || n.Contains("chicken")) return "kebab_dining";
+        if (n.Contains("khai vị") || n.Contains("appetizer")) return "tapas";
+        if (n.Contains("kèm") || n.Contains("side")) return "fastfood";
+        if (n.Contains("salad")) return "nutrition";
+        if (n.Contains("uống") || n.Contains("drink") || n.Contains("nước") || n.Contains("beverage")) return "local_bar";
+        if (n.Contains("tráng miệng") || n.Contains("dessert") || n.Contains("kem") || n.Contains("bánh")) return "icecream";
+        if (n.Contains("kid") || n.Contains("trẻ em")) return "child_care";
+        if (n.Contains("combo")) return "lunch_dining";
+        return "restaurant_menu";
+    }
+
     protected int ActiveCategoryId { get; set; } = 0;
-    protected bool ShowImages { get; set; } = true;
+    protected bool ShowImages { get; set; } = false;
     protected string SearchQuery { get; set; } = string.Empty;
 
     protected List<OrderCartItemLocal> CartItems { get; set; } = new();
     protected decimal CartSubTotal => CartItems.Sum(i => i.Price * i.Quantity);
     protected decimal AppliedDiscountAmount { get; set; } = 0m;
 
+    protected bool IsMenuLoading { get; set; } = true;
+    protected bool IsMenuLoadingError { get; set; } = false;
+
     protected bool ShowModifierModal { get; set; } = false;
     protected MenuItemDetailDto? SelectedItemDetail { get; set; }
     protected List<ModifierGroupDto>? SelectedModifierGroups { get; set; }
 
-    protected bool ShowComboModal { get; set; } = false;
+    protected bool IsOptionBuilderActive { get; set; } = false;
+
+    protected bool IsComboBuilderActive { get; set; } = false;
     protected ComboDetailDto? SelectedComboDetail { get; set; }
     protected bool IsComboLoading { get; set; } = false;
 
@@ -113,13 +163,48 @@ public partial class PosMain : IAsyncDisposable
 
             await Task.WhenAll(categoriesTask, menuItemsTask, modifiersTask);
 
-            Categories = await categoriesTask ?? new List<CategoryDto>();
+            Categories = (await categoriesTask ?? new List<CategoryDto>())
+                .Where(c => c.IsActive &&
+                            !c.Name.Contains("Pizza Ý Thượng hạng", StringComparison.OrdinalIgnoreCase) &&
+                            !c.Name.Contains("Pizza Thượng Hạng", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(c => c.SortOrder)
+                .ToList();
+
             AllMenuItems = await menuItemsTask ?? new List<MenuItemDto>();
             AllModifierGroups = await modifiersTask ?? new List<ModifierGroupDto>();
+            InitializePizzaConfigurations();
+
+            // Re-link any items from removed categories to main pizza category
+            var mainPizzaCat = Categories.FirstOrDefault(c =>
+                c.Name.Contains("Pizza", StringComparison.OrdinalIgnoreCase) &&
+                !c.Name.Contains("Melts", StringComparison.OrdinalIgnoreCase));
+
+            if (mainPizzaCat != null)
+            {
+                foreach (var item in AllMenuItems.Where(m =>
+                    m.CategoryName != null &&
+                    (m.CategoryName.Contains("Pizza Ý Thượng hạng", StringComparison.OrdinalIgnoreCase) ||
+                     m.CategoryName.Contains("Pizza Thượng Hạng", StringComparison.OrdinalIgnoreCase))))
+                {
+                    item.CategoryId = mainPizzaCat.Id;
+                    item.CategoryName = mainPizzaCat.DisplayName;
+                }
+            }
+
+            // Default to first real category if any, never 0 / 'Tất cả'
+            if (ActiveCategoryId == 0 && Categories.Any())
+            {
+                ActiveCategoryId = Categories.First().Id;
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error fetching POS menu data: {ex.Message}");
+            IsMenuLoadingError = true;
+        }
+        finally
+        {
+            IsMenuLoading = false;
         }
 
         // Hub Connection setup
@@ -165,16 +250,7 @@ public partial class PosMain : IAsyncDisposable
                         if (activeOrderResp?.Data != null)
                         {
                             var activeOrder = activeOrderResp.Data;
-                            CartItems = activeOrder.Items.Select(i => new OrderCartItemLocal
-                            {
-                                MenuItemId = i.MenuItemId,
-                                Name = i.MenuItemName,
-                                Price = i.UnitPrice,
-                                Quantity = i.Quantity,
-                                Note = i.Note,
-                                IsSentToKitchen = true,
-                                SelectedModifiers = i.ModifierIds ?? new List<int>()
-                            }).ToList();
+                            CartItems = ReconstructCartItemsFromOrder(activeOrder.Items);
                         }
                     }
                 }
@@ -186,9 +262,40 @@ public partial class PosMain : IAsyncDisposable
         }
     }
 
-    protected void HandleCategoryChanged(int categoryId) => ActiveCategoryId = categoryId;
+    protected string GetCleanCategoryName(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return string.Empty;
+        int parenIndex = name.IndexOf('(');
+        if (parenIndex > 0)
+        {
+            return name.Substring(0, parenIndex).Trim();
+        }
+        return name.Trim();
+    }
+
+    protected void HandleCategoryChanged(int categoryId)
+    {
+        ActiveCategoryId = categoryId;
+        SelectedPizzaConfig = null;
+        IsPizzaConfigSelected = false; // Reset to Step 1 (Select Size & Crust) when switching category
+    }
+
+    protected void HandleBackToConfigSelection()
+    {
+        SelectedPizzaConfig = null;
+        IsPizzaConfigSelected = false;
+        StateHasChanged();
+    }
     protected void HandleImageToggle(bool show) => ShowImages = show;
     protected void HandleSearchQueryChanged(string query) => SearchQuery = query;
+
+    protected void HandleSearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            HandleSearchEnterPressed();
+        }
+    }
 
     protected void HandleSearchEnterPressed()
     {
@@ -232,11 +339,78 @@ public partial class PosMain : IAsyncDisposable
         Navigation.NavigateTo($"/pos/order?tableId={targetTableId}", forceLoad: true);
     }
 
+    protected string? EditingCartItemId { get; set; }
+
+    private void InitializePizzaConfigurations()
+    {
+        var sizeGroup = AllModifierGroups.FirstOrDefault(g => g.Id == 1 || g.Name.Contains("Kích thước", StringComparison.OrdinalIgnoreCase));
+        var crustGroup = AllModifierGroups.FirstOrDefault(g => g.Id == 1002 || g.Name.Contains("Đế", StringComparison.OrdinalIgnoreCase));
+
+        if (sizeGroup == null || crustGroup == null) return;
+
+        var activeSizes = sizeGroup.ModifierOptions.Where(o => o.IsActive).OrderBy(o => o.SortOrder).ToList();
+        var activeCrusts = crustGroup.ModifierOptions.Where(o => o.IsActive).OrderBy(o => o.SortOrder).ToList();
+
+        var list = new List<PizzaSalesConfiguration>();
+
+        foreach (var size in activeSizes)
+        {
+            string sizeShort = size.Name.Contains("Nhỏ") ? "Cỡ nhỏ" :
+                               size.Name.Contains("Vừa") ? "Cỡ vừa" :
+                               size.Name.Contains("Lớn") ? "Cỡ lớn" : size.Name;
+
+            bool isSmall = size.Name.Contains("Nhỏ", StringComparison.OrdinalIgnoreCase);
+
+            foreach (var crust in activeCrusts)
+            {
+                // Business rule: Viền phô mai / xúc xích không áp dụng cho Cỡ nhỏ (20cm)
+                bool isStuffedCrust = crust.Name.Contains("Viền", StringComparison.OrdinalIgnoreCase);
+                if (isSmall && isStuffedCrust)
+                {
+                    continue; // Skip invalid combination
+                }
+
+                string crustShort = crust.Name;
+                if (crust.Name.Contains("Dày")) crustShort = "Đế dày";
+                else if (crust.Name.Contains("Mỏng")) crustShort = "Đế mỏng";
+                else if (crust.Name.Contains("Kéo Tay")) crustShort = "Đế kéo tay";
+                else if (crust.Name.Contains("Phô Mai Nung")) crustShort = "Viền phô mai";
+                else if (crust.Name.Contains("Xúc Xích")) crustShort = "Viền xúc xích";
+
+                var config = new PizzaSalesConfiguration
+                {
+                    Id = $"{size.Id}_{crust.Id}",
+                    SizeOptionId = size.Id,
+                    SizeName = size.Name,
+                    CrustOptionId = crust.Id,
+                    CrustName = crust.Name,
+                    Label = $"{sizeShort} – {crustShort}",
+                    ExtraPrice = size.ExtraPrice + crust.ExtraPrice,
+                    IsDefault = (size.IsDefault || size.Name.Contains("Vừa")) && (crust.IsDefault || crust.Name.Contains("Dày"))
+                };
+                list.Add(config);
+            }
+        }
+
+        PizzaConfigurations = list;
+
+        // Default to null so no configuration card is pre-selected
+        SelectedPizzaConfig = null;
+        IsPizzaConfigSelected = false;
+    }
+
+    protected void SelectPizzaConfig(PizzaSalesConfiguration config)
+    {
+        SelectedPizzaConfig = config;
+        IsPizzaConfigSelected = true; // Sau khi chọn cỡ - đế bánh thì chuyển thành giao diện chọn bánh ở dưới
+        StateHasChanged();
+    }
+
     protected void HandleMenuItemClicked(MenuItemDto item)
     {
         if (item.IsCombo)
         {
-            ShowComboModal = true;
+            IsComboBuilderActive = true;
             IsComboLoading = true;
             SelectedComboDetail = null;
             
@@ -251,7 +425,7 @@ public partial class PosMain : IAsyncDisposable
                 {
                     Console.WriteLine($"Error loading combo: {ex.Message}");
                     _ = ShowToastAsync("Lỗi: Không tải được thông tin Combo.");
-                    ShowComboModal = false;
+                    IsComboBuilderActive = false;
                 }
                 finally
                 {
@@ -262,109 +436,350 @@ public partial class PosMain : IAsyncDisposable
             return;
         }
 
-        if (item.ModifierGroups != null && item.ModifierGroups.Any())
+        // Check if item is Pizza
+        bool isPizza = item.ModifierGroups != null && item.ModifierGroups.Any(g => g.Id == 1 || g.Name.Contains("Kích thước", StringComparison.OrdinalIgnoreCase));
+        if (isPizza && SelectedPizzaConfig != null)
         {
-            SelectedItemDetail = new MenuItemDetailDto
-            {
-                Id = item.Id,
-                CategoryId = item.CategoryId,
-                CategoryName = item.CategoryName,
-                Name = item.Name,
-                Price = item.Price,
-                Description = item.Description,
-                ImageUrl = item.ImageUrl,
-                IsCombo = item.IsCombo,
-                ModifierGroups = AllModifierGroups
-            };
-            SelectedModifierGroups = AllModifierGroups;
-            ShowModifierModal = true;
+            AddPizzaToCartWithConfig(item, SelectedPizzaConfig);
             return;
         }
 
-        AddDirectToCart(item);
+        // Other items: Add with default options
+        AddMenuItemToCartWithDefaults(item);
     }
 
-    private void AddDirectToCart(MenuItemDto item)
+    private void AddPizzaToCartWithConfig(MenuItemDto item, PizzaSalesConfiguration config)
     {
-        var existing = CartItems.FirstOrDefault(i => i.MenuItemId == item.Id && !i.IsSentToKitchen && (i.SelectedModifiers == null || !i.SelectedModifiers.Any()));
-        if (existing != null)
-        {
-            existing.Quantity++;
-        }
-        else
-        {
-            CartItems.Add(new OrderCartItemLocal
-            {
-                MenuItemId = item.Id,
-                Name = item.Name,
-                Price = item.Price,
-                Quantity = 1,
-                SelectedModifiers = new List<int>(),
-                ModifierNames = new List<string>(),
-                IsSentToKitchen = false
-            });
-        }
-    }
+        var selectedModIds = new List<int> { config.SizeOptionId, config.CrustOptionId };
+        var modNames = new List<string> { config.SizeName, config.CrustName };
+        decimal extraPriceTotal = config.ExtraPrice;
 
-    protected void HandleConfirmModifier((MenuItemDetailDto item, int qty, List<int> selectedMods) result)
-    {
-        var modNames = new List<string>();
-        if (result.selectedMods != null && result.selectedMods.Any() && result.item.ModifierGroups != null)
+        // Satisfy other required groups (e.g. Sauce - Group 1003) with default option
+        if (item.ModifierGroups != null && item.ModifierGroups.Any())
         {
-            foreach (var group in result.item.ModifierGroups)
+            foreach (var group in item.ModifierGroups)
             {
-                foreach (var opt in group.ModifierOptions.Where(o => result.selectedMods.Contains(o.Id)))
+                if (group.Id == 1 || group.Id == 1002 || 
+                    group.Name.Contains("Kích thước", StringComparison.OrdinalIgnoreCase) || 
+                    group.Name.Contains("Đế", StringComparison.OrdinalIgnoreCase))
                 {
-                    modNames.Add(opt.Name);
+                    continue; // Handled by config
+                }
+
+                if (group.IsRequired)
+                {
+                    var def = group.ModifierOptions.FirstOrDefault(o => o.IsActive && o.IsDefault)
+                              ?? group.ModifierOptions.FirstOrDefault(o => o.IsActive);
+                    if (def != null)
+                    {
+                        selectedModIds.Add(def.Id);
+                        modNames.Add(def.Name + (def.ExtraPrice > 0 ? $" (+{def.ExtraPrice:N0}đ)" : ""));
+                        extraPriceTotal += def.ExtraPrice;
+                    }
                 }
             }
         }
 
-        CartItems.Add(new OrderCartItemLocal
+        decimal unitPrice = item.Price + extraPriceTotal;
+
+        // Check if identical un-sent item configuration already exists in the cart
+        var existing = CartItems.FirstOrDefault(i =>
+            !i.IsSentToKitchen &&
+            i.MenuItemId == item.Id &&
+            !i.NeedsConfiguration &&
+            AreModifiersIdentical(i.SelectedModifiers, selectedModIds));
+
+        if (existing != null)
         {
-            MenuItemId = result.item.Id,
-            Name = result.item.Name,
-            Price = result.item.Price,
-            Quantity = result.qty,
-            SelectedModifiers = result.selectedMods,
-            ModifierNames = modNames,
-            IsSentToKitchen = false
-        });
+            existing.Quantity++;
+            _ = ShowToastAsync($"Đã tăng số lượng {item.Name} ({existing.Quantity})");
+        }
+        else
+        {
+            var newItem = new OrderCartItemLocal
+            {
+                MenuItemId = item.Id,
+                Name = item.Name,
+                Price = unitPrice,
+                Quantity = 1,
+                SelectedModifiers = selectedModIds,
+                ModifierNames = modNames,
+                NeedsConfiguration = false,
+                IsSentToKitchen = false
+            };
+            CartItems.Add(newItem);
+            _ = ShowToastAsync($"Đã thêm {item.Name} ({config.Label}) vào đơn hàng");
+        }
+    }
+
+    private void AddMenuItemToCartWithDefaults(MenuItemDto item)
+    {
+        var selectedModIds = new List<int>();
+        var modNames = new List<string>();
+        decimal extraPriceTotal = 0m;
+        bool needsConfig = false;
+
+        if (item.ModifierGroups != null && item.ModifierGroups.Any())
+        {
+            foreach (var group in item.ModifierGroups)
+            {
+                var defaultOpts = group.ModifierOptions.Where(o => o.IsActive && o.IsDefault).ToList();
+                if (defaultOpts.Any())
+                {
+                    foreach (var def in defaultOpts.Take(group.MaxSelections))
+                    {
+                        selectedModIds.Add(def.Id);
+                        modNames.Add(def.Name + (def.ExtraPrice > 0 ? $" (+{def.ExtraPrice:N0}đ)" : ""));
+                        extraPriceTotal += def.ExtraPrice;
+                    }
+                }
+                else if (group.IsRequired)
+                {
+                    // Fallback to first available active option to satisfy required group
+                    var firstOpt = group.ModifierOptions.FirstOrDefault(o => o.IsActive);
+                    if (firstOpt != null && group.MinSelections > 0)
+                    {
+                        selectedModIds.Add(firstOpt.Id);
+                        modNames.Add(firstOpt.Name + (firstOpt.ExtraPrice > 0 ? $" (+{firstOpt.ExtraPrice:N0}đ)" : ""));
+                        extraPriceTotal += firstOpt.ExtraPrice;
+                    }
+                    else
+                    {
+                        needsConfig = true;
+                    }
+                }
+            }
+        }
+
+        decimal unitPrice = item.Price + extraPriceTotal;
+
+        // Check if an identical un-sent item configuration already exists in the cart
+        var existing = CartItems.FirstOrDefault(i =>
+            !i.IsSentToKitchen &&
+            i.MenuItemId == item.Id &&
+            !i.NeedsConfiguration &&
+            !needsConfig &&
+            AreModifiersIdentical(i.SelectedModifiers, selectedModIds));
+
+        if (existing != null)
+        {
+            existing.Quantity++;
+            _ = ShowToastAsync($"Đã tăng số lượng {item.Name} ({existing.Quantity})");
+        }
+        else
+        {
+            var newItem = new OrderCartItemLocal
+            {
+                MenuItemId = item.Id,
+                Name = item.Name,
+                Price = unitPrice,
+                Quantity = 1,
+                SelectedModifiers = selectedModIds,
+                ModifierNames = modNames,
+                NeedsConfiguration = needsConfig,
+                IsSentToKitchen = false
+            };
+            CartItems.Add(newItem);
+            _ = ShowToastAsync(needsConfig ? $"Đã thêm {item.Name} (Cần cấu hình tùy chọn)" : $"Đã thêm {item.Name} vào đơn hàng");
+        }
+    }
+
+    protected void HandleCartItemClicked(OrderCartItemLocal item)
+    {
+        // Don't allow modifying sent items or combos here
+        if (item.IsSentToKitchen || (item.SelectedComboItems != null && item.SelectedComboItems.Any()))
+        {
+            return;
+        }
+
+        var menuItem = AllMenuItems.FirstOrDefault(m => m.Id == item.MenuItemId);
+        if (menuItem == null || menuItem.ModifierGroups == null || !menuItem.ModifierGroups.Any())
+        {
+            // Item has no modifiers, nothing to modify
+            _ = ShowToastAsync($"{item.Name} không có tùy chọn bổ sung.");
+            return;
+        }
+
+        SelectedItemDetail = new MenuItemDetailDto
+        {
+            Id = menuItem.Id,
+            CategoryId = menuItem.CategoryId,
+            CategoryName = menuItem.CategoryName,
+            Name = menuItem.Name,
+            Price = menuItem.Price,
+            Description = menuItem.Description,
+            ImageUrl = menuItem.ImageUrl,
+            IsCombo = menuItem.IsCombo,
+            ModifierGroups = menuItem.ModifierGroups
+        };
+        SelectedModifierGroups = menuItem.ModifierGroups;
+        EditingCartItemId = item.Id;
+        IsOptionBuilderActive = true;
+    }
+
+    protected void HandleSaveModifyItem(List<int> newSelectedModIds)
+    {
+        if (string.IsNullOrEmpty(EditingCartItemId)) return;
+
+        var targetItem = CartItems.FirstOrDefault(i => i.Id == EditingCartItemId);
+        if (targetItem == null) return;
+
+        var menuItem = AllMenuItems.FirstOrDefault(m => m.Id == targetItem.MenuItemId);
+        decimal basePrice = menuItem?.Price ?? targetItem.Price;
+
+        var modNames = new List<string>();
+        decimal extraPriceTotal = 0m;
+
+        if (newSelectedModIds != null && newSelectedModIds.Any() && SelectedModifierGroups != null)
+        {
+            foreach (var group in SelectedModifierGroups)
+            {
+                foreach (var opt in group.ModifierOptions.Where(o => newSelectedModIds.Contains(o.Id)))
+                {
+                    modNames.Add(opt.Name + (opt.ExtraPrice > 0 ? $" (+{opt.ExtraPrice:N0}đ)" : ""));
+                    extraPriceTotal += opt.ExtraPrice;
+                }
+            }
+        }
+
+        // Apply changes to the EXACT row being edited
+        targetItem.SelectedModifiers = newSelectedModIds ?? new List<int>();
+        targetItem.ModifierNames = modNames;
+        targetItem.Price = basePrice + extraPriceTotal;
+        targetItem.NeedsConfiguration = false;
+
+        // Return to Menu view
+        IsOptionBuilderActive = false;
+        EditingCartItemId = null;
+        SelectedItemDetail = null;
+        _ = ShowToastAsync($"Đã cập nhật tùy chọn cho {targetItem.Name}");
+    }
+
+    protected void HandleCancelModifyItem()
+    {
+        IsOptionBuilderActive = false;
+        EditingCartItemId = null;
+        SelectedItemDetail = null;
+    }
+
+    private static bool AreModifiersIdentical(List<int>? list1, List<int>? list2)
+    {
+        if (list1 == null && list2 == null) return true;
+        if (list1 == null || list2 == null) return false;
+        if (list1.Count != list2.Count) return false;
+        var s1 = list1.OrderBy(x => x).ToList();
+        var s2 = list2.OrderBy(x => x).ToList();
+        return s1.SequenceEqual(s2);
     }
 
     protected void HandleConfirmCombo((ComboDetailDto combo, int qty, List<CartComboItemRequest> selectedItems) result)
     {
         var comboNames = new List<string>();
+        decimal additionalTotal = 0m;
+
         foreach (var req in result.selectedItems)
         {
-            // Find name
             var optName = "";
-            foreach (var group in result.combo.Groups)
+            if (result.combo.Groups != null)
             {
-                var opt = group.Items.FirstOrDefault(i => i.MenuItemId == req.MenuItemId);
-                if (opt != null)
+                foreach (var group in result.combo.Groups)
                 {
-                    optName = opt.MenuItemName;
-                    break;
+                    var opt = group.Items.FirstOrDefault(i => (req.ComboItemId > 0 && i.Id == req.ComboItemId) || i.MenuItemId == req.MenuItemId);
+                    if (opt != null)
+                    {
+                        optName = opt.DisplayName;
+                        break;
+                    }
                 }
             }
+
+            if (string.IsNullOrEmpty(optName) && result.combo.FixedAndAddOnItems != null)
+            {
+                var fixedOpt = result.combo.FixedAndAddOnItems.FirstOrDefault(i => (req.ComboItemId > 0 && i.Id == req.ComboItemId) || i.MenuItemId == req.MenuItemId);
+                if (fixedOpt != null)
+                {
+                    optName = fixedOpt.DisplayName;
+                }
+            }
+
+            additionalTotal += req.AdditionalPrice * req.Quantity;
+
             if (!string.IsNullOrEmpty(optName))
             {
-                comboNames.Add($"{req.Quantity}x {optName}");
+                var extraText = req.AdditionalPrice > 0 ? $" (+{req.AdditionalPrice:N0}đ)" : "";
+                comboNames.Add($"{req.Quantity}x {optName}{extraText}");
             }
         }
 
-        CartItems.Add(new OrderCartItemLocal
+        decimal comboUnitPrice = result.combo.Price + (result.qty > 0 ? (additionalTotal / result.qty) : 0m);
+
+        // Check if identical combo already exists in Cart (not yet sent to kitchen)
+        var existingCombo = CartItems.FirstOrDefault(i =>
+            !i.IsSentToKitchen &&
+            i.MenuItemId == result.combo.Id &&
+            AreComboSelectionsIdentical(i.SelectedComboItems, result.selectedItems));
+
+        if (existingCombo != null)
         {
-            MenuItemId = result.combo.Id,
-            Name = result.combo.Name,
-            Price = result.combo.Price,
-            Quantity = result.qty,
-            IsSentToKitchen = false,
-            SelectedModifiers = new List<int>(), // Combo không dùng modifier thường
-            SelectedComboItems = result.selectedItems,
-            ComboItemNames = comboNames
-        });
+            existingCombo.Quantity += result.qty;
+            if (existingCombo.SelectedComboItems != null)
+            {
+                foreach (var item in existingCombo.SelectedComboItems)
+                {
+                    var matching = result.selectedItems.FirstOrDefault(s => (s.ComboItemId > 0 && s.ComboItemId == item.ComboItemId) || s.MenuItemId == item.MenuItemId);
+                    if (matching != null)
+                    {
+                        item.Quantity += matching.Quantity;
+                    }
+                }
+            }
+        }
+        else
+        {
+            CartItems.Add(new OrderCartItemLocal
+            {
+                MenuItemId = result.combo.Id,
+                Name = result.combo.Name,
+                Price = comboUnitPrice,
+                Quantity = result.qty,
+                IsSentToKitchen = false,
+                SelectedModifiers = new List<int>(),
+                SelectedComboItems = result.selectedItems,
+                ComboItemNames = comboNames
+            });
+        }
+
+        IsComboBuilderActive = false;
+        SelectedComboDetail = null;
+        _ = ShowToastAsync($"Đã thêm Combo {result.combo.Name} vào đơn hàng");
+    }
+
+    protected void HandleCancelComboBuilder()
+    {
+        IsComboBuilderActive = false;
+        SelectedComboDetail = null;
+    }
+
+    private static bool AreComboSelectionsIdentical(List<CartComboItemRequest>? list1, List<CartComboItemRequest>? list2)
+    {
+        if (list1 == null && list2 == null) return true;
+        if (list1 == null || list2 == null) return false;
+        if (list1.Count != list2.Count) return false;
+
+        var sorted1 = list1.OrderBy(x => x.ComboItemId).ThenBy(x => x.MenuItemId).ToList();
+        var sorted2 = list2.OrderBy(x => x.ComboItemId).ThenBy(x => x.MenuItemId).ToList();
+
+        for (int i = 0; i < sorted1.Count; i++)
+        {
+            if (sorted1[i].ComboItemId != sorted2[i].ComboItemId ||
+                sorted1[i].MenuItemId != sorted2[i].MenuItemId ||
+                sorted1[i].Quantity != sorted2[i].Quantity ||
+                sorted1[i].AdditionalPrice != sorted2[i].AdditionalPrice)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected void HandleCartQuantityChanged(OrderCartItemLocal item) { }
@@ -376,12 +791,44 @@ public partial class PosMain : IAsyncDisposable
         ShowVoidItemModal = true;
     }
 
-    protected void HandleVoidCompleted(bool success)
+    protected async Task HandleVoidCompleted(bool success)
     {
         if (success && VoidingItem != null)
         {
-            CartItems.Remove(VoidingItem);
-            _ = ShowToastAsync("Đã hủy món " + VoidingItem.Name + " thành công!");
+            if (VoidingItem.IsSentToKitchen && VoidingItem.OrderItemId.HasValue && ActiveOrderId > 0)
+            {
+                try
+                {
+                    var response = await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/items/{VoidingItem.OrderItemId.Value}/void", new { Reason = "Yêu cầu hủy từ POS" });
+                    if (response.IsSuccessStatusCode)
+                    {
+                        _ = ShowToastAsync($"Đã hủy món {VoidingItem.Name} trên hệ thống thành công!");
+                        // Reload order items to reflect current status
+                        if (int.TryParse(TableId, out _))
+                        {
+                            await CheckExistingTableOrderAsync();
+                        }
+                        else
+                        {
+                            await LoadExistingTakeawayOrderAsync(ActiveOrderId);
+                        }
+                    }
+                    else
+                    {
+                        _ = ShowToastAsync($"Không thể hủy món {VoidingItem.Name} trên server.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error voiding item: {ex.Message}");
+                    _ = ShowToastAsync($"Lỗi khi hủy món: {ex.Message}");
+                }
+            }
+            else
+            {
+                CartItems.Remove(VoidingItem);
+                _ = ShowToastAsync($"Đã hủy món {VoidingItem.Name} khỏi giỏ hàng thành công!");
+            }
         }
         VoidingItem = null;
     }
@@ -409,40 +856,112 @@ public partial class PosMain : IAsyncDisposable
         _ = ShowToastAsync("Đã áp dụng giảm giá cho đơn hàng!");
     }
 
-    // 3. Action Toolbar: Print Pre-Bill
+    // 3. Action Toolbar: Print Pre-Bill (Luồng bắt buộc: Kiểm tra đơn hàng -> Gửi bếp -> In hóa đơn)
     protected async Task HandlePrintPreBill()
     {
-        if (ActiveOrderId > 0)
+        if (IsProcessing) return;
+
+        // 1. Kiểm tra đơn hàng có món hay không
+        if (CartItems == null || !CartItems.Any())
         {
-            try
+            _ = ShowToastAsync("Đơn hàng đang trống, không thể in hóa đơn!");
+            return;
+        }
+
+        // 2. Kiểm tra các món đã đáp ứng yêu cầu cấu hình bắt buộc hay chưa
+        var unconfigured = CartItems.FirstOrDefault(i => i.NeedsConfiguration);
+        if (unconfigured != null)
+        {
+            _ = ShowToastAsync($"Món '{unconfigured.Name}' chưa hoàn tất cấu hình tùy chọn bắt buộc. Vui lòng bấm vào món để chỉnh sửa trước khi in hóa đơn!");
+            return;
+        }
+
+        IsProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            // 4 & 5. Lưu/xác nhận các thay đổi và gửi các món chưa gửi xuống bếp
+            var unsentItems = CartItems.Where(i => !i.IsSentToKitchen).ToList();
+            if (unsentItems.Any())
             {
-                var printResponse = await Http.PostAsync($"api/v1/pos/orders/{ActiveOrderId}/print-temp-bill", null);
-                if (!printResponse.IsSuccessStatusCode)
+                int? parsedTableId = null;
+                if (!IsTakeaway && !string.IsNullOrEmpty(TableId) && int.TryParse(TableId, out int tId))
                 {
-                    _ = ShowToastAsync("Không thể in tạm tính!");
-                    return;
+                    parsedTableId = tId;
                 }
 
-                var response = await Http.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{ActiveOrderId}/k80");
-                if (response?.Data != null)
+                var submitRequest = new SubmitPosOrderRequest
                 {
-                    ReceiptData = response.Data;
-                    ShowK80Modal = true;
-                    _ = ShowToastAsync("Đã in tạm tính. Bàn đã chuyển sang trạng thái Chờ thanh toán (Màu vàng).");
+                    TableId = parsedTableId,
+                    CustomerId = SelectedMember?.Id,
+                    CustomerNote = IsTakeaway ? "Đơn mang về (POS)" : "Đơn ăn tại bàn (POS)",
+                    Items = unsentItems.Select(i => new CartItemValidateRequest
+                    {
+                        MenuItemId = i.MenuItemId,
+                        Quantity = i.Quantity,
+                        Note = i.Note,
+                        SelectedModifiers = i.SelectedModifiers ?? new List<int>(),
+                        SelectedComboItems = i.SelectedComboItems ?? new List<CartComboItemRequest>()
+                    }).ToList()
+                };
+
+                var submitResponse = await Http.PostAsJsonAsync("api/v1/pos/orders/submit", submitRequest);
+                if (!submitResponse.IsSuccessStatusCode)
+                {
+                    var error = await submitResponse.Content.ReadAsStringAsync();
+                    _ = ShowToastAsync($"Gửi bếp thất bại: {error}. Chưa thể in hóa đơn!");
+                    return; // DỪNG LẠI: Không giả vờ thành công, không in hóa đơn!
                 }
-                else
+
+                var submitResult = await submitResponse.Content.ReadFromJsonAsync<ApiResponseWrapper<SubmitPosOrderResponse>>();
+                if (submitResult?.Data != null)
                 {
-                    _ = ShowToastAsync("Không thể lấy dữ liệu hóa đơn!");
+                    ActiveOrderId = submitResult.Data.OrderId;
+                    CurrentOrderCode = submitResult.Data.OrderCode;
+                }
+
+                foreach (var item in unsentItems)
+                {
+                    item.IsSentToKitchen = true;
                 }
             }
-            catch (Exception ex)
+
+            if (ActiveOrderId <= 0)
             {
-                _ = ShowToastAsync("Lỗi in hóa đơn: " + ex.Message);
+                _ = ShowToastAsync("Không tìm thấy mã đơn hàng để in hóa đơn!");
+                return;
+            }
+
+            // 6. Backend xác nhận gửi bếp thành công -> Thực hiện in hóa đơn tạm tính (Pre-bill)
+            var printResponse = await Http.PostAsync($"api/v1/pos/orders/{ActiveOrderId}/print-temp-bill", null);
+            if (!printResponse.IsSuccessStatusCode)
+            {
+                // Thể hiện rõ: Đã gửi bếp, nhưng in hóa đơn thất bại; cho phép bấm in lại mà không gửi trùng món
+                _ = ShowToastAsync("Đã gửi bếp, nhưng in hóa đơn thất bại! Vui lòng bấm 'In Hóa Đơn' để thử lại.");
+                return;
+            }
+
+            var billResponse = await Http.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{ActiveOrderId}/k80");
+            if (billResponse?.Data != null)
+            {
+                ReceiptData = billResponse.Data;
+                ShowK80Modal = true;
+                _ = ShowToastAsync("Đã gửi bếp và in phiếu tạm tính thành công! Bàn chuyển sang Chờ thanh toán.");
+            }
+            else
+            {
+                _ = ShowToastAsync("Đã gửi bếp, nhưng không tải được dữ liệu phiếu in!");
             }
         }
-        else
+        catch (Exception ex)
         {
-            _ = ShowToastAsync("Vui lòng gửi bếp trước khi in tạm tính!");
+            _ = ShowToastAsync("Lỗi xử lý gửi bếp / in hóa đơn: " + ex.Message);
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
         }
     }
 
@@ -495,6 +1014,14 @@ public partial class PosMain : IAsyncDisposable
     {
         var unsentItems = CartItems.Where(i => !i.IsSentToKitchen).ToList();
         if (!unsentItems.Any()) return;
+
+        // REQUIREMENT: Một món chưa cấu hình đủ không được phép vượt qua validation để gửi bếp
+        var unconfigured = unsentItems.FirstOrDefault(i => i.NeedsConfiguration);
+        if (unconfigured != null)
+        {
+            _ = ShowToastAsync($"Món '{unconfigured.Name}' chưa hoàn tất cấu hình tùy chọn bắt buộc. Vui lòng bấm vào món để chỉnh sửa trước khi gửi bếp!");
+            return;
+        }
 
         int? parsedTableId = null;
         if (!IsTakeaway && !string.IsNullOrEmpty(TableId) && int.TryParse(TableId, out int tId))
@@ -604,23 +1131,86 @@ public partial class PosMain : IAsyncDisposable
                 ActiveOrderId = order.OrderId;
                 CurrentOrderCode = order.OrderCode;
                 CurrentTableName = $"Đơn Mang Về ({order.OrderCode})";
-
-                CartItems = order.Items.Select(i => new OrderCartItemLocal
-                {
-                    MenuItemId = i.MenuItemId,
-                    Name = i.MenuItemName,
-                    Price = i.UnitPrice,
-                    Quantity = i.Quantity,
-                    Note = i.Note,
-                    SelectedModifiers = new List<int>(),
-                    IsSentToKitchen = true
-                }).ToList();
+                CartItems = ReconstructCartItemsFromOrder(order.Items);
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading takeaway order {orderId}: {ex.Message}");
         }
+    }
+
+    private List<OrderCartItemLocal> ReconstructCartItemsFromOrder(List<TakeawayOrderItemDto>? orderItems)
+    {
+        if (orderItems == null || !orderItems.Any())
+        {
+            return new List<OrderCartItemLocal>();
+        }
+
+        // Active non-voided items (Status != 1 Voided)
+        var activeItems = orderItems.Where(i => i.Status != 1).ToList();
+        var reconstructed = new List<OrderCartItemLocal>();
+
+        // Find combo headers (items that have children pointing to their OrderItemId)
+        var childMap = activeItems
+            .Where(i => i.ParentItemId.HasValue)
+            .GroupBy(i => i.ParentItemId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Process top-level items (ParentItemId == null)
+        foreach (var item in activeItems.Where(i => !i.ParentItemId.HasValue))
+        {
+            var cartItem = new OrderCartItemLocal
+            {
+                OrderItemId = item.OrderItemId,
+                MenuItemId = item.MenuItemId,
+                Name = item.MenuItemName,
+                Price = item.UnitPrice,
+                Quantity = item.Quantity,
+                Note = item.Note,
+                IsSentToKitchen = true,
+                SelectedModifiers = item.ModifierIds ?? new List<int>()
+            };
+
+            // If this item has children, it's a Combo header
+            if (childMap.TryGetValue(item.OrderItemId, out var children))
+            {
+                cartItem.SelectedComboItems = children.Select(c => new CartComboItemRequest
+                {
+                    ComboItemId = c.ComboGroupId ?? 0,
+                    MenuItemId = c.MenuItemId,
+                    Quantity = c.Quantity,
+                    AdditionalPrice = c.UnitPrice
+                }).ToList();
+
+                cartItem.ComboItemNames = children.Select(c =>
+                {
+                    var extraText = c.UnitPrice > 0 ? $" (+{c.UnitPrice:N0}đ)" : "";
+                    return $"{c.Quantity}x {c.MenuItemName}{extraText}";
+                }).ToList();
+            }
+
+            reconstructed.Add(cartItem);
+        }
+
+        // Fallback: If any orphan children exist whose parent was already voided/not found, add them
+        var processedChildIds = childMap.Values.SelectMany(x => x).Select(x => x.OrderItemId).ToHashSet();
+        foreach (var orphan in activeItems.Where(i => i.ParentItemId.HasValue && !processedChildIds.Contains(i.OrderItemId)))
+        {
+            reconstructed.Add(new OrderCartItemLocal
+            {
+                OrderItemId = orphan.OrderItemId,
+                MenuItemId = orphan.MenuItemId,
+                Name = orphan.MenuItemName,
+                Price = orphan.UnitPrice,
+                Quantity = orphan.Quantity,
+                Note = orphan.Note,
+                IsSentToKitchen = true,
+                SelectedModifiers = orphan.ModifierIds ?? new List<int>()
+            });
+        }
+
+        return reconstructed;
     }
 
     private class ApiResponseWrapper<T>
@@ -631,5 +1221,17 @@ public partial class PosMain : IAsyncDisposable
         [JsonPropertyName("data")]
         public T? Data { get; set; }
     }
+}
+
+public class PizzaSalesConfiguration
+{
+    public string Id { get; set; } = string.Empty;
+    public int SizeOptionId { get; set; }
+    public string SizeName { get; set; } = string.Empty;
+    public int CrustOptionId { get; set; }
+    public string CrustName { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public decimal ExtraPrice { get; set; }
+    public bool IsDefault { get; set; }
 }
 

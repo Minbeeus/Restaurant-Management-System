@@ -17,6 +17,7 @@ public class ComboItemDto
     public decimal AdditionalPrice { get; set; } = 0;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
+    public string? ImageUrl { get; set; }
 }
 
 public class ComboGroupDto
@@ -39,6 +40,7 @@ public class ComboDetailDto : MenuItemDto
 
 public class CreateComboItemRequest
 {
+    public int? Id { get; set; } // Null if new, or existing ComboItem.Id if update
     public int MenuItemId { get; set; }
     public ComboComponentType ComponentType { get; set; }
     public int DefaultQuantity { get; set; } = 1;
@@ -48,6 +50,7 @@ public class CreateComboItemRequest
 
 public class CreateComboGroupRequest
 {
+    public int? Id { get; set; } // Null if new, or existing ComboGroup.Id if update
     public string Name { get; set; } = string.Empty;
     public int MinSelections { get; set; }
     public int MaxSelections { get; set; }

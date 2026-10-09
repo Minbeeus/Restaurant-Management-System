@@ -27,70 +27,99 @@
         {
             @foreach (var item in Items)
             {
-                <div class="pos-cart-item bg-surface-high/60 border @(SelectedItem == item ? "border-primary/80 ring-2 ring-primary/30" : "border-outline-variant/60 hover:border-primary/40") rounded-xl p-2.5 flex flex-col gap-1 transition-all cursor-pointer"
+                var isRowSelected = (!string.IsNullOrEmpty(SelectedItemId) && item.Id == SelectedItemId) || (SelectedItem == item);
+                <div class="pos-cart-item bg-surface-high/50 hover:bg-surface-high/80 border @(isRowSelected ? "border-primary ring-2 ring-primary/40 bg-primary/5" : "border-outline-variant/70") rounded-2xl p-3 flex flex-col gap-2 transition-all cursor-pointer shadow-2xs select-none"
                      @onclick="() => HandleItemClickAsync(item)">
-                    <div class="pos-cart-item__main flex justify-between items-start">
-                        <div class="flex-1 pr-2">
-                            <div class="flex items-center gap-1.5">
-                                <span class="pos-cart-item__name font-extrabold text-xs text-on-surface">@item.Name</span>
-                                @if (item.IsSentToKitchen)
+                    <!-- Main Item Row -->
+                    <div class="pos-cart-item__main flex justify-between items-start gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="pos-cart-item__name font-black text-xs text-on-surface leading-tight">@item.Name</span>
+                                @if (item.NeedsConfiguration)
                                 {
-                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
+                                    <span class="px-1.5 py-0.2 rounded-md text-[10px] font-black bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 shrink-0 animate-pulse flex items-center gap-0.5">
+                                        <span class="material-symbols-outlined text-[11px]">warning</span>
+                                        <span>Cần cấu hình</span>
+                                    </span>
+                                }
+                                else if (item.IsSentToKitchen)
+                                {
+                                    <span class="px-1.5 py-0.2 rounded-md text-[10px] font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
                                         Đã gửi bếp
                                     </span>
                                 }
                                 else
                                 {
-                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
+                                    <span class="px-1.5 py-0.2 rounded-md text-[10px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
                                         Mới
                                     </span>
                                 }
                             </div>
 
+                            <!-- Modifiers breakdown -->
                             @if (item.ModifierNames != null && item.ModifierNames.Any())
                             {
-                                <div class="text-[11px] text-on-surface-variant mt-0.5 font-medium">
-                                    + @string.Join(", ", item.ModifierNames)
+                                <div class="text-[11px] text-on-surface-variant/90 mt-1 space-y-0.5">
+                                    @foreach (var mod in item.ModifierNames)
+                                    {
+                                        <div class="flex items-center gap-1">
+                                            <span class="text-primary font-bold">·</span>
+                                            <span>@mod</span>
+                                        </div>
+                                    }
                                 </div>
                             }
+
+                            <!-- Combo Children Hierarchy -->
                             @if (item.ComboItemNames != null && item.ComboItemNames.Any())
                             {
-                                <div class="text-[11px] text-primary/80 mt-0.5 font-medium">
-                                    <ul class="list-disc list-inside">
-                                        @foreach (var comboName in item.ComboItemNames)
-                                        {
-                                            <li>@comboName</li>
-                                        }
-                                    </ul>
+                                <div class="mt-1.5 p-2 rounded-xl bg-primary/5 border border-primary/20 space-y-1">
+                                    <span class="text-[10px] font-black uppercase text-primary tracking-wider block">Thành phần Combo:</span>
+                                    @foreach (var comboChild in item.ComboItemNames)
+                                    {
+                                        <div class="text-[11px] text-on-surface flex items-center gap-1.5 font-medium pl-1">
+                                            <span class="material-symbols-outlined text-[12px] text-primary">check_small</span>
+                                            <span>@comboChild</span>
+                                        </div>
+                                    }
                                 </div>
                             }
+
                             @if (!string.IsNullOrEmpty(item.Note))
                             {
-                                <div class="text-[11px] italic text-amber-600 mt-0.5">
-                                    Ghi chú: @item.Note
+                                <div class="text-[11px] italic text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[12px]">edit_note</span>
+                                    <span>Ghi chú: @item.Note</span>
                                 </div>
                             }
                         </div>
-                        <div class="pos-cart-item__price font-black text-xs text-primary shrink-0">
+
+                        <!-- Total Line Price -->
+                        <div class="pos-cart-item__price font-mono font-black text-sm text-primary shrink-0 text-right">
                             @((item.Price * item.Quantity).ToString("N0"))đ
                         </div>
                     </div>
                     
-                    <div class="pos-cart-item__actions flex justify-between items-center pt-1 border-t border-outline-variant/40 mt-1" @onclick:stopPropagation="true">
-                        <span class="text-[11px] text-on-surface-variant font-medium">
-                            Đơn giá: @item.Price.ToString("N0")đ
+                    <!-- Action Bar & Quantity Controls -->
+                    <div class="pos-cart-item__actions flex justify-between items-center pt-2 border-t border-outline-variant/50" @onclick:stopPropagation="true">
+                        <span class="text-[11px] text-on-surface-variant font-mono">
+                            @item.Price.ToString("N0")đ / món
                         </span>
 
                         @if (!item.IsSentToKitchen)
                         {
-                            <div class="pos-cart-item__qty-control flex items-center bg-surface border border-outline-variant rounded-lg overflow-hidden">
-                                <button class="px-2 py-0.5 text-xs font-bold hover:bg-surface-high transition-colors" 
+                            <div class="pos-cart-item__qty-control flex items-center bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-2xs">
+                                <button class="w-7 h-7 flex items-center justify-center text-xs font-bold hover:bg-surface-high transition-colors cursor-pointer disabled:opacity-40" 
                                         disabled="@_isProcessing" 
-                                        @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity - 1)">-</button>
-                                <span class="px-2 py-0.5 text-xs font-black min-w-[24px] text-center">@item.Quantity</span>
-                                <button class="px-2 py-0.5 text-xs font-bold hover:bg-surface-high transition-colors" 
+                                        @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity - 1)">
+                                    <span class="material-symbols-outlined text-sm">remove</span>
+                                </button>
+                                <span class="px-2 text-xs font-mono font-black min-w-[24px] text-center text-on-surface">@item.Quantity</span>
+                                <button class="w-7 h-7 flex items-center justify-center text-xs font-bold hover:bg-surface-high transition-colors cursor-pointer disabled:opacity-40" 
                                         disabled="@_isProcessing" 
-                                        @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity + 1)">+</button>
+                                        @onclick="() => HandleUpdateQuantityAsync(item, item.Quantity + 1)">
+                                    <span class="material-symbols-outlined text-sm">add</span>
+                                </button>
                             </div>
                         }
                     </div>

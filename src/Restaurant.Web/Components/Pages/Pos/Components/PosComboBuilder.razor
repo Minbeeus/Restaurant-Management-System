@@ -1,0 +1,897 @@
+@using Restaurant.Application.DTOs
+@using Restaurant.Domain.Enums
+
+<div class="h-full w-full flex flex-col bg-background select-none overflow-hidden text-on-background">
+    <!-- 1. HEADER COMBO (Fixed height, fixed top) -->
+    <header class="h-16 bg-surface border-b border-outline-variant px-6 flex items-center justify-between shrink-0 shadow-xs z-30">
+        <!-- Left: Back Button & Combo Info -->
+        <div class="flex items-center gap-4">
+            <button class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-high hover:bg-surface-variant text-on-surface font-bold text-sm transition-all cursor-pointer shadow-2xs border border-outline-variant/60 hover:border-outline-variant"
+                    @onclick="HandleBackClicked"
+                    title="Quay lại màn hình bán hàng">
+                <span class="material-symbols-outlined text-lg">arrow_back</span>
+                <span>Quay lại</span>
+            </button>
+
+            <div class="h-6 w-[1px] bg-outline-variant"></div>
+
+            <div>
+                <div class="flex items-center gap-2.5">
+                    <span class="px-2 py-0.5 bg-primary/10 text-primary font-black text-xs rounded-md uppercase tracking-wide">
+                        COMBO BUILDER
+                    </span>
+                    <h1 class="text-xl font-black text-on-surface leading-none">
+                        @(ComboDetail?.DisplayName ?? "Đang tải Combo...")
+                    </h1>
+                </div>
+                <p class="text-xs text-on-surface-variant mt-1 line-clamp-1">
+                    @(string.IsNullOrWhiteSpace(ComboDetail?.DisplayDescription) ? "Tùy chỉnh các món thành phần trong Combo cho khách hàng" : ComboDetail.DisplayDescription)
+                </p>
+            </div>
+        </div>
+
+        <!-- Right: Combo Base Price -->
+        <div class="flex items-center gap-4">
+            <div class="text-right">
+                <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block">Giá gốc Combo</span>
+                <span class="text-xl font-black text-primary font-mono">
+                    @(ComboDetail != null ? $"{ComboDetail.Price:N0} ₫" : "---")
+                </span>
+            </div>
+        </div>
+    </header>
+
+    @if (IsLoading)
+    {
+        <!-- Loading State -->
+        <div class="flex-1 flex flex-col items-center justify-center p-8">
+            <div class="relative w-16 h-16 mb-4">
+                <span class="material-symbols-outlined animate-spin text-5xl text-primary" data-icon="progress_activity">progress_activity</span>
+            </div>
+            <h3 class="text-base font-extrabold text-on-surface mb-1">Đang tải cấu hình Combo...</h3>
+            <p class="text-xs text-on-surface-variant">Vui lòng chờ trong giây lát</p>
+        </div>
+    }
+    else if (ComboDetail == null)
+    {
+        <!-- Error State -->
+        <div class="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+            <div class="w-16 h-16 rounded-full bg-error/10 text-error flex items-center justify-center mb-4">
+                <span class="material-symbols-outlined text-3xl">error</span>
+            </div>
+            <h3 class="text-lg font-black text-on-surface mb-2">Không thể tải thông tin Combo</h3>
+            <p class="text-sm text-on-surface-variant mb-6">Đã xảy ra lỗi khi kết nối hoặc Combo không tồn tại.</p>
+            <div class="flex items-center gap-3">
+                <button class="px-5 py-2.5 bg-surface-high hover:bg-surface-variant rounded-xl font-bold text-sm cursor-pointer border border-outline-variant"
+                        @onclick="HandleCancelClicked">
+                    Quay lại POS
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- 2. MAIN WORKSPACE: STRICT ~30% LEFT / ~70% RIGHT -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- ========================================== -->
+            <!-- SECTION LEFT (~30%): COMBO SUMMARY ("ĐÃ CHỌN") -->
+            <!-- ========================================== -->
+            <aside class="w-[30%] min-w-[320px] max-w-[420px] bg-surface border-r border-outline-variant flex flex-col shrink-0 overflow-hidden shadow-2xs z-20">
+                <!-- Summary Header -->
+                <div class="p-4 border-b border-outline-variant bg-surface-high/30 shrink-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-xl">fastfood</span>
+                            <h2 class="font-black text-sm uppercase tracking-wide text-on-surface">Combo của bạn</h2>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-black @(IsComboComplete ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20")">
+                            @(IsComboComplete ? "Đủ món" : $"{CompletedGroupsCount}/{TotalGroupsCount} nhóm")
+                        </span>
+                    </div>
+
+                    <!-- Progress bar -->
+                    <div class="w-full bg-outline-variant/40 rounded-full h-1.5 overflow-hidden">
+                        <div class="h-full transition-all duration-300 @(IsComboComplete ? "bg-emerald-500" : "bg-amber-500")"
+                             style="width: @(TotalGroupsCount > 0 ? (CompletedGroupsCount * 100 / TotalGroupsCount) : 100)%"></div>
+                    </div>
+
+                    @if (!IsComboComplete && !string.IsNullOrEmpty(FirstIncompleteGroupName))
+                    {
+                        <p class="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-2 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">info</span>
+                            <span>Cần chọn thêm món trong "@FirstIncompleteGroupName"</span>
+                        </p>
+                    }
+                </div>
+
+                <!-- Summary Scrollable Items Area -->
+                <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <!-- A. MÓN CỐ ĐỊNH (FIXED ITEMS) -->
+                    @if (FixedItems != null && FixedItems.Any())
+                    {
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-black uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-emerald-600">lock</span>
+                                    Món cố định (@FixedItems.Count)
+                                </span>
+                                <span class="text-[11px] text-emerald-600 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                                    Tự động bao gồm
+                                </span>
+                            </div>
+
+                            <div class="space-y-2">
+                                @foreach (var fixedItem in FixedItems)
+                                {
+                                    <div class="flex items-center gap-3 p-2.5 rounded-xl bg-surface-low border border-outline-variant/60 shadow-2xs hover:border-outline-variant transition-colors">
+                                        <!-- Thumbnail -->
+                                        <div class="w-12 h-12 rounded-lg bg-surface-high overflow-hidden shrink-0 flex items-center justify-center border border-outline-variant/40">
+                                            @if (!string.IsNullOrEmpty(GetItemImageUrl(fixedItem)))
+                                            {
+                                                <img src="@GetItemImageUrl(fixedItem)" alt="@fixedItem.DisplayName" class="w-full h-full object-cover" />
+                                            }
+                                            else
+                                            {
+                                                <span class="material-symbols-outlined text-on-surface-variant/60 text-xl">restaurant</span>
+                                            }
+                                        </div>
+
+                                        <!-- Item info -->
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-1.5">
+                                                <h4 class="font-bold text-xs text-on-surface truncate">@fixedItem.DisplayName</h4>
+                                            </div>
+                                            <div class="flex items-center gap-2 mt-1">
+                                                <span class="text-[11px] font-black text-primary px-1.5 py-0.2 rounded bg-primary/10">
+                                                    × @fixedItem.DefaultQuantity
+                                                </span>
+                                                <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                                                    ✓ Cố định
+                                                </span>
+                                                @if (fixedItem.AdditionalPrice > 0)
+                                                {
+                                                    <span class="text-[11px] font-bold text-amber-600 font-mono">
+                                                        +@fixedItem.AdditionalPrice.ToString("N0")đ
+                                                    </span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <!-- B. GROUP STATUS & SELECTED ITEMS -->
+                    @if (ComboDetail.Groups != null && ComboDetail.Groups.Any())
+                    {
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between pt-1">
+                                <span class="text-xs font-black uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-primary">tune</span>
+                                    Món đã chọn theo nhóm
+                                </span>
+                            </div>
+
+                            @foreach (var group in ComboDetail.Groups.OrderBy(g => g.SortOrder))
+                            {
+                                var selectedCount = GetGroupSelectedCount(group.Id);
+                                var isGroupValid = selectedCount >= group.MinSelections && selectedCount <= group.MaxSelections;
+                                var selectedItemsInGroup = GetSelectedItemsForGroup(group);
+
+                                <div class="rounded-xl border @(isGroupValid ? "border-outline-variant/70 bg-surface-low/50" : "border-amber-500/40 bg-amber-500/5") p-3 transition-colors">
+                                    <!-- Group Status Header -->
+                                    <div class="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant/40">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="material-symbols-outlined text-base @(isGroupValid ? "text-emerald-500" : "text-amber-500")">
+                                                @(isGroupValid ? "check_circle" : "radio_button_unchecked")
+                                            </span>
+                                            <span class="font-extrabold text-xs text-on-surface truncate">@group.Name</span>
+                                            @if (group.IsRequired)
+                                            {
+                                                <span class="text-error font-black text-xs" title="Bắt buộc">*</span>
+                                            }
+                                        </div>
+                                        <span class="text-[11px] font-black font-mono shrink-0 @(isGroupValid ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")">
+                                            @selectedCount / @group.MaxSelections
+                                        </span>
+                                    </div>
+
+                                    <!-- Selected Items in this group -->
+                                    @if (selectedItemsInGroup.Any())
+                                    {
+                                        <div class="space-y-2">
+                                            @foreach (var (opt, qty) in selectedItemsInGroup)
+                                            {
+                                                <div class="flex items-center gap-2.5 p-2 rounded-lg bg-surface border border-outline-variant/50 shadow-2xs">
+                                                    <!-- Thumbnail -->
+                                                    <div class="w-10 h-10 rounded-md bg-surface-high overflow-hidden shrink-0 flex items-center justify-center border border-outline-variant/40">
+                                                        @if (!string.IsNullOrEmpty(GetItemImageUrl(opt)))
+                                                        {
+                                                            <img src="@GetItemImageUrl(opt)" alt="@opt.DisplayName" class="w-full h-full object-cover" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="material-symbols-outlined text-on-surface-variant/60 text-lg">lunch_dining</span>
+                                                        }
+                                                    </div>
+
+                                                    <!-- Details -->
+                                                    <div class="flex-1 min-w-0">
+                                                        <h5 class="font-bold text-xs text-on-surface truncate">@opt.DisplayName</h5>
+                                                        <div class="flex items-center gap-2 mt-0.5">
+                                                            <span class="text-[10px] text-emerald-600 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded">
+                                                                ✓ Đã chọn
+                                                            </span>
+                                                            @if (opt.AdditionalPrice > 0)
+                                                            {
+                                                                <span class="text-[10px] font-bold text-primary font-mono">
+                                                                    +@opt.AdditionalPrice.ToString("N0")đ
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Quantity or Remove -->
+                                                    <div class="flex items-center gap-1 shrink-0">
+                                                        @if (group.MaxSelections > 1)
+                                                        {
+                                                            <button class="w-6 h-6 rounded-md bg-surface-high hover:bg-surface-variant flex items-center justify-center text-xs font-bold cursor-pointer"
+                                                                    @onclick="() => DecreaseOption(group, opt)"
+                                                                    title="Giảm">
+                                                                <span class="material-symbols-outlined text-[13px]">remove</span>
+                                                            </button>
+                                                            <span class="font-mono font-bold text-xs w-4 text-center">@qty</span>
+                                                            <button class="w-6 h-6 rounded-md bg-primary/10 hover:bg-primary text-primary hover:text-on-primary flex items-center justify-center text-xs font-bold cursor-pointer disabled:opacity-40"
+                                                                    disabled="@(selectedCount >= group.MaxSelections)"
+                                                                    @onclick="() => IncreaseOption(group, opt)"
+                                                                    title="Tăng">
+                                                                <span class="material-symbols-outlined text-[13px]">add</span>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-xs font-black font-mono px-2 py-0.5 bg-primary/10 text-primary rounded-md">
+                                                                ×1
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-2 text-xs text-on-surface-variant/70 italic flex items-center justify-center gap-1 cursor-pointer hover:text-primary transition-colors"
+                                             @onclick="() => SetActiveGroup(group.Id)">
+                                            <span>Chưa chọn món nào</span>
+                                            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </aside>
+
+            <!-- ========================================== -->
+            <!-- SECTION RIGHT (~70%): KHU VỰC CHỌN MÓN     -->
+            <!-- ========================================== -->
+            <main class="flex-1 bg-surface-low p-6 flex flex-col overflow-hidden">
+                <!-- Group Navigation Filter / Tabs -->
+                @if (ComboDetail.Groups != null && ComboDetail.Groups.Count > 1)
+                {
+                    <div class="flex items-center gap-2 mb-4 overflow-x-auto pb-1 shrink-0 scrollbar-none">
+                        <button class="px-4 py-2 rounded-xl font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs whitespace-nowrap @(ActiveGroupId == 0 ? "bg-primary text-on-primary shadow-sm" : "bg-surface hover:bg-surface-high text-on-surface border border-outline-variant")"
+                                @onclick="() => SetActiveGroup(0)">
+                            <span class="material-symbols-outlined text-base">apps</span>
+                            <span>Tất cả nhóm (@ComboDetail.Groups.Count)</span>
+                        </button>
+
+                        @foreach (var g in ComboDetail.Groups.OrderBy(x => x.SortOrder))
+                        {
+                            var count = GetGroupSelectedCount(g.Id);
+                            var isDone = count >= g.MinSelections && count <= g.MaxSelections;
+                            var isCurrent = ActiveGroupId == g.Id;
+
+                            <button class="px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap @(isCurrent ? "bg-primary text-on-primary shadow-sm" : "bg-surface hover:bg-surface-high text-on-surface border border-outline-variant")"
+                                    @onclick="() => SetActiveGroup(g.Id)">
+                                <span class="material-symbols-outlined text-sm @(isCurrent ? "text-on-primary" : (isDone ? "text-emerald-500" : "text-amber-500"))">
+                                    @(isDone ? "check_circle" : "radio_button_unchecked")
+                                </span>
+                                <span>@g.Name</span>
+                                <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-black @(isCurrent ? "bg-white/20 text-white" : "bg-surface-high text-on-surface-variant")">
+                                    @count/@g.MaxSelections
+                                </span>
+                            </button>
+                        }
+                    </div>
+                }
+
+                <!-- Groups & Items Cards Area -->
+                <div class="flex-1 overflow-y-auto pr-1 space-y-6">
+                    @if (DisplayedGroups != null && DisplayedGroups.Any())
+                    {
+                        @foreach (var group in DisplayedGroups)
+                        {
+                            var currentCount = GetGroupSelectedCount(group.Id);
+                            var isMaxReached = currentCount >= group.MaxSelections;
+                            var isRequirementMet = currentCount >= group.MinSelections;
+
+                            <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-xs">
+                                <!-- Group Header Information -->
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-4 border-b border-outline-variant/60">
+                                    <div>
+                                        <div class="flex items-center gap-2.5">
+                                            <h3 class="text-base font-black text-on-surface">@group.Name</h3>
+                                            @if (group.IsRequired)
+                                            {
+                                                <span class="px-2 py-0.5 rounded bg-error/10 text-error font-extrabold text-[11px] border border-error/20">
+                                                    Bắt buộc
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="px-2 py-0.5 rounded bg-surface-high text-on-surface-variant font-bold text-[11px]">
+                                                    Tùy chọn
+                                                </span>
+                                            }
+                                        </div>
+                                        <p class="text-xs text-on-surface-variant mt-1">
+                                            @if (group.MinSelections == group.MaxSelections)
+                                            {
+                                                <span>Chọn chính xác <strong>@group.MinSelections món</strong></span>
+                                            }
+                                            else
+                                            {
+                                                <span>Chọn tối thiểu <strong>@group.MinSelections</strong>, tối đa <strong>@group.MaxSelections món</strong></span>
+                                            }
+                                        </p>
+                                    </div>
+
+                                    <!-- Status indicator -->
+                                    <div class="flex items-center gap-2">
+                                        <div class="px-3 py-1.5 rounded-xl font-mono font-black text-xs flex items-center gap-1.5 @(isRequirementMet ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30" : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30")">
+                                            <span class="material-symbols-outlined text-[16px]">
+                                                @(isRequirementMet ? "check" : "priority_high")
+                                            </span>
+                                            <span>Đã chọn: @currentCount / @group.MaxSelections</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Items Grid (Large, touch-friendly Cards for POS) -->
+                                @if (group.Items != null && group.Items.Any())
+                                {
+                                    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                                        @foreach (var opt in group.Items.OrderBy(i => i.SortOrder))
+                                        {
+                                            var qty = GetSelectedOptionQuantity(group.Id, opt.MenuItemId);
+                                            var isSelected = qty > 0;
+                                            var canSelectMore = !isMaxReached || isSelected;
+
+                                            <div class="group relative flex flex-col rounded-2xl border-2 transition-all duration-200 overflow-hidden cursor-pointer select-none @(isSelected ? "border-primary bg-primary/[0.03] shadow-md ring-2 ring-primary/20" : (canSelectMore ? "border-outline-variant bg-surface hover:border-primary/50 hover:shadow-sm" : "border-outline-variant/40 bg-surface/50 opacity-60 cursor-not-allowed"))"
+                                                 @onclick="() => HandleItemCardClicked(group, opt)">
+                                                
+                                                <!-- Top Selected Badge Indicator -->
+                                                @if (isSelected)
+                                                {
+                                                    <div class="absolute top-2.5 right-2.5 z-10 px-2.5 py-1 bg-primary text-on-primary rounded-lg text-xs font-black shadow-sm flex items-center gap-1">
+                                                        <span class="material-symbols-outlined text-[14px]">check</span>
+                                                        <span>Đã chọn</span>
+                                                    </div>
+                                                }
+
+                                                <!-- Image Thumbnail -->
+                                                <div class="relative w-full h-32 bg-surface-high overflow-hidden shrink-0 flex items-center justify-center">
+                                                    @if (!string.IsNullOrEmpty(GetItemImageUrl(opt)))
+                                                    {
+                                                        <img src="@GetItemImageUrl(opt)" alt="@opt.DisplayName" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="material-symbols-outlined text-4xl text-on-surface-variant/40">restaurant_menu</span>
+                                                    }
+
+                                                    <!-- Additional Price Badge on Image -->
+                                                    @if (opt.AdditionalPrice > 0)
+                                                    {
+                                                        <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-gray-900/80 backdrop-blur-xs text-amber-300 text-[11px] font-black font-mono shadow-xs">
+                                                            +@opt.AdditionalPrice.ToString("N0") ₫
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-gray-900/70 backdrop-blur-xs text-emerald-300 text-[11px] font-bold shadow-xs">
+                                                            Miễn phí
+                                                        </div>
+                                                    }
+                                                </div>
+
+                                                <!-- Content Info -->
+                                                <div class="p-3.5 flex flex-col flex-1 justify-between">
+                                                    <div>
+                                                        <h4 class="font-extrabold text-sm text-on-surface line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                                                            @opt.DisplayName
+                                                        </h4>
+                                                    </div>
+
+                                                    <!-- Interactive Controls -->
+                                                    <div class="mt-3 pt-3 border-t border-outline-variant/50 flex items-center justify-between"
+                                                         @onclick:stopPropagation="true">
+                                                        @if (isSelected)
+                                                        {
+                                                            @if (group.MaxSelections > 1)
+                                                            {
+                                                                <!-- Quantity Adjustment Control -->
+                                                                <div class="flex items-center gap-2 w-full justify-between">
+                                                                    <button class="w-8 h-8 rounded-xl bg-surface-high hover:bg-surface-variant text-on-surface flex items-center justify-center transition-colors cursor-pointer border border-outline-variant active:scale-95"
+                                                                            @onclick="() => DecreaseOption(group, opt)"
+                                                                            title="Giảm số lượng">
+                                                                        <span class="material-symbols-outlined text-sm">remove</span>
+                                                                    </button>
+
+                                                                    <span class="font-mono font-black text-sm text-primary w-6 text-center">
+                                                                        @qty
+                                                                    </span>
+
+                                                                    <button class="w-8 h-8 rounded-xl bg-primary text-on-primary hover:bg-primary-hover flex items-center justify-center transition-colors cursor-pointer shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                            disabled="@isMaxReached"
+                                                                            @onclick="() => IncreaseOption(group, opt)"
+                                                                            title="Tăng số lượng">
+                                                                        <span class="material-symbols-outlined text-sm">add</span>
+                                                                    </button>
+                                                                </div>
+                                                            }
+                                                            else
+                                                            {
+                                                                <!-- Single select already chosen -->
+                                                                <button class="w-full py-1.5 rounded-xl bg-primary/10 text-primary font-bold text-xs flex items-center justify-center gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+                                                                        @onclick="() => HandleItemCardClicked(group, opt)">
+                                                                    <span class="material-symbols-outlined text-sm">check</span>
+                                                                    <span>Đang chọn món này</span>
+                                                                </button>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <!-- Select Item Button -->
+                                                            <button class="w-full py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all @(canSelectMore ? "bg-surface-high hover:bg-primary hover:text-on-primary text-on-surface border border-outline-variant/80 cursor-pointer shadow-2xs group-hover:bg-primary group-hover:text-on-primary" : "bg-surface text-on-surface-variant/40 border border-outline-variant/30 cursor-not-allowed")"
+                                                                    disabled="@(!canSelectMore)"
+                                                                    @onclick="() => HandleItemCardClicked(group, opt)">
+                                                                <span class="material-symbols-outlined text-sm">add_circle</span>
+                                                                <span>@(canSelectMore ? "Chọn món" : "Đã đủ món")</span>
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="py-8 text-center bg-surface-low rounded-xl border border-dashed border-outline-variant text-on-surface-variant italic text-sm">
+                                        Nhóm này chưa có món để lựa chọn.
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="py-12 text-center text-on-surface-variant italic text-base">
+                            Không có nhóm lựa chọn nào khả dụng.
+                        </div>
+                    }
+                </div>
+            </main>
+        </div>
+
+        <!-- 3. FOOTER COMBO (Fixed height, fixed bottom) -->
+        <footer class="h-20 bg-surface border-t border-outline-variant px-8 flex items-center justify-between shrink-0 shadow-lg z-30">
+            <!-- Left: Quantity & Price Breakdown -->
+            <div class="flex items-center gap-6">
+                <!-- Combo Quantity Counter -->
+                <div class="flex items-center gap-2 bg-surface-high/60 p-1 rounded-xl border border-outline-variant/70">
+                    <button class="w-8 h-8 rounded-lg bg-surface hover:bg-surface-variant flex items-center justify-center text-on-surface font-bold transition-colors cursor-pointer disabled:opacity-40"
+                            disabled="@(Quantity <= 1 || IsProcessing)"
+                            @onclick="() => Quantity = Math.Max(1, Quantity - 1)">
+                        <span class="material-symbols-outlined text-sm">remove</span>
+                    </button>
+                    <span class="font-mono font-black text-sm px-2 text-center min-w-[24px]">@Quantity</span>
+                    <button class="w-8 h-8 rounded-lg bg-surface hover:bg-surface-variant flex items-center justify-center text-on-surface font-bold transition-colors cursor-pointer disabled:opacity-40"
+                            disabled="@IsProcessing"
+                            @onclick="() => Quantity++">
+                        <span class="material-symbols-outlined text-sm">add</span>
+                    </button>
+                    <span class="text-xs text-on-surface-variant font-bold pr-2">Combo</span>
+                </div>
+
+                <div class="h-8 w-[1px] bg-outline-variant"></div>
+
+                <!-- Price Details -->
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2 text-xs text-on-surface-variant">
+                        <span>Giá gốc: <strong class="font-mono text-on-surface">@ComboDetail.Price.ToString("N0") ₫</strong></span>
+                        @if (TotalAdditionalPricePerCombo > 0)
+                        {
+                            <span>•</span>
+                            <span class="text-amber-600 dark:text-amber-400 font-bold">
+                                Phụ thu: +@TotalAdditionalPricePerCombo.ToString("N0") ₫
+                            </span>
+                        }
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-xs font-extrabold uppercase text-on-surface-variant">Tổng thanh toán:</span>
+                        <span class="text-2xl font-black text-primary font-mono leading-none">
+                            @CalculateGrandTotal().ToString("N0") ₫
+                        </span>
+                    </div>
+                </div>
+
+                @if (!IsComboComplete)
+                {
+                    <div class="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-500/20">
+                        <span class="material-symbols-outlined text-[16px]">warning</span>
+                        <span>Vui lòng chọn đủ các nhóm bắt buộc để thêm vào đơn</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Right: Action Buttons -->
+            <div class="flex items-center gap-4">
+                <!-- Cancel Button -->
+                <button class="px-5 py-3 rounded-xl border border-outline-variant hover:bg-surface-high font-bold text-sm text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shadow-2xs"
+                        disabled="@IsProcessing"
+                        @onclick="HandleCancelClicked">
+                    Hủy bỏ
+                </button>
+
+                <!-- Confirm Button -->
+                <button class="px-8 py-3.5 rounded-xl font-black text-sm flex items-center gap-2.5 transition-all shadow-md @(IsComboComplete && !IsProcessing ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98" : "bg-surface-high text-on-surface-variant/50 border border-outline-variant cursor-not-allowed opacity-60")"
+                        disabled="@(!IsComboComplete || IsProcessing)"
+                        @onclick="HandleConfirmClicked">
+                    @if (IsProcessing)
+                    {
+                        <span class="material-symbols-outlined animate-spin text-base" data-icon="progress_activity">progress_activity</span>
+                        <span>Đang xử lý...</span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined text-lg">check</span>
+                        <span>Thêm vào đơn · @CalculateGrandTotal().ToString("N0") ₫</span>
+                    }
+                </button>
+            </div>
+        </footer>
+    }
+</div>
+
+@code {
+    [Parameter] public ComboDetailDto? ComboDetail { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public List<MenuItemDto>? AllMenuItems { get; set; }
+    [Parameter] public EventCallback<(ComboDetailDto combo, int qty, List<CartComboItemRequest> selectedItems)> OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private int Quantity { get; set; } = 1;
+    private bool IsProcessing { get; set; }
+    private int ActiveGroupId { get; set; } = 0; // 0 = All
+
+    // State for selections: Dictionary<GroupId, Dictionary<MenuItemId, int (Quantity)>>
+    private Dictionary<int, Dictionary<int, int>> _selections = new();
+
+    private List<ComboItemDto> FixedItems =>
+        ComboDetail?.FixedAndAddOnItems?.Where(i => i.ComponentType == ComboComponentType.Fixed).OrderBy(i => i.SortOrder).ToList()
+        ?? new List<ComboItemDto>();
+
+    private IEnumerable<ComboGroupDto> DisplayedGroups =>
+        (ActiveGroupId == 0 || ComboDetail?.Groups == null)
+            ? (ComboDetail?.Groups?.OrderBy(g => g.SortOrder) ?? Enumerable.Empty<ComboGroupDto>())
+            : (ComboDetail?.Groups?.Where(g => g.Id == ActiveGroupId) ?? Enumerable.Empty<ComboGroupDto>());
+
+    private int TotalGroupsCount => ComboDetail?.Groups?.Count ?? 0;
+
+    private int CompletedGroupsCount =>
+        ComboDetail?.Groups?.Count(g =>
+        {
+            var count = GetGroupSelectedCount(g.Id);
+            return count >= g.MinSelections && count <= g.MaxSelections;
+        }) ?? 0;
+
+    private bool IsComboComplete
+    {
+        get
+        {
+            if (ComboDetail == null) return false;
+            if (ComboDetail.Groups == null || !ComboDetail.Groups.Any()) return true;
+
+            foreach (var group in ComboDetail.Groups)
+            {
+                var selectedCount = GetGroupSelectedCount(group.Id);
+                if (group.IsRequired && selectedCount < group.MinSelections) return false;
+                if (selectedCount > group.MaxSelections) return false;
+            }
+            return true;
+        }
+    }
+
+    private string? FirstIncompleteGroupName =>
+        ComboDetail?.Groups?.FirstOrDefault(g => GetGroupSelectedCount(g.Id) < g.MinSelections)?.Name;
+
+    private decimal TotalAdditionalPricePerCombo
+    {
+        get
+        {
+            if (ComboDetail == null) return 0;
+            decimal additional = 0m;
+
+            if (ComboDetail.FixedAndAddOnItems != null)
+            {
+                foreach (var fixedItem in ComboDetail.FixedAndAddOnItems.Where(i => i.ComponentType == ComboComponentType.Fixed))
+                {
+                    additional += fixedItem.AdditionalPrice * fixedItem.DefaultQuantity;
+                }
+            }
+
+            foreach (var group in ComboDetail.Groups ?? Enumerable.Empty<ComboGroupDto>())
+            {
+                if (_selections.TryGetValue(group.Id, out var groupSelection))
+                {
+                    foreach (var kvp in groupSelection)
+                    {
+                        var opt = group.Items.FirstOrDefault(i => i.MenuItemId == kvp.Key);
+                        if (opt != null && kvp.Value > 0)
+                        {
+                            additional += opt.AdditionalPrice * kvp.Value;
+                        }
+                    }
+                }
+            }
+
+            return additional;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (ComboDetail != null && _selections.Count == 0)
+        {
+            Quantity = 1;
+            ActiveGroupId = 0;
+            _selections.Clear();
+
+            // Khởi tạo state cho các group
+            if (ComboDetail.Groups != null)
+            {
+                foreach (var group in ComboDetail.Groups)
+                {
+                    _selections[group.Id] = new Dictionary<int, int>();
+
+                    // Tự động chọn món đầu tiên nếu Single selection bắt buộc (Min=1, Max=1) hoặc Require > 0
+                    if (group.IsRequired && group.MinSelections > 0 && group.Items.Any())
+                    {
+                        var firstItem = group.Items.OrderBy(i => i.SortOrder).First();
+                        _selections[group.Id][firstItem.MenuItemId] = group.MinSelections;
+                    }
+                }
+            }
+        }
+    }
+
+    private void SetActiveGroup(int groupId)
+    {
+        ActiveGroupId = groupId;
+    }
+
+    private int GetGroupSelectedCount(int groupId)
+    {
+        if (_selections.TryGetValue(groupId, out var groupSelection))
+        {
+            return groupSelection.Values.Sum();
+        }
+        return 0;
+    }
+
+    private int GetSelectedOptionQuantity(int groupId, int menuItemId)
+    {
+        if (_selections.TryGetValue(groupId, out var groupSelection))
+        {
+            if (groupSelection.TryGetValue(menuItemId, out var qty))
+            {
+                return qty;
+            }
+        }
+        return 0;
+    }
+
+    private List<(ComboItemDto Item, int Quantity)> GetSelectedItemsForGroup(ComboGroupDto group)
+    {
+        var result = new List<(ComboItemDto, int)>();
+        if (_selections.TryGetValue(group.Id, out var groupSelection))
+        {
+            foreach (var kvp in groupSelection)
+            {
+                if (kvp.Value > 0)
+                {
+                    var opt = group.Items.FirstOrDefault(i => i.MenuItemId == kvp.Key);
+                    if (opt != null)
+                    {
+                        result.Add((opt, kvp.Value));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private void HandleItemCardClicked(ComboGroupDto group, ComboItemDto opt)
+    {
+        if (!_selections.ContainsKey(group.Id))
+        {
+            _selections[group.Id] = new Dictionary<int, int>();
+        }
+
+        var groupSelection = _selections[group.Id];
+        var isCurrentlySelected = groupSelection.ContainsKey(opt.MenuItemId) && groupSelection[opt.MenuItemId] > 0;
+
+        // SINGLE SELECTION (MaxSelections == 1)
+        if (group.MaxSelections == 1)
+        {
+            if (isCurrentlySelected)
+            {
+                // If not strictly required (MinSelections == 0), allow deselect
+                if (group.MinSelections == 0)
+                {
+                    groupSelection.Remove(opt.MenuItemId);
+                }
+                // If MinSelections == 1, keep it selected (no unselecting down to 0)
+            }
+            else
+            {
+                // Instant switch: Clear all other selections in this group and pick this one!
+                groupSelection.Clear();
+                groupSelection[opt.MenuItemId] = 1;
+            }
+        }
+        // MULTI SELECTION (MaxSelections > 1)
+        else
+        {
+            if (isCurrentlySelected)
+            {
+                // If already selected and clicked card body, we can keep it or do nothing, controls +/- handle quantity
+            }
+            else
+            {
+                // Try to select if total < max
+                var currentTotal = groupSelection.Values.Sum();
+                if (currentTotal < group.MaxSelections)
+                {
+                    groupSelection[opt.MenuItemId] = 1;
+                }
+            }
+        }
+    }
+
+    private void IncreaseOption(ComboGroupDto group, ComboItemDto opt)
+    {
+        if (!_selections.ContainsKey(group.Id))
+        {
+            _selections[group.Id] = new Dictionary<int, int>();
+        }
+
+        var currentSelected = GetGroupSelectedCount(group.Id);
+        if (currentSelected < group.MaxSelections)
+        {
+            var qty = GetSelectedOptionQuantity(group.Id, opt.MenuItemId);
+            _selections[group.Id][opt.MenuItemId] = qty + 1;
+        }
+    }
+
+    private void DecreaseOption(ComboGroupDto group, ComboItemDto opt)
+    {
+        if (_selections.TryGetValue(group.Id, out var groupSelection))
+        {
+            if (groupSelection.TryGetValue(opt.MenuItemId, out var qty) && qty > 0)
+            {
+                if (qty == 1)
+                {
+                    // Check if group is required and single item, don't drop below min if strictly enforced?
+                    // Better to allow removing so user can change choice, but validation warning informs them
+                    groupSelection.Remove(opt.MenuItemId);
+                }
+                else
+                {
+                    groupSelection[opt.MenuItemId] = qty - 1;
+                }
+            }
+        }
+    }
+
+    private decimal CalculateGrandTotal()
+    {
+        if (ComboDetail == null) return 0;
+        return (ComboDetail.Price + TotalAdditionalPricePerCombo) * Quantity;
+    }
+
+    private string? GetItemImageUrl(ComboItemDto item)
+    {
+        if (!string.IsNullOrEmpty(item.ImageUrl)) return item.ImageUrl;
+        return AllMenuItems?.FirstOrDefault(m => m.Id == item.MenuItemId)?.ImageUrl;
+    }
+
+    private async Task HandleBackClicked()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+    private async Task HandleCancelClicked()
+    {
+        await OnCancel.InvokeAsync();
+    }
+
+    private async Task HandleConfirmClicked()
+    {
+        if (IsProcessing || ComboDetail == null || !IsComboComplete) return;
+
+        IsProcessing = true;
+        try
+        {
+            var selectedItems = new List<CartComboItemRequest>();
+
+            // 1. Add Fixed Items
+            if (ComboDetail.FixedAndAddOnItems != null)
+            {
+                foreach (var fixedItem in ComboDetail.FixedAndAddOnItems.Where(i => i.ComponentType == ComboComponentType.Fixed))
+                {
+                    selectedItems.Add(new CartComboItemRequest
+                    {
+                        ComboItemId = fixedItem.Id,
+                        MenuItemId = fixedItem.MenuItemId,
+                        Quantity = fixedItem.DefaultQuantity,
+                        AdditionalPrice = fixedItem.AdditionalPrice,
+                        ComboGroupId = null
+                    });
+                }
+            }
+
+            // 2. Add Selected Choice Group Items
+            if (ComboDetail.Groups != null)
+            {
+                foreach (var group in ComboDetail.Groups)
+                {
+                    if (_selections.TryGetValue(group.Id, out var groupSelection))
+                    {
+                        foreach (var kvp in groupSelection)
+                        {
+                            var qty = kvp.Value;
+                            if (qty > 0)
+                            {
+                                var opt = group.Items.FirstOrDefault(i => i.MenuItemId == kvp.Key);
+                                if (opt != null)
+                                {
+                                    selectedItems.Add(new CartComboItemRequest
+                                    {
+                                        ComboItemId = opt.Id,
+                                        MenuItemId = opt.MenuItemId,
+                                        Quantity = qty,
+                                        AdditionalPrice = opt.AdditionalPrice,
+                                        ComboGroupId = group.Id
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            await OnConfirm.InvokeAsync((ComboDetail, Quantity, selectedItems));
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+}

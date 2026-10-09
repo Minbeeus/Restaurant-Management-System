@@ -6,10 +6,19 @@
 @inject MenuApiClient ApiClient
 
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-    <h2 class="text-2xl font-headline-sm text-primary">@L["MenuItem_Management_Title"]</h2>
-    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors whitespace-nowrap" @onclick="OpenAddModal">
-        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> @L["MenuItem_Add_Button"]
-    </button>
+    <div>
+        <h2 class="text-2xl font-headline-sm text-primary m-0">@L["MenuItem_Management_Title"]</h2>
+        <p class="text-xs text-on-surface-variant m-0 mt-0.5">Quản lý danh sách món lẻ, công thức định lượng và trạng thái phục vụ</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="/admin/menu/combos" class="px-3 py-2 rounded font-label-bold text-sm bg-secondary-container/20 text-secondary hover:bg-secondary-container/40 transition-colors border border-secondary/30 flex items-center gap-1.5 shadow-xs">
+            <span class="material-symbols-outlined text-sm" data-icon="lunch_dining">lunch_dining</span>
+            Quản lý Combo
+        </a>
+        <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors whitespace-nowrap flex items-center gap-1.5" @onclick="OpenAddModal">
+            <span class="material-symbols-outlined align-middle text-sm" data-icon="add">add</span> @L["MenuItem_Add_Button"]
+        </button>
+    </div>
 </div>
 
 <!-- Toolbar Lọc & Tìm Kiếm -->

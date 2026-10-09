@@ -55,6 +55,10 @@ public class KdsServicesTests
             Status = (int)OrderStatus.InPreparation,
             Table = table
         };
+        var m1 = new MenuItem { Id = 10, Name = "Phở Bò", Price = 50000, IsActive = true };
+        var m2 = new MenuItem { Id = 11, Name = "Trà Đào", Price = 25000, IsActive = true };
+        _context.MenuItems.AddRange(m1, m2);
+
         var item1 = new OrderItem
         {
             Order = order,
@@ -97,10 +101,10 @@ public class KdsServicesTests
         await _kitchenService.UpdateItemStatusAsync(item1.Id, (int)KitchenStatus.Done);
         await _kitchenService.UpdateItemStatusAsync(item2.Id, (int)KitchenStatus.Done);
 
-        // Assert 3: All items done -> Order auto-completed
+        // Assert 3: All items done -> Order becomes Ready for service (not Completed before cashier payment)
         var dbOrder = await _context.Orders.FindAsync(order.Id);
         Assert.NotNull(dbOrder);
-        Assert.Equal((int)OrderStatus.Completed, dbOrder.Status);
+        Assert.Equal((int)OrderStatus.Ready, dbOrder.Status);
     }
 
     [Fact]

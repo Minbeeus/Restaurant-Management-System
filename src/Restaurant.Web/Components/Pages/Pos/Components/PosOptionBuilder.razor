@@ -1,0 +1,402 @@
+@using Restaurant.Application.DTOs
+
+<div class="h-full w-full flex flex-col bg-surface-low select-none overflow-hidden text-on-background">
+    <!-- Header: Modify Title & Item Info -->
+    <header class="h-14 bg-surface border-b border-outline-variant px-5 flex items-center justify-between shrink-0 shadow-xs z-20">
+        <div class="flex items-center gap-3">
+            <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-high hover:bg-surface-variant text-on-surface font-bold text-xs transition-all cursor-pointer border border-outline-variant/60"
+                    @onclick="HandleCancelClicked"
+                    title="Hủy sửa và quay lại Menu">
+                <span class="material-symbols-outlined text-base">arrow_back</span>
+                <span>Hủy sửa</span>
+            </button>
+
+            <div class="h-5 w-[1px] bg-outline-variant"></div>
+
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-primary/10 text-primary font-black text-[10px] rounded uppercase tracking-wider">
+                        CHỈNH SỬA MÓN
+                    </span>
+                    <h2 class="text-base font-black text-on-surface leading-tight">
+                        @(Item?.DisplayName ?? Item?.Name ?? "Tùy chọn món ăn")
+                    </h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Current Price breakdown -->
+        <div class="flex items-center gap-3">
+            <div class="text-right">
+                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block">Giá gốc: @(Item != null ? $"{Item.Price:N0}đ" : "0đ")</span>
+                <span class="text-xs font-black text-primary font-mono">
+                    Tổng 1 phần: @CalculateUnitPrice().ToString("N0")đ
+                </span>
+            </div>
+        </div>
+    </header>
+
+    @if (Item == null)
+    {
+        <div class="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+            <div class="w-14 h-14 rounded-full bg-error/10 text-error flex items-center justify-center mb-3">
+                <span class="material-symbols-outlined text-2xl">error</span>
+            </div>
+            <h3 class="text-base font-black text-on-surface mb-1">Không tìm thấy thông tin món</h3>
+            <p class="text-xs text-on-surface-variant mb-4">Không thể tải các tùy chọn của món này.</p>
+            <button class="px-4 py-2 bg-surface-high hover:bg-surface-variant rounded-xl font-bold text-xs cursor-pointer border border-outline-variant"
+                    @onclick="HandleCancelClicked">
+                Quay lại Menu
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Main Modify Area -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Group Tabs Filter Bar (if multiple groups) -->
+            @if (ModifierGroups != null && ModifierGroups.Count > 1)
+            {
+                <div class="px-4 py-2.5 bg-surface border-b border-outline-variant flex items-center gap-1.5 overflow-x-auto shrink-0 select-none">
+                    <button class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 @(ActiveGroupId == 0 ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high hover:bg-surface-variant text-on-surface border border-outline-variant/60")"
+                            @onclick="() => ActiveGroupId = 0">
+                        TẤT CẢ NHÓM (@ModifierGroups.Count)
+                    </button>
+                    @foreach (var group in ModifierGroups.OrderBy(g => g.SortOrder))
+                    {
+                        var selectedInGroup = GetSelectedOptionsInGroup(group);
+                        var isGroupSatisfied = (!group.IsRequired && selectedInGroup.Count == 0) ||
+                                               (selectedInGroup.Count >= group.MinSelections && selectedInGroup.Count <= group.MaxSelections);
+
+                        <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 @(ActiveGroupId == group.Id ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high hover:bg-surface-variant text-on-surface border border-outline-variant/60")"
+                                @onclick="() => ActiveGroupId = group.Id">
+                            <span>@group.Name</span>
+                            @if (group.IsRequired)
+                            {
+                                <span class="text-error font-black text-xs leading-none">*</span>
+                            }
+                            @if (selectedInGroup.Any())
+                            {
+                                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black @(ActiveGroupId == group.Id ? "bg-white/20 text-white" : "bg-primary/10 text-primary")">
+                                    @selectedInGroup.Count
+                                </span>
+                            }
+                        </button>
+                    }
+                </div>
+            }
+
+            <!-- Modifier Groups & Option Cards Grid -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                @foreach (var group in DisplayedGroups)
+                {
+                    var selectedInGroup = GetSelectedOptionsInGroup(group);
+                    var isSingleSelect = group.MaxSelections == 1;
+                    var isGroupSatisfied = (!group.IsRequired && selectedInGroup.Count == 0) ||
+                                           (selectedInGroup.Count >= group.MinSelections && selectedInGroup.Count <= group.MaxSelections);
+
+                    <div class="bg-surface rounded-2xl border @(isGroupSatisfied ? "border-outline-variant/80" : "border-amber-500/50 ring-1 ring-amber-500/30") p-4 shadow-2xs">
+                        <!-- Group Header -->
+                        <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-outline-variant/60">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-sm font-black text-on-surface">@group.Name</h3>
+                                    @if (group.IsRequired)
+                                    {
+                                        <span class="px-2 py-0.5 rounded-md bg-error/10 text-error text-[10px] font-black uppercase">Bắt buộc</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="px-2 py-0.5 rounded-md bg-surface-high text-on-surface-variant text-[10px] font-bold uppercase">Tùy chọn</span>
+                                    }
+                                </div>
+                                <p class="text-[11px] text-on-surface-variant mt-0.5">
+                                    @(isSingleSelect ? "Chọn 1 tùy chọn duy nhất" : $"Chọn từ {group.MinSelections} đến tối đa {group.MaxSelections} tùy chọn")
+                                </p>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-black bg-surface-high text-on-surface border border-outline-variant/60">
+                                @selectedInGroup.Count / @group.MaxSelections
+                            </span>
+                        </div>
+
+                        <!-- Options Cards Grid -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
+                            @foreach (var opt in group.ModifierOptions.Where(o => o.IsActive).OrderBy(o => o.SortOrder))
+                            {
+                                var isSelected = _selectedOptionIds.Contains(opt.Id);
+                                var isMaxReached = !isSelected && selectedInGroup.Count >= group.MaxSelections;
+
+                                <div class="relative bg-surface hover:bg-surface-high rounded-xl p-3 border transition-all duration-150 cursor-pointer select-none flex flex-col justify-between @(isSelected ? "border-primary ring-2 ring-primary/30 bg-primary/5 shadow-xs" : (isMaxReached ? "border-outline-variant/40 opacity-50 cursor-not-allowed" : "border-outline-variant hover:border-primary/50 shadow-2xs"))"
+                                     @onclick="() => HandleOptionClicked(group, opt)">
+                                    
+                                    @if (isSelected)
+                                    {
+                                        <div class="absolute top-2 right-2 z-10 px-1.5 py-0.5 bg-primary text-on-primary rounded text-[9px] font-black flex items-center gap-0.5">
+                                            <span class="material-symbols-outlined text-[11px]">check</span>
+                                            <span>Chọn</span>
+                                        </div>
+                                    }
+
+                                    <div class="pr-4">
+                                        <h4 class="font-extrabold text-xs text-on-surface leading-snug line-clamp-2">
+                                            @opt.Name
+                                        </h4>
+                                        @if (!string.IsNullOrEmpty(opt.NameEn))
+                                        {
+                                            <span class="text-[10px] text-on-surface-variant/70 block mt-0.5 truncate">@opt.NameEn</span>
+                                        }
+                                    </div>
+
+                                    <div class="mt-3 pt-2 border-t border-outline-variant/40 flex items-center justify-between">
+                                        <span class="text-xs font-black font-mono @(opt.ExtraPrice > 0 ? "text-primary" : "text-emerald-600 dark:text-emerald-400")">
+                                            @(opt.ExtraPrice > 0 ? $"+{opt.ExtraPrice:N0}đ" : "0đ")
+                                        </span>
+                                        <span class="material-symbols-outlined text-base @(isSelected ? "text-primary" : "text-on-surface-variant/40")">
+                                            @(isSingleSelect ? (isSelected ? "radio_button_checked" : "radio_button_unchecked") : (isSelected ? "check_box" : "check_box_outline_blank"))
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Sticky Footer: Save / Cancel Controls -->
+        <footer class="h-16 bg-surface border-t border-outline-variant px-5 flex items-center justify-between shrink-0 shadow-sm z-20 select-none">
+            <!-- Left: Price & Status Summary -->
+            <div class="flex items-center gap-4">
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2 text-xs text-on-surface-variant">
+                        <span>Giá gốc: <strong class="font-mono text-on-surface">@Item.Price.ToString("N0")đ</strong></span>
+                        @if (TotalExtraPricePerItem > 0)
+                        {
+                            <span>•</span>
+                            <span class="text-amber-600 dark:text-amber-400 font-bold">
+                                Phụ thu: +@TotalExtraPricePerItem.ToString("N0")đ
+                            </span>
+                        }
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-xs font-extrabold uppercase text-on-surface-variant">Đơn giá mới:</span>
+                        <span class="text-lg font-black text-primary font-mono leading-none">
+                            @CalculateUnitPrice().ToString("N0")đ
+                        </span>
+                    </div>
+                </div>
+
+                @if (!IsValid)
+                {
+                    <div class="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-500/20">
+                        <span class="material-symbols-outlined text-[16px]">warning</span>
+                        <span>Vui lòng chọn đủ các nhóm bắt buộc (*)</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Right: Action Buttons -->
+            <div class="flex items-center gap-3">
+                <button class="px-4 py-2 rounded-xl border border-outline-variant hover:bg-surface-high font-bold text-xs text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shadow-2xs"
+                        disabled="@IsProcessing"
+                        @onclick="HandleCancelClicked">
+                    Hủy sửa
+                </button>
+
+                <button class="px-6 py-2 rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-sm @(IsValid && !IsProcessing ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98" : "bg-surface-high text-on-surface-variant/50 border border-outline-variant cursor-not-allowed opacity-60")"
+                        disabled="@(!IsValid || IsProcessing)"
+                        @onclick="HandleConfirmClicked">
+                    @if (IsProcessing)
+                    {
+                        <span class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                        <span>Đang lưu...</span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined text-base">check</span>
+                        <span>Lưu thay đổi · @CalculateUnitPrice().ToString("N0")đ</span>
+                    }
+                </button>
+            </div>
+        </footer>
+    }
+</div>
+
+@code {
+    [Parameter] public MenuItemDetailDto? Item { get; set; }
+    [Parameter] public List<ModifierGroupDto>? ModifierGroups { get; set; }
+    [Parameter] public List<int>? InitialSelectedModifiers { get; set; }
+    [Parameter] public EventCallback<List<int>> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private bool IsProcessing { get; set; }
+    private int ActiveGroupId { get; set; } = 0; // 0 = All
+
+    private HashSet<int> _selectedOptionIds = new();
+
+    private IEnumerable<ModifierGroupDto> DisplayedGroups =>
+        (ActiveGroupId == 0 || ModifierGroups == null)
+            ? (ModifierGroups?.OrderBy(g => g.SortOrder) ?? Enumerable.Empty<ModifierGroupDto>())
+            : (ModifierGroups?.Where(g => g.Id == ActiveGroupId) ?? Enumerable.Empty<ModifierGroupDto>());
+
+    private bool IsValid
+    {
+        get
+        {
+            if (ModifierGroups == null || !ModifierGroups.Any()) return true;
+
+            foreach (var group in ModifierGroups)
+            {
+                var count = GetSelectedOptionsInGroup(group).Count;
+                if (group.IsRequired)
+                {
+                    if (count < group.MinSelections || count > group.MaxSelections)
+                        return false;
+                }
+                else
+                {
+                    if (count > group.MaxSelections)
+                        return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    private decimal TotalExtraPricePerItem
+    {
+        get
+        {
+            if (ModifierGroups == null) return 0m;
+            decimal total = 0m;
+            foreach (var group in ModifierGroups)
+            {
+                foreach (var opt in group.ModifierOptions)
+                {
+                    if (_selectedOptionIds.Contains(opt.Id))
+                    {
+                        total += opt.ExtraPrice;
+                    }
+                }
+            }
+            return total;
+        }
+    }
+
+    private decimal CalculateUnitPrice()
+    {
+        if (Item == null) return 0m;
+        return Item.Price + TotalExtraPricePerItem;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Item != null)
+        {
+            _selectedOptionIds.Clear();
+
+            if (InitialSelectedModifiers != null && InitialSelectedModifiers.Any())
+            {
+                foreach (var id in InitialSelectedModifiers)
+                {
+                    _selectedOptionIds.Add(id);
+                }
+            }
+            else
+            {
+                // Auto-select defaults
+                if (ModifierGroups != null)
+                {
+                    foreach (var group in ModifierGroups)
+                    {
+                        var defaultOpts = group.ModifierOptions.Where(o => o.IsActive && o.IsDefault).ToList();
+                        if (defaultOpts.Any())
+                        {
+                            foreach (var def in defaultOpts.Take(group.MaxSelections))
+                            {
+                                _selectedOptionIds.Add(def.Id);
+                            }
+                        }
+                        else if (group.IsRequired && group.MinSelections > 0 && group.ModifierOptions.Any(o => o.IsActive))
+                        {
+                            var first = group.ModifierOptions.First(o => o.IsActive);
+                            _selectedOptionIds.Add(first.Id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private List<ModifierOptionDto> GetSelectedOptionsInGroup(ModifierGroupDto group)
+    {
+        return group.ModifierOptions.Where(o => _selectedOptionIds.Contains(o.Id)).ToList();
+    }
+
+    private void HandleOptionClicked(ModifierGroupDto group, ModifierOptionDto opt)
+    {
+        var isCurrentlySelected = _selectedOptionIds.Contains(opt.Id);
+
+        if (group.MaxSelections == 1)
+        {
+            if (isCurrentlySelected)
+            {
+                if (!group.IsRequired)
+                {
+                    _selectedOptionIds.Remove(opt.Id);
+                }
+            }
+            else
+            {
+                foreach (var otherOpt in group.ModifierOptions)
+                {
+                    _selectedOptionIds.Remove(otherOpt.Id);
+                }
+                _selectedOptionIds.Add(opt.Id);
+            }
+        }
+        else
+        {
+            if (isCurrentlySelected)
+            {
+                _selectedOptionIds.Remove(opt.Id);
+            }
+            else
+            {
+                var currentInGroup = GetSelectedOptionsInGroup(group);
+                if (currentInGroup.Count < group.MaxSelections)
+                {
+                    _selectedOptionIds.Add(opt.Id);
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task HandleCancelClicked()
+    {
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    private async Task HandleConfirmClicked()
+    {
+        if (!IsValid || Item == null || IsProcessing) return;
+
+        IsProcessing = true;
+        try
+        {
+            if (OnSave.HasDelegate)
+            {
+                await OnSave.InvokeAsync(_selectedOptionIds.ToList());
+            }
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+}

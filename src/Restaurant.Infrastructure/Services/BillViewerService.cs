@@ -20,7 +20,8 @@ public class BillViewerService : IBillViewerService
     {
         var query = _context.Orders
             .AsNoTracking()
-            .Include(o => o.Table)
+            .Include(o => o.Table!)
+                .ThenInclude(t => t.Area)
             .Include(o => o.Customer)
             .Include(o => o.CreatedByUser)
             .Include(o => o.Payments)
@@ -64,7 +65,8 @@ public class BillViewerService : IBillViewerService
     {
         var order = await _context.Orders
             .AsNoTracking()
-            .Include(o => o.Table)
+            .Include(o => o.Table!)
+                .ThenInclude(t => t.Area)
             .Include(o => o.Customer)
             .Include(o => o.CreatedByUser)
             .Include(o => o.Payments)
@@ -84,6 +86,22 @@ public class BillViewerService : IBillViewerService
         var bill = await GetBillDetailsAsync(orderId);
         if (bill == null) return null;
 
+        var orderedBillItems = new List<BillItemDto>();
+        var rootBillItems = bill.Items.Where(i => !i.ParentItemId.HasValue).ToList();
+        var childBillItems = bill.Items.Where(i => i.ParentItemId.HasValue).GroupBy(i => i.ParentItemId!.Value).ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var root in rootBillItems)
+        {
+            orderedBillItems.Add(root);
+            if (childBillItems.TryGetValue(root.Id, out var children))
+            {
+                orderedBillItems.AddRange(children);
+            }
+        }
+
+        var parentIds = rootBillItems.Select(r => r.Id).ToHashSet();
+        orderedBillItems.AddRange(bill.Items.Where(i => i.ParentItemId.HasValue && !parentIds.Contains(i.ParentItemId.Value)));
+
         return new K80ReceiptDto
         {
             OrderCode = bill.OrderCode,
@@ -97,7 +115,7 @@ public class BillViewerService : IBillViewerService
             TotalAmount = bill.TotalAmount,
             PaymentMethod = bill.PaymentMethodName,
             CashReceived = bill.CashReceived,
-            Items = bill.Items.Select(i => new K80ReceiptItemDto
+            Items = orderedBillItems.Select(i => new K80ReceiptItemDto
             {
                 MenuItemName = i.MenuItemName,
                 Quantity = i.Quantity,
@@ -130,12 +148,17 @@ public class BillViewerService : IBillViewerService
             _ => "Không xác định"
         };
 
+        var orderTypeName = o.OrderType == 1 || o.TableId == null ? "Takeaway" : "DineIn";
+        var tableAreaName = o.Table?.Area?.Name ?? (o.OrderType == 1 ? "Quầy POS" : "Khu vực chung");
+
         return new BillDetailDto
         {
             OrderId = o.Id,
             OrderCode = o.OrderCode,
             CreatedAt = o.CreatedAt,
-            TableName = o.Table?.Name ?? "Mang Về",
+            TableName = o.Table?.Name ?? (o.OrderType == 1 ? "Mang Về" : "Tại bàn"),
+            TableAreaName = tableAreaName,
+            OrderType = orderTypeName,
             CashierName = o.CreatedByUser?.FullName ?? "Thu ngân",
             CustomerName = o.CustomerName ?? o.Customer?.FullName ?? "Khách lẻ",
             CustomerPhone = o.CustomerPhone ?? o.Customer?.PhoneNumber ?? string.Empty,
@@ -148,11 +171,13 @@ public class BillViewerService : IBillViewerService
             ChangeAmount = lastPayment?.ChangeAmount ?? 0,
             Items = o.OrderItems.Where(i => i.Status != (int)OrderItemStatus.Voided).Select(i => new BillItemDto
             {
+                Id = i.Id,
                 MenuItemName = i.MenuItemName,
                 Quantity = i.Quantity,
                 UnitPrice = i.UnitPrice,
                 DiscountAmount = i.DiscountAmount,
                 ParentItemId = i.ParentItemId,
+                Note = i.Note,
                 Modifiers = i.OrderItemModifiers.Select(m => m.ModifierOption?.Name ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList()
             }).ToList()
         };

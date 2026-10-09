@@ -15,6 +15,19 @@ public class AuditService : IAuditService
 
     public async Task LogAsync(int userId, string action, string entityName, string? entityId, string details, int? registerId = null, int? shiftId = null, string? correlationId = null)
     {
+        if (userId <= 0)
+        {
+            var defaultUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(_context.Users.OrderBy(u => u.Id));
+            if (defaultUser != null)
+            {
+                userId = defaultUser.Id;
+            }
+            else
+            {
+                userId = 1;
+            }
+        }
+
         var entry = new AuditLogEntry
         {
             UserId = userId,

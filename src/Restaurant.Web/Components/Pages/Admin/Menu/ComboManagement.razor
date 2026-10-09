@@ -1,4 +1,5 @@
 @page "/admin/menu/combos"
+@layout Restaurant.Web.Components.Layout.AdminLayout
 @using Microsoft.AspNetCore.Authorization
 @using Restaurant.Application.DTOs
 @using Restaurant.Web.Services
@@ -7,270 +8,554 @@
 @attribute [Authorize(Roles = "Admin,Manager")]
 @rendermode InteractiveServer
 
+<!-- Page Header -->
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-    <h2 class="text-2xl font-headline-sm text-primary">Quản lý Combo</h2>
-    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors whitespace-nowrap" @onclick="OpenAddModal">
-        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> Thêm Combo
-    </button>
+    <div class="flex items-center gap-3">
+        <a href="/admin/menu-items" class="text-on-surface-variant hover:text-primary transition-colors flex items-center p-1.5 rounded-lg hover:bg-surface-container" title="Quay lại Danh sách món ăn">
+            <span class="material-symbols-outlined text-2xl" data-icon="arrow_back">arrow_back</span>
+        </a>
+        <div>
+            <div class="flex items-center gap-2">
+                <h2 class="text-2xl font-headline-sm text-primary m-0 font-bold">Quản lý Combo</h2>
+                <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-primary/10 text-primary border border-primary/20">BOH Menu</span>
+            </div>
+            <p class="text-xs text-on-surface-variant m-0 mt-0.5">Thiết lập các gói Combo thực đơn, món cố định và nhóm lựa chọn thay thế</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="/admin/menu-items" class="px-3.5 py-2 rounded-lg font-label-bold text-sm text-on-surface-variant hover:bg-surface-container transition-colors border border-outline-variant/50 flex items-center gap-1.5 shadow-xs">
+            <span class="material-symbols-outlined text-sm" data-icon="restaurant_menu">restaurant_menu</span>
+            Danh sách Món ăn
+        </a>
+        <button class="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-bold text-sm shadow-sm hover:bg-primary/90 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer" @onclick="OpenAddModal">
+            <span class="material-symbols-outlined align-middle text-sm" data-icon="add">add</span> Thêm Combo
+        </button>
+    </div>
 </div>
+
+<!-- Success Banner Notification -->
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="mb-4 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-sm animate-in fade-in slide-in-from-top-2 duration-200">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-lg" data-icon="check_circle">check_circle</span>
+            <span class="font-medium">@_successMessage</span>
+        </div>
+        <button type="button" class="text-emerald-700 dark:text-emerald-400 hover:text-emerald-950 p-1 rounded-full cursor-pointer" @onclick="() => _successMessage = null">
+            <span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+        </button>
+    </div>
+}
 
 <!-- Toolbar Lọc & Tìm Kiếm -->
-<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-4 mb-6 flex flex-col md:flex-row gap-4">
+<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-4 mb-6 flex flex-col md:flex-row gap-4 items-stretch md:items-center">
     <div class="flex-1 relative">
         <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[20px]" data-icon="search">search</span>
-        <InputText @bind-Value="_searchKeyword" @bind-Value:event="oninput" class="w-full pl-10 pr-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary transition-colors" placeholder="Tìm kiếm Combo..." />
+        <InputText @bind-Value="_searchKeyword" @bind-Value:event="oninput" class="w-full pl-10 pr-4 py-2 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary transition-colors" placeholder="Tìm kiếm theo tên Combo hoặc tên tiếng Anh..." />
     </div>
-    <div class="w-full md:w-48 shrink-0">
-        <select @bind="_filterStatus" class="w-full px-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary transition-colors cursor-pointer">
-            <option value="">Tất cả trạng thái</option>
-            <option value="true">Đang bán</option>
-            <option value="false">Ngừng bán</option>
+    <div class="w-full md:w-64 shrink-0">
+        <select @bind="_filterCategoryId" class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary transition-colors cursor-pointer">
+            <option value="0">Tất cả danh mục</option>
+            @foreach (var cat in _categories)
+            {
+                <option value="@cat.Id">@cat.DisplayName</option>
+            }
         </select>
     </div>
+    <div class="w-full md:w-48 shrink-0">
+        <select @bind="_filterStatus" class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary transition-colors cursor-pointer">
+            <option value="">Tất cả trạng thái</option>
+            <option value="true">Đang bán</option>
+            <option value="false">Ngừng bán / Hết hàng</option>
+        </select>
+    </div>
+    @if (IsAnyFilterActive)
+    {
+        <button type="button" class="px-3 py-2 text-xs font-bold text-on-surface-variant hover:text-error hover:bg-error-container/20 border border-outline-variant/40 rounded-lg transition-colors flex items-center gap-1 shrink-0 justify-center cursor-pointer" @onclick="ResetFilters" title="Xóa toàn bộ bộ lọc">
+            <span class="material-symbols-outlined text-sm" data-icon="filter_alt_off">filter_alt_off</span>
+            Xóa lọc
+        </button>
+    }
 </div>
 
+<!-- Main Content Area -->
 @if (_isLoading)
 {
-    <div class="flex justify-center p-12">
-        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-12 flex flex-col items-center justify-center">
+        <span class="material-symbols-outlined animate-spin text-4xl text-primary mb-3" data-icon="progress_activity">progress_activity</span>
+        <p class="text-sm font-medium text-on-surface-variant">Đang nạp danh sách Combo thực đơn...</p>
+    </div>
+}
+else if (_hasLoadError)
+{
+    <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-error/30 p-12 text-center">
+        <div class="w-16 h-16 rounded-full bg-error-container text-error mx-auto flex items-center justify-center mb-4">
+            <span class="material-symbols-outlined text-3xl" data-icon="error">error</span>
+        </div>
+        <h3 class="text-lg font-bold text-on-background mb-1">Không thể tải danh sách Combo</h3>
+        <p class="text-on-surface-variant text-sm mb-6 max-w-md mx-auto">Đã xảy ra sự cố khi kết nối tới hệ thống máy chủ. Vui lòng thử lại sau.</p>
+        <button class="px-5 py-2.5 bg-primary text-on-primary rounded-lg font-label-bold shadow-sm hover:bg-primary/90 transition-colors inline-flex items-center gap-2 cursor-pointer text-sm" @onclick="LoadData">
+            <span class="material-symbols-outlined text-base" data-icon="refresh">refresh</span> Thử lại
+        </button>
     </div>
 }
 else
 {
-    <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
-        <table class="w-full text-left border-collapse">
-            <thead class="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-bold">
+    <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[850px]">
+            <thead class="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-bold text-xs uppercase tracking-wider">
                 <tr>
                     <th class="p-4 font-semibold text-center w-16">Hình ảnh</th>
                     <th class="p-4 font-semibold">Tên Combo</th>
-                    <th class="p-4 font-semibold text-right">Giá bán</th>
-                    <th class="p-4 font-semibold text-center w-28">Cấu trúc</th>
-                    <th class="p-4 font-semibold text-center w-28">Trạng thái</th>
-                    <th class="p-4 font-semibold text-center w-32">Thao tác</th>
+                    <th class="p-4 font-semibold w-40">Danh mục</th>
+                    <th class="p-4 font-semibold text-right w-36">Giá bán</th>
+                    <th class="p-4 font-semibold text-center w-48">Cấu trúc</th>
+                    <th class="p-4 font-semibold text-center w-36">Trạng thái</th>
+                    <th class="p-4 font-semibold text-center w-28">Thao tác</th>
                 </tr>
             </thead>
-            <tbody>
-                @if (!FilteredCombos.Any())
+            <tbody class="divide-y divide-outline-variant/20 text-sm">
+                @if (!_combos.Any())
                 {
+                    <!-- Empty State: No combos created yet -->
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-on-surface-variant">Không tìm thấy Combo nào.</td>
+                        <td colspan="7" class="p-12 text-center">
+                            <div class="w-16 h-16 rounded-full bg-surface-container text-on-surface-variant mx-auto flex items-center justify-center mb-3">
+                                <span class="material-symbols-outlined text-3xl opacity-60" data-icon="lunch_dining">lunch_dining</span>
+                            </div>
+                            <h4 class="font-bold text-base text-on-background mb-1">Chưa có Combo nào</h4>
+                            <p class="text-xs text-on-surface-variant mb-4 max-w-sm mx-auto">Tạo Combo đầu tiên để bắt đầu bán các gói sản phẩm kết hợp nhiều món ăn và thức uống.</p>
+                            <button class="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-bold text-sm shadow-sm hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5 cursor-pointer" @onclick="OpenAddModal">
+                                <span class="material-symbols-outlined text-sm" data-icon="add">add</span> + Thêm Combo
+                            </button>
+                        </td>
                     </tr>
                 }
-                @foreach (var item in FilteredCombos)
+                else if (!FilteredCombos.Any())
                 {
-                    <tr class="border-b border-outline-variant/20 last:border-0 hover:bg-surface-low/50 transition-colors">
-                        <td class="p-4">
-                            <div class="w-12 h-12 bg-surface-low rounded flex items-center justify-center text-on-surface-variant overflow-hidden mx-auto border border-outline-variant/30">
-                                @if (!string.IsNullOrEmpty(item.ImageUrl))
+                    <!-- Empty State: Filters returned 0 items -->
+                    <tr>
+                        <td colspan="7" class="p-12 text-center">
+                            <div class="w-14 h-14 rounded-full bg-surface-container text-on-surface-variant mx-auto flex items-center justify-center mb-3">
+                                <span class="material-symbols-outlined text-2xl opacity-60" data-icon="search_off">search_off</span>
+                            </div>
+                            <h4 class="font-bold text-base text-on-background mb-1">Không tìm thấy Combo phù hợp</h4>
+                            <p class="text-xs text-on-surface-variant mb-4">Thử thay đổi từ khóa tìm kiếm hoặc bỏ bớt các bộ lọc đang chọn.</p>
+                            <button class="px-4 py-1.5 border border-outline text-on-surface rounded-lg font-label-bold text-xs hover:bg-surface-low transition-colors cursor-pointer inline-flex items-center gap-1" @onclick="ResetFilters">
+                                <span class="material-symbols-outlined text-sm" data-icon="filter_alt_off">filter_alt_off</span> Xóa bộ lọc
+                            </button>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in FilteredCombos)
+                    {
+                        <tr class="hover:bg-surface-low/50 transition-colors">
+                            <td class="p-4 text-center">
+                                <div class="w-12 h-12 bg-surface-low rounded-lg flex items-center justify-center text-on-surface-variant overflow-hidden mx-auto border border-outline-variant/30 shadow-2xs">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" class="w-full h-full object-cover" onerror="this.style.display='none'" alt="@item.Name" />
+                                    }
+                                    else
+                                    {
+                                        <span class="material-symbols-outlined text-xl opacity-50" data-icon="lunch_dining">lunch_dining</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="p-4">
+                                <div class="font-bold text-on-background text-base">@item.DisplayName</div>
+                                @if (!string.IsNullOrEmpty(item.NameEn) && !item.NameEn.Equals(item.Name, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    <img src="@item.ImageUrl" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+                                    <div class="text-xs text-on-surface-variant/70 italic mt-0.5">EN: @item.NameEn</div>
+                                }
+                                @if (!string.IsNullOrEmpty(item.DisplayDescription))
+                                {
+                                    <div class="text-xs text-on-surface-variant line-clamp-1 mt-0.5" title="@item.DisplayDescription">@item.DisplayDescription</div>
+                                }
+                            </td>
+                            <td class="p-4 text-on-surface-variant">
+                                <span class="px-2.5 py-1 bg-surface-container rounded-md text-xs font-semibold border border-outline-variant/30 inline-block">
+                                    @(_categories.FirstOrDefault(c => c.Id == item.CategoryId)?.DisplayName ?? item.CategoryName)
+                                </span>
+                            </td>
+                            <td class="p-4 text-right font-bold text-primary text-base">
+                                @item.Price.ToString("N0") đ
+                            </td>
+                            <td class="p-4 text-center text-on-surface-variant text-xs">
+                                <div class="inline-flex flex-col gap-1 items-center">
+                                    @if (item.FixedAndAddOnItems.Any())
+                                    {
+                                        <span class="px-2 py-0.5 rounded bg-primary/10 text-primary font-bold border border-primary/20">
+                                            @item.FixedAndAddOnItems.Count món cố định
+                                        </span>
+                                    }
+                                    @if (item.Groups.Any())
+                                    {
+                                        <span class="px-2 py-0.5 rounded bg-secondary-container/40 text-secondary font-bold border border-secondary/20">
+                                            @item.Groups.Count nhóm (@item.Groups.Sum(g => g.Items.Count) lựa chọn)
+                                        </span>
+                                    }
+                                    @if (!item.FixedAndAddOnItems.Any() && !item.Groups.Any())
+                                    {
+                                        <span class="text-xs text-error font-bold">Chưa cấu hình món</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="p-4 text-center">
+                                @if (!item.IsActive)
+                                {
+                                    <div class="px-2.5 py-1 bg-on-surface-variant/10 text-on-surface-variant rounded-full text-xs font-bold border border-on-surface-variant/20 inline-block">
+                                        Đã ẩn
+                                    </div>
                                 }
                                 else
                                 {
-                                    <span class="material-symbols-outlined" data-icon="fastfood">fastfood</span>
+                                    <button type="button" class="relative inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer disabled:opacity-50 @(item.IsSoldOut ? "bg-surface-variant/50 text-on-surface-variant border border-outline-variant/50 hover:bg-surface-variant" : "bg-primary text-on-primary shadow-2xs hover:bg-primary/90")"
+                                            disabled="@_togglingItemIds.Contains(item.Id)"
+                                            @onclick="() => ToggleQuickSoldOut(item)"
+                                            title="Bấm để chuyển đổi trạng thái phục vụ">
+                                        @if (_togglingItemIds.Contains(item.Id))
+                                        {
+                                            <span class="material-symbols-outlined animate-spin text-xs mr-1" data-icon="progress_activity">progress_activity</span>
+                                            <span>Đang xử lý...</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="material-symbols-outlined text-xs mr-1" data-icon="@(item.IsSoldOut ? "block" : "check_circle")">@(item.IsSoldOut ? "block" : "check_circle")</span>
+                                            <span>@(item.IsSoldOut ? "Hết hàng" : "Đang bán")</span>
+                                        }
+                                    </button>
                                 }
-                            </div>
-                        </td>
-                        <td class="p-4">
-                            <div class="font-label-bold text-on-background text-base">@item.DisplayName</div>
-                            @if (!string.IsNullOrEmpty(item.DisplayDescription))
-                            {
-                                <div class="text-sm text-on-surface-variant line-clamp-1" title="@item.DisplayDescription">@item.DisplayDescription</div>
-                            }
-                        </td>
-                        <td class="p-4 text-right font-label-bold text-primary">@item.Price.ToString("N0") đ</td>
-                        <td class="p-4 text-center text-on-surface-variant text-sm">
-                            @item.Groups.Count nhóm<br />
-                            @item.Groups.Sum(g => g.Items.Count) lựa chọn
-                        </td>
-                        <td class="p-4 text-center">
-                            @if (!item.IsActive)
-                            {
-                                <div class="px-2 py-0.5 bg-on-surface-variant/10 text-on-surface-variant rounded text-[10px] font-bold border border-on-surface-variant/20 inline-block">Đã ẩn</div>
-                            }
-                            else
-                            {
-                                <div class="px-2 py-0.5 @(item.IsSoldOut ? "bg-error/10 text-error border-error/20" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20") rounded text-[10px] font-bold border inline-block">
-                                    @(item.IsSoldOut ? "Hết hàng" : "Đang bán")
+                            </td>
+                            <td class="p-4 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button type="button" class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors cursor-pointer" title="Chỉnh sửa Combo" @onclick="() => OpenEditModal(item.Id)">
+                                        <span class="material-symbols-outlined text-base" data-icon="edit">edit</span>
+                                    </button>
+                                    <button type="button" class="text-error hover:bg-error-container p-2 rounded-full transition-colors cursor-pointer" title="Xóa Combo" @onclick="() => ConfirmDelete(item)">
+                                        <span class="material-symbols-outlined text-base" data-icon="delete">delete</span>
+                                    </button>
                                 </div>
-                            }
-                        </td>
-                        <td class="p-4 text-center space-x-1 flex justify-center">
-                            <button class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="Sửa" @onclick="() => OpenEditModal(item.Id)">
-                                <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
-                            </button>
-                            <button class="text-error hover:bg-error-container p-2 rounded-full transition-colors" title="Xóa" @onclick="() => ConfirmDelete(item)">
-                                <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
-                            </button>
-                        </td>
-                    </tr>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
     </div>
 }
 
-<!-- Modal Add/Edit Combo -->
+<!-- Modal Add / Edit Combo -->
 @if (_showModal)
 {
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 backdrop-blur-sm animate-in fade-in duration-150">
+        <div class="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden border border-outline-variant/30">
+            <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low shrink-0">
-                <h3 class="font-headline-sm text-on-background m-0">@(_isEditing ? "Cập nhật Combo" : "Thêm Combo")</h3>
-                <button class="text-on-surface-variant hover:text-error transition-colors" @onclick="CloseModal">
-                    <span class="material-symbols-outlined" data-icon="close">close</span>
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-primary text-2xl" data-icon="lunch_dining">lunch_dining</span>
+                    <div>
+                        <h3 class="font-headline-sm text-base sm:text-lg font-bold text-on-background m-0">
+                            @(_isEditing ? $"Cập nhật Combo: {_model.Name}" : "Thêm Combo Mới")
+                        </h3>
+                        <p class="text-[11px] text-on-surface-variant m-0">Cấu hình danh mục, định giá bán, món cố định và các nhóm tùy chọn</p>
+                    </div>
+                </div>
+                <button type="button" class="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full cursor-pointer" @onclick="CloseModal">
+                    <span class="material-symbols-outlined text-xl" data-icon="close">close</span>
                 </button>
             </div>
             
-            <div class="flex-1 overflow-hidden flex flex-col md:flex-row">
-                <!-- Left: Basic Info -->
-                <div class="w-full md:w-1/3 p-6 border-r border-outline-variant/30 overflow-y-auto bg-surface-container-low/30">
-                    <h4 class="font-bold text-lg mb-4 text-primary border-b border-outline-variant/30 pb-2">Thông Tin Cơ Bản</h4>
-                    <EditForm Model="@_model" id="comboForm">
-                        <DataAnnotationsValidator />
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-label-bold text-on-surface mb-1">Tên Combo <span class="text-error">*</span></label>
-                                <InputText @bind-Value="_model.Name" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" placeholder="Vd: Combo Gà Rán Gia Đình" />
-                            </div>
+            <!-- Modal Body (Two-column layout) -->
+            <div class="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-outline-variant/30">
+                <!-- Cột Trái: Thông Tin Cơ Bản -->
+                <div class="w-full md:w-5/12 lg:w-4/12 p-5 sm:p-6 overflow-y-auto bg-surface-container-low/20 custom-scrollbar space-y-4">
+                    <div class="flex items-center justify-between border-b border-outline-variant/30 pb-2 mb-3">
+                        <h4 class="font-bold text-sm text-primary flex items-center gap-1.5 m-0">
+                            <span class="material-symbols-outlined text-lg" data-icon="info">info</span> Thông Tin Cơ Bản
+                        </h4>
+                        <span class="text-[11px] text-on-surface-variant italic">* Bắt buộc</span>
+                    </div>
 
-                            <div>
-                                <label class="block text-sm font-label-bold text-on-surface mb-1">Giá bán <span class="text-error">*</span></label>
-                                <InputNumber @bind-Value="_model.Price" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" />
-                            </div>
+                    <!-- Tên Combo (Tiếng Việt) -->
+                    <div>
+                        <label class="block text-xs font-label-bold text-on-surface mb-1">Tên Combo <span class="text-error">*</span></label>
+                        <InputText @bind-Value="_model.Name" class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" placeholder="Vd: Combo Gà Rán Gia Đình" />
+                    </div>
 
-                            <div>
-                                <label class="block text-sm font-label-bold text-on-surface mb-1">Mô tả</label>
-                                <InputTextArea @bind-Value="_model.Description" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow resize-none" rows="3" />
-                            </div>
+                    <!-- Tên tiếng Anh -->
+                    <div>
+                        <label class="block text-xs font-label-bold text-on-surface mb-1">Tên tiếng Anh (EN)</label>
+                        <InputText @bind-Value="_model.NameEn" class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" placeholder="Vd: Family Chicken Combo" />
+                    </div>
 
-                            <div>
-                                <label class="block text-sm font-label-bold text-on-surface mb-1">Hình ảnh (URL)</label>
-                                <InputText @bind-Value="_model.ImageUrl" class="w-full px-3 py-2 border border-outline rounded bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow" placeholder="https://..." />
-                                @if (!string.IsNullOrEmpty(_model.ImageUrl))
+                    <!-- Danh mục hiển thị -->
+                    <div>
+                        <label class="block text-xs font-label-bold text-on-surface mb-1">Danh mục hiển thị <span class="text-error">*</span></label>
+                        <select @bind="_model.CategoryId" class="w-full px-3 py-2 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow cursor-pointer">
+                            <option value="0">-- Chọn danh mục --</option>
+                            @foreach (var cat in _categories)
+                            {
+                                <option value="@cat.Id">@cat.DisplayName</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Giá bán & So sánh giá -->
+                    <div>
+                        <label class="block text-xs font-label-bold text-on-surface mb-1">Giá bán Combo <span class="text-error">*</span></label>
+                        <div class="relative">
+                            <InputNumber @bind-Value="_model.Price" class="w-full pl-3 pr-8 py-2 text-base font-bold border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow text-primary" placeholder="0" />
+                            <span class="absolute right-3 top-2.5 text-xs text-on-surface-variant font-bold">đ</span>
+                        </div>
+                        @if (EstimatedOriginalPrice > 0)
+                        {
+                            <div class="mt-2 text-xs p-2.5 bg-surface-container rounded-lg border border-outline-variant/30 space-y-1">
+                                <div class="flex justify-between text-on-surface-variant">
+                                    <span>Tổng giá bán lẻ ước tính:</span>
+                                    <span class="font-bold line-through">@EstimatedOriginalPrice.ToString("N0")đ</span>
+                                </div>
+                                @if (_model.Price > 0 && EstimatedOriginalPrice > _model.Price)
                                 {
-                                    <div class="mt-2 text-center h-24 bg-surface-low rounded border border-outline-variant/30 p-1">
-                                        <img src="@_model.ImageUrl" class="h-full object-contain mx-auto" onerror="this.style.display='none'" />
+                                    var savedAmount = EstimatedOriginalPrice - _model.Price;
+                                    var savedPercent = Math.Round((savedAmount / EstimatedOriginalPrice) * 100);
+                                    <div class="flex justify-between text-primary font-bold">
+                                        <span>Tiết kiệm cho khách:</span>
+                                        <span>@savedAmount.ToString("N0")đ (@savedPercent%)</span>
                                     </div>
                                 }
                             </div>
-                            
-                            @if (_isEditing)
-                            {
-                                <div class="bg-surface-container p-4 rounded-lg border border-outline-variant/30 space-y-3 mt-4">
-                                    <label class="block text-sm font-label-bold text-on-surface mb-2">Trạng thái</label>
-                                    <div class="flex flex-col gap-2">
-                                        <label class="flex items-center cursor-pointer">
-                                            <InputCheckbox @bind-Value="_model.IsSoldOut" class="w-4 h-4 text-error bg-surface-container border-outline rounded" />
-                                            <span class="ml-2 text-sm text-error font-bold">Hết hàng (Ngừng bán tạm thời)</span>
-                                        </label>
-                                        <label class="flex items-center cursor-pointer">
-                                            <InputCheckbox @bind-Value="_model.IsActive" class="w-4 h-4 text-primary bg-surface-container border-outline rounded" />
-                                            <span class="ml-2 text-sm">Hiển thị trên POS (IsActive)</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            }
-                            
-                            @if (!string.IsNullOrEmpty(_errorMessage))
-                            {
-                                <div class="p-3 bg-error-container text-on-error-container rounded text-sm border border-error/20 mt-4">
-                                    @_errorMessage
-                                </div>
-                            }
-                        </div>
-                    </EditForm>
-                </div>
-
-                <!-- Right: Combo Structure (Groups & Items) -->
-                <div class="w-full md:w-2/3 p-6 overflow-y-auto">
-                    <div class="flex justify-between items-center mb-4 border-b border-outline-variant/30 pb-2">
-                        <h4 class="font-bold text-lg text-primary">Cấu Trúc Lựa Chọn</h4>
-                        <button class="bg-secondary text-on-secondary px-3 py-1.5 rounded text-sm font-bold shadow-sm hover:bg-secondary/90 transition-colors flex items-center" @onclick="AddGroup">
-                            <span class="material-symbols-outlined text-sm mr-1" data-icon="add">add</span> Thêm Nhóm
-                        </button>
+                        }
                     </div>
 
-                    @if (!_model.Groups.Any())
-                    {
-                        <div class="text-center py-10 bg-surface-container-lowest border border-dashed border-outline rounded-lg text-on-surface-variant">
-                            <span class="material-symbols-outlined text-4xl mb-2 opacity-50" data-icon="account_tree">account_tree</span>
-                            <p>Chưa có nhóm lựa chọn nào.</p>
-                            <p class="text-sm mt-1">Bấm "Thêm Nhóm" để tạo nhóm đầu tiên (Vd: Chọn 2 Miếng Gà).</p>
-                        </div>
-                    }
+                    <!-- Mô tả -->
+                    <div>
+                        <label class="block text-xs font-label-bold text-on-surface mb-1">Mô tả món ăn</label>
+                        <InputTextArea @bind-Value="_model.Description" class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow resize-none" rows="2" placeholder="Gồm 2 gà giòn, 1 khoai tây chiên, 2 nước ngọt..." />
+                    </div>
 
-                    <div class="space-y-6">
-                        @for (int i = 0; i < _model.Groups.Count; i++)
+                    <!-- Hình ảnh đại diện -->
+                    <div>
+                        <label class="block text-xs font-label-bold text-on-surface mb-1">Hình ảnh đại diện (URL)</label>
+                        <InputText @bind-Value="_model.ImageUrl" class="w-full px-3 py-2 text-xs border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary transition-shadow" placeholder="https://..." />
+                        @if (!string.IsNullOrEmpty(_model.ImageUrl))
                         {
-                            var group = _model.Groups[i];
-                            var groupIndex = i; // capture loop variable
-                            
-                            <div class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl shadow-sm overflow-hidden">
-                                <!-- Group Header -->
-                                <div class="bg-surface-container-low p-4 border-b border-outline-variant/50 flex flex-wrap justify-between items-center gap-4">
-                                    <div class="flex-1 min-w-[200px]">
-                                        <input type="text" @bind="group.Name" @bind:event="oninput" class="w-full bg-transparent font-bold text-lg text-on-background focus:outline-none border-b border-transparent focus:border-primary" placeholder="Tên nhóm (Vd: Chọn Thức Uống) *" />
-                                    </div>
-                                    <div class="flex items-center gap-3 bg-surface p-1.5 rounded-lg border border-outline-variant/30">
-                                        <div class="flex items-center gap-1">
-                                            <label class="text-xs text-on-surface-variant">Min:</label>
-                                            <input type="number" @bind="group.MinSelections" min="0" class="w-12 text-center text-sm border-b border-outline bg-transparent focus:outline-none" />
-                                        </div>
-                                        <div class="flex items-center gap-1">
-                                            <label class="text-xs text-on-surface-variant">Max:</label>
-                                            <input type="number" @bind="group.MaxSelections" min="1" class="w-12 text-center text-sm border-b border-outline bg-transparent focus:outline-none" />
-                                        </div>
-                                        <label class="flex items-center cursor-pointer ml-2 border-l border-outline-variant/30 pl-3">
-                                            <input type="checkbox" @bind="group.IsRequired" class="w-3.5 h-3.5 text-primary" />
-                                            <span class="ml-1 text-xs text-on-surface-variant">Bắt buộc</span>
-                                        </label>
-                                        <button class="text-error hover:bg-error-container ml-2 p-1 rounded transition-colors" title="Xóa nhóm" @onclick="() => RemoveGroup(groupIndex)">
-                                            <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="mt-2 text-center h-24 bg-surface-container rounded-lg border border-outline-variant/30 p-1 overflow-hidden flex items-center justify-center">
+                                <img src="@_model.ImageUrl" class="h-full object-contain mx-auto" onerror="this.style.display='none'" alt="Preview" />
+                            </div>
+                        }
+                    </div>
 
-                                <!-- Group Items -->
-                                <div class="p-4">
-                                    @if (!group.Items.Any())
-                                    {
-                                        <p class="text-sm text-on-surface-variant italic mb-3">Chưa có món nào trong nhóm này.</p>
-                                    }
-                                    else
-                                    {
-                                        <div class="space-y-2 mb-4">
-                                            @for (int j = 0; j < group.Items.Count; j++)
+                    <!-- Trạng thái bán -->
+                    <div class="bg-surface-container p-3.5 rounded-xl border border-outline-variant/30 space-y-2 mt-4">
+                        <label class="block text-xs font-label-bold text-on-surface mb-1">Trạng thái kinh doanh</label>
+                        <div class="flex flex-col gap-2">
+                            <label class="flex items-center cursor-pointer">
+                                <InputCheckbox @bind-Value="_model.IsActive" class="w-4 h-4 text-primary bg-surface border-outline rounded cursor-pointer" />
+                                <span class="ml-2 text-xs font-medium text-on-surface">Hiển thị trong Thực đơn & POS</span>
+                            </label>
+                            @if (_isEditing)
+                            {
+                                <label class="flex items-center cursor-pointer">
+                                    <InputCheckbox @bind-Value="_model.IsSoldOut" class="w-4 h-4 text-error bg-surface border-outline rounded cursor-pointer" />
+                                    <span class="ml-2 text-xs font-bold text-error">Báo hết hàng (Tạm ngưng phục vụ)</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cột Phải: Cấu Trúc Combo (Fixed Items & Groups) -->
+                <div class="w-full md:w-7/12 lg:w-8/12 p-5 sm:p-6 overflow-y-auto space-y-6 custom-scrollbar">
+                    <!-- SECTION 1: Fixed Items -->
+                    <div class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl shadow-xs p-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2 border-b border-outline-variant/30">
+                            <div>
+                                <h4 class="font-bold text-sm text-primary flex items-center gap-1.5 m-0">
+                                    <span class="material-symbols-outlined text-base" data-icon="lock">lock</span> 1. Món Cố Định (Fixed Items)
+                                </h4>
+                                <p class="text-xs text-on-surface-variant m-0 mt-0.5">Các món luôn có sẵn trong Combo khi khách đặt</p>
+                            </div>
+                            <button type="button" class="bg-primary/10 text-primary hover:bg-primary hover:text-on-primary px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-2xs" @onclick="() => OpenItemSearchModal(-1)">
+                                <span class="material-symbols-outlined text-sm" data-icon="add_circle">add_circle</span> Thêm món cố định
+                            </button>
+                        </div>
+
+                        @if (!_model.FixedItems.Any())
+                        {
+                            <div class="text-center py-6 border border-dashed border-outline-variant/60 rounded-xl text-on-surface-variant text-xs bg-surface-container-low/20">
+                                <span class="material-symbols-outlined text-2xl opacity-40 mb-1" data-icon="fastfood">fastfood</span>
+                                <p class="m-0 font-medium">Chưa có món cố định nào.</p>
+                                <p class="text-[11px] text-on-surface-variant/70 m-0 mt-0.5">Bấm "Thêm món cố định" nếu Combo có món mặc định đi kèm (Vd: 1 Pizza Hải Sản lớn).</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="space-y-2">
+                                @for (int fIdx = 0; fIdx < _model.FixedItems.Count; fIdx++)
+                                {
+                                    var fItem = _model.FixedItems[fIdx];
+                                    var capturedFIdx = fIdx;
+                                    var originalItem = _allMenuItems.FirstOrDefault(m => m.Id == fItem.MenuItemId);
+                                    <div class="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/30 text-sm hover:border-outline-variant/60 transition-colors">
+                                        <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                                            <span class="material-symbols-outlined text-primary text-base" data-icon="check_circle">check_circle</span>
+                                            <div class="truncate">
+                                                <span class="font-bold text-on-surface text-sm">@fItem.MenuItemName</span>
+                                                @if (originalItem != null)
+                                                {
+                                                    <span class="text-xs text-on-surface-variant ml-1.5">(Giá lẻ: @originalItem.Price.ToString("N0")đ)</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3 shrink-0">
+                                            <!-- Quantity Stepper -->
+                                            <div class="flex items-center gap-1">
+                                                <label class="text-xs text-on-surface-variant">SL:</label>
+                                                <div class="flex items-center border border-outline rounded bg-surface overflow-hidden">
+                                                    <button type="button" class="px-2 py-0.5 text-on-surface-variant hover:bg-surface-container text-xs font-bold cursor-pointer" @onclick="() => ChangeFixedItemQuantity(fItem, -1)">-</button>
+                                                    <span class="w-8 text-center text-xs font-bold text-on-surface">@fItem.DefaultQuantity</span>
+                                                    <button type="button" class="px-2 py-0.5 text-on-surface-variant hover:bg-surface-container text-xs font-bold cursor-pointer" @onclick="() => ChangeFixedItemQuantity(fItem, 1)">+</button>
+                                                </div>
+                                            </div>
+                                            <!-- Phụ thu -->
+                                            <div class="flex items-center gap-1">
+                                                <label class="text-xs text-on-surface-variant">Phụ thu:</label>
+                                                <div class="relative">
+                                                    <input type="number" min="0" @bind="fItem.AdditionalPrice" class="w-20 text-right pr-4 py-1 text-xs border border-outline rounded bg-surface focus:outline-none focus:border-primary" />
+                                                    <span class="absolute right-1 top-1 text-[10px] text-on-surface-variant">đ</span>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="text-on-surface-variant hover:text-error p-1 rounded-full transition-colors cursor-pointer" title="Xóa món này" @onclick="() => RemoveFixedItem(capturedFIdx)">
+                                                <span class="material-symbols-outlined text-sm" data-icon="close">close</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- SECTION 2: Choice Groups -->
+                    <div class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl shadow-xs p-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2 border-b border-outline-variant/30">
+                            <div>
+                                <h4 class="font-bold text-sm text-primary flex items-center gap-1.5 m-0">
+                                    <span class="material-symbols-outlined text-base" data-icon="tune">tune</span> 2. Nhóm Lựa Chọn (Choice Groups)
+                                </h4>
+                                <p class="text-xs text-on-surface-variant m-0 mt-0.5">Cho phép khách đổi hoặc chọn món theo số lượng Min / Max quy định</p>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+                                <button type="button" class="bg-secondary text-on-secondary px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs hover:bg-secondary/90 transition-colors flex items-center gap-1 cursor-pointer" @onclick="AddGroup">
+                                    <span class="material-symbols-outlined text-sm" data-icon="add">add</span> Thêm Nhóm Mới
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Presets -->
+                        <div class="flex items-center gap-2 mb-4 flex-wrap">
+                            <span class="text-xs text-on-surface-variant font-medium">Mẫu tạo nhanh:</span>
+                            <button type="button" class="text-xs px-2.5 py-1 rounded-lg bg-surface-container border border-outline-variant/50 hover:bg-primary-container hover:text-primary transition-colors cursor-pointer font-medium" @onclick='() => AddGroupPreset("single")'>
+                                + Chọn 1 Món (Min 1, Max 1 - Bắt buộc)
+                            </button>
+                            <button type="button" class="text-xs px-2.5 py-1 rounded-lg bg-surface-container border border-outline-variant/50 hover:bg-primary-container hover:text-primary transition-colors cursor-pointer font-medium" @onclick='() => AddGroupPreset("optional")'>
+                                + Món Tùy Chọn Thêm (Min 0, Max 2)
+                            </button>
+                        </div>
+
+                        @if (!_model.Groups.Any())
+                        {
+                            <div class="text-center py-6 border border-dashed border-outline-variant/60 rounded-xl text-on-surface-variant text-xs bg-surface-container-low/20">
+                                <span class="material-symbols-outlined text-2xl opacity-40 mb-1" data-icon="widgets">widgets</span>
+                                <p class="m-0 font-medium">Chưa có nhóm lựa chọn nào.</p>
+                                <p class="text-[11px] text-on-surface-variant/70 m-0 mt-0.5">Bấm "Thêm Nhóm Mới" hoặc chọn mẫu tạo nhanh ở trên (Vd: Chọn 1 Thức Uống hoặc Món tráng miệng).</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="space-y-4">
+                                @for (int i = 0; i < _model.Groups.Count; i++)
+                                {
+                                    var group = _model.Groups[i];
+                                    var groupIndex = i;
+                                    
+                                    <div class="bg-surface border border-outline-variant/40 rounded-xl overflow-hidden shadow-xs">
+                                        <!-- Group Header -->
+                                        <div class="bg-surface-container-low p-3 border-b border-outline-variant/40 flex flex-wrap justify-between items-center gap-2.5">
+                                            <div class="flex-1 min-w-[180px]">
+                                                <input type="text" @bind="group.Name" @bind:event="oninput" class="w-full bg-surface px-2.5 py-1 rounded-md font-bold text-sm text-on-surface border border-outline focus:border-primary focus:outline-none" placeholder="Tên nhóm (Vd: Chọn 1 Thức Uống) *" />
+                                            </div>
+                                            <div class="flex items-center gap-2 bg-surface-container-lowest px-2 py-1 rounded-lg border border-outline-variant/30 flex-wrap">
+                                                <div class="flex items-center gap-1">
+                                                    <label class="text-[11px] font-bold text-on-surface-variant" title="Số lượng tối thiểu">Min:</label>
+                                                    <input type="number" @bind="group.MinSelections" min="0" class="w-12 text-center text-xs font-bold border border-outline rounded bg-surface py-0.5" />
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <label class="text-[11px] font-bold text-on-surface-variant" title="Số lượng tối đa">Max:</label>
+                                                    <input type="number" @bind="group.MaxSelections" min="1" class="w-12 text-center text-xs font-bold border border-outline rounded bg-surface py-0.5" />
+                                                </div>
+                                                <label class="flex items-center cursor-pointer ml-1 border-l border-outline-variant/40 pl-2">
+                                                    <input type="checkbox" @bind="group.IsRequired" class="w-3.5 h-3.5 text-primary rounded cursor-pointer" />
+                                                    <span class="ml-1 text-[11px] font-medium text-on-surface">Bắt buộc</span>
+                                                </label>
+                                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">
+                                                    @GetGroupRuleSummary(group)
+                                                </span>
+                                                <button type="button" class="text-error hover:bg-error-container ml-1 p-1 rounded-full transition-colors cursor-pointer" title="Xóa nhóm này" @onclick="() => RemoveGroup(groupIndex)">
+                                                    <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Group Items -->
+                                        <div class="p-3">
+                                            @if (!group.Items.Any())
                                             {
-                                                var item = group.Items[j];
-                                                var itemIndex = j;
-                                                <div class="flex items-center justify-between p-2 hover:bg-surface-low rounded border border-transparent hover:border-outline-variant/30 transition-colors">
-                                                    <div class="flex items-center gap-2 flex-1">
-                                                        <span class="material-symbols-outlined text-on-surface-variant/50 text-sm" data-icon="drag_indicator">drag_indicator</span>
-                                                        <span class="font-bold text-sm">@item.MenuItemName</span>
-                                                    </div>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="flex items-center gap-1">
-                                                            <span class="text-xs text-on-surface-variant">Phụ thu (+):</span>
-                                                            <div class="relative">
-                                                                <input type="number" @bind="item.AdditionalPrice" class="w-24 text-right pr-6 py-1 text-sm border border-outline rounded bg-surface focus:outline-none focus:border-primary" />
-                                                                <span class="absolute right-2 top-1.5 text-xs text-on-surface-variant font-bold">đ</span>
+                                                <p class="text-xs text-on-surface-variant italic mb-2">Nhóm này chưa có món nào. Bấm nút dưới để thêm món.</p>
+                                            }
+                                            else
+                                            {
+                                                <div class="space-y-1.5 mb-3">
+                                                    @for (int j = 0; j < group.Items.Count; j++)
+                                                    {
+                                                        var item = group.Items[j];
+                                                        var itemIndex = j;
+                                                        var orig = _allMenuItems.FirstOrDefault(m => m.Id == item.MenuItemId);
+                                                        <div class="flex items-center justify-between p-2 hover:bg-surface-low rounded-lg border border-outline-variant/20 transition-colors text-sm">
+                                                            <div class="flex items-center gap-2 flex-1 min-w-0">
+                                                                <span class="material-symbols-outlined text-on-surface-variant/40 text-xs" data-icon="radio_button_unchecked">radio_button_unchecked</span>
+                                                                <span class="font-medium text-xs text-on-surface truncate">@item.MenuItemName</span>
+                                                                @if (orig != null)
+                                                                {
+                                                                    <span class="text-[11px] text-on-surface-variant">(Giá lẻ: @orig.Price.ToString("N0")đ)</span>
+                                                                }
+                                                            </div>
+                                                            <div class="flex items-center gap-2 shrink-0">
+                                                                <div class="flex items-center gap-1">
+                                                                    <span class="text-[11px] text-on-surface-variant">Phụ thu (+):</span>
+                                                                    <div class="relative">
+                                                                        <input type="number" min="0" @bind="item.AdditionalPrice" class="w-20 text-right pr-4 py-0.5 text-xs border border-outline rounded bg-surface focus:outline-none focus:border-primary" />
+                                                                        <span class="absolute right-1 top-0.5 text-[10px] text-on-surface-variant">đ</span>
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button" class="text-on-surface-variant hover:text-error p-0.5 rounded-full transition-colors cursor-pointer" title="Xóa món" @onclick="() => RemoveItemFromGroup(groupIndex, itemIndex)">
+                                                                    <span class="material-symbols-outlined text-xs" data-icon="close">close</span>
+                                                                </button>
                                                             </div>
                                                         </div>
-                                                        <button class="text-on-surface-variant hover:text-error p-1 rounded-full transition-colors" title="Xóa món" @onclick="() => RemoveItemFromGroup(groupIndex, itemIndex)">
-                                                            <span class="material-symbols-outlined text-sm" data-icon="close">close</span>
-                                                        </button>
-                                                    </div>
+                                                    }
                                                 </div>
                                             }
-                                        </div>
-                                    }
 
-                                    <!-- Add Item Button -->
-                                    <button class="text-sm text-primary font-bold hover:bg-primary-container px-3 py-1.5 rounded transition-colors flex items-center border border-primary/20 bg-primary/5" @onclick="() => OpenItemSearchModal(groupIndex)">
-                                        <span class="material-symbols-outlined text-[16px] mr-1" data-icon="add_circle">add_circle</span> Thêm món vào nhóm
-                                    </button>
-                                </div>
+                                            <!-- Add Item Button -->
+                                            <button type="button" class="text-xs text-primary font-bold hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-primary/20 bg-primary/5 cursor-pointer" @onclick="() => OpenItemSearchModal(groupIndex)">
+                                                <span class="material-symbols-outlined text-sm" data-icon="add_circle">add_circle</span> Thêm món vào nhóm
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
@@ -278,21 +563,45 @@ else
             </div>
 
             <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-outline-variant/30 bg-surface-container-low flex justify-between items-center shrink-0">
-                <div class="text-sm text-on-surface-variant italic">
-                    Lưu ý: Combo yêu cầu xử lý phía Backend để lưu cấu trúc phân cấp.
+            <div class="px-6 py-4 border-t border-outline-variant/30 bg-surface-container-low flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
+                <div class="text-sm">
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="text-error font-bold flex items-center gap-1.5 animate-pulse text-xs sm:text-sm">
+                            <span class="material-symbols-outlined text-base" data-icon="error">error</span>
+                            <span>@_errorMessage</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-xs text-on-surface-variant flex items-center gap-2 flex-wrap">
+                            <span>Món cố định: <strong class="text-on-surface">@_model.FixedItems.Count</strong></span>
+                            <span>•</span>
+                            <span>Nhóm tùy chọn: <strong class="text-on-surface">@_model.Groups.Count</strong></span>
+                            @if (EstimatedOriginalPrice > 0)
+                            {
+                                <span>•</span>
+                                <span>Giá lẻ ước tính: <strong class="text-on-surface">@EstimatedOriginalPrice.ToString("N0")đ</strong></span>
+                                @if (_model.Price > 0 && EstimatedOriginalPrice > _model.Price)
+                                {
+                                    <span class="text-primary font-bold">(Tiết kiệm: @((EstimatedOriginalPrice - _model.Price).ToString("N0"))đ)</span>
+                                }
+                            }
+                        </div>
+                    }
                 </div>
-                <div class="flex gap-3">
-                    <button type="button" class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded transition-colors font-label-bold" @onclick="CloseModal">Hủy</button>
-                    <button type="button" class="px-6 py-2 bg-primary text-on-primary rounded shadow-sm hover:bg-primary/90 transition-colors font-label-bold flex items-center" disabled="@_isSaving" @onclick="SaveCombo">
+                <div class="flex gap-3 shrink-0">
+                    <button type="button" class="px-4 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors font-label-bold cursor-pointer text-sm" @onclick="CloseModal">Hủy</button>
+                    <button type="button" class="px-6 py-2 bg-primary text-on-primary rounded-lg shadow-sm hover:bg-primary/90 transition-colors font-label-bold flex items-center gap-1.5 cursor-pointer text-sm disabled:opacity-50" disabled="@_isSaving" @onclick="SaveCombo">
                         @if (_isSaving)
                         {
-                            <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
+                            <span class="material-symbols-outlined animate-spin text-sm" data-icon="progress_activity">progress_activity</span>
                             <span>Đang lưu...</span>
                         }
                         else
                         {
-                            <span>Lưu Combo</span>
+                            <span class="material-symbols-outlined text-sm" data-icon="save">save</span>
+                            <span>@(_isEditing ? "Cập nhật Combo" : "Lưu Combo")</span>
                         }
                     </button>
                 </div>
@@ -304,65 +613,112 @@ else
 <!-- Search MenuItem Modal -->
 @if (_showItemSearch)
 {
-    <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-surface-container-lowest rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
-            <div class="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container">
-                <h3 class="font-bold">Chọn món để thêm</h3>
-                <button class="text-on-surface-variant hover:text-error transition-colors" @onclick="() => _showItemSearch = false">
-                    <span class="material-symbols-outlined" data-icon="close">close</span>
+    <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-150">
+        <div class="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden border border-outline-variant/30">
+            <div class="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-xl" data-icon="restaurant">restaurant</span>
+                    <h3 class="font-bold text-sm sm:text-base text-on-surface m-0">
+                        @(_targetGroupIndex == -1 ? "Chọn Món Cố Định" : $"Chọn Món Cho Nhóm: {(_targetGroupIndex >= 0 && _targetGroupIndex < _model.Groups.Count ? _model.Groups[_targetGroupIndex].Name : "")}")
+                    </h3>
+                </div>
+                <button type="button" class="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full cursor-pointer" @onclick="() => _showItemSearch = false">
+                    <span class="material-symbols-outlined text-lg" data-icon="close">close</span>
                 </button>
             </div>
-            <div class="p-4 border-b border-outline-variant/30">
-                <div class="relative">
-                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[20px]" data-icon="search">search</span>
-                    <InputText @bind-Value="_itemSearchKeyword" @bind-Value:event="oninput" class="w-full pl-10 pr-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary" placeholder="Tìm kiếm tên món..." />
+
+            <!-- Filters inside Item Search Picker -->
+            <div class="p-3 border-b border-outline-variant/30 bg-surface-container-lowest flex flex-col sm:flex-row gap-2 shrink-0">
+                <div class="relative flex-1">
+                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[18px]" data-icon="search">search</span>
+                    <InputText @bind-Value="_itemSearchKeyword" @bind-Value:event="oninput" class="w-full pl-9 pr-3 py-1.5 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary" placeholder="Tìm tên món ăn..." />
+                </div>
+                <div class="sm:w-44 shrink-0">
+                    <select @bind="_itemSearchCategoryId" class="w-full px-2.5 py-1.5 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary cursor-pointer">
+                        <option value="0">Tất cả danh mục</option>
+                        @foreach (var cat in _categories)
+                        {
+                            <option value="@cat.Id">@cat.DisplayName</option>
+                        }
+                    </select>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto p-2">
+
+            <!-- Items List -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar">
                 @if (!AvailableMenuItemsForSearch.Any())
                 {
-                    <div class="text-center p-6 text-on-surface-variant">Không tìm thấy món ăn nào phù hợp.</div>
+                    <div class="text-center py-10 text-on-surface-variant text-sm">
+                        <span class="material-symbols-outlined text-3xl opacity-40 mb-1" data-icon="search_off">search_off</span>
+                        <p class="m-0 font-medium">Không tìm thấy món ăn nào phù hợp.</p>
+                    </div>
                 }
                 @foreach (var item in AvailableMenuItemsForSearch)
                 {
-                    <div class="flex items-center justify-between p-3 hover:bg-surface-low border-b border-outline-variant/20 last:border-0 cursor-pointer" @onclick="() => SelectItemForGroup(item)">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-surface rounded overflow-hidden">
+                    var isAlreadyAdded = IsItemAlreadySelected(item.Id);
+                    <div class="flex items-center justify-between p-2.5 hover:bg-surface-low rounded-lg border border-outline-variant/20 hover:border-primary/40 transition-all cursor-pointer @(isAlreadyAdded ? "bg-surface-container-low/50 opacity-75" : "")" @onclick="() => SelectItemForGroup(item)">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-11 h-11 bg-surface-container rounded-lg overflow-hidden shrink-0 border border-outline-variant/30 flex items-center justify-center">
                                 @if (!string.IsNullOrEmpty(item.ImageUrl))
                                 {
-                                    <img src="@item.ImageUrl" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+                                    <img src="@item.ImageUrl" class="w-full h-full object-cover" onerror="this.style.display='none'" alt="@item.Name" />
+                                }
+                                else
+                                {
+                                    <span class="material-symbols-outlined text-on-surface-variant/40 text-xl" data-icon="fastfood">fastfood</span>
                                 }
                             </div>
-                            <div>
-                                <div class="font-bold text-sm">@item.DisplayName</div>
-                                <div class="text-xs text-primary font-bold">@item.Price.ToString("N0")đ</div>
+                            <div class="truncate">
+                                <div class="font-bold text-sm text-on-surface truncate">@item.DisplayName</div>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-xs text-primary font-bold">@item.Price.ToString("N0")đ</span>
+                                    <span class="text-[11px] text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded border border-outline-variant/20">
+                                        @(_categories.FirstOrDefault(c => c.Id == item.CategoryId)?.DisplayName ?? item.CategoryName)
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                        <button class="px-3 py-1 bg-primary/10 text-primary font-bold text-xs rounded hover:bg-primary hover:text-on-primary transition-colors">
-                            Chọn
-                        </button>
+                        <div class="shrink-0 ml-2">
+                            @if (isAlreadyAdded)
+                            {
+                                <span class="px-2.5 py-1 text-xs font-bold rounded bg-on-surface-variant/10 text-on-surface-variant border border-outline-variant/40 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-sm" data-icon="check">check</span> Đã chọn
+                                </span>
+                            }
+                            else
+                            {
+                                <button type="button" class="px-3 py-1 bg-primary text-on-primary font-bold text-xs rounded-md shadow-2xs hover:bg-primary/90 transition-colors flex items-center gap-1 cursor-pointer">
+                                    <span class="material-symbols-outlined text-xs" data-icon="add">add</span> Chọn món
+                                </button>
+                            }
+                        </div>
                     </div>
                 }
+            </div>
+            
+            <div class="p-3 border-t border-outline-variant/30 bg-surface-container-low flex justify-between items-center text-xs text-on-surface-variant shrink-0">
+                <span>Hiển thị @AvailableMenuItemsForSearch.Count() món ăn</span>
+                <button type="button" class="px-3 py-1 text-on-surface-variant hover:bg-surface-container rounded-md cursor-pointer" @onclick="() => _showItemSearch = false">Đóng</button>
             </div>
         </div>
     </div>
 }
 
-<!-- Delete Confirmation -->
+<!-- Delete Confirmation Dialog -->
 @if (_showDeleteConfirm)
 {
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm overflow-hidden">
+    <div class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-150">
+        <div class="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-outline-variant/30">
             <div class="p-6 text-center">
                 <div class="w-16 h-16 rounded-full bg-error-container text-error mx-auto flex items-center justify-center mb-4">
                     <span class="material-symbols-outlined text-3xl" data-icon="warning">warning</span>
                 </div>
-                <h3 class="text-xl font-bold text-on-background mb-2">Xác nhận xóa?</h3>
-                <p class="text-on-surface-variant text-sm mb-6">Bạn có chắc chắn muốn xóa Combo <b>@_itemToDelete?.Name</b>? Hành động này không thể hoàn tác.</p>
+                <h3 class="text-lg font-bold text-on-background mb-2">Xác nhận xóa Combo?</h3>
+                <p class="text-on-surface-variant text-sm mb-6">Bạn có chắc chắn muốn xóa Combo <b class="text-on-background">@_itemToDelete?.Name</b>? Hành động này không thể hoàn tác.</p>
                 
                 <div class="flex justify-center gap-3">
-                    <button class="px-4 py-2 border border-outline text-on-surface rounded hover:bg-surface-low transition-colors font-label-bold flex-1" @onclick="() => _showDeleteConfirm = false">Hủy</button>
-                    <button class="px-4 py-2 bg-error text-white rounded hover:bg-error/90 transition-colors font-label-bold flex-1" @onclick="ExecuteDelete">Xóa ngay</button>
+                    <button type="button" class="px-4 py-2 border border-outline text-on-surface rounded-lg hover:bg-surface-low transition-colors font-label-bold flex-1 cursor-pointer text-sm" @onclick="() => _showDeleteConfirm = false">Hủy</button>
+                    <button type="button" class="px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-colors font-label-bold flex-1 cursor-pointer text-sm" @onclick="ExecuteDelete">Xóa ngay</button>
                 </div>
             </div>
         </div>
@@ -372,15 +728,24 @@ else
 @code {
     private List<ComboDetailDto> _combos = new();
     private List<MenuItemDto> _allMenuItems = new();
+    private List<CategoryDto> _categories = new();
     private bool _isLoading = true;
+    private bool _hasLoadError = false;
+    private string? _successMessage;
 
     // Filter & Search
     private string _searchKeyword = "";
+    private int _filterCategoryId = 0;
     private bool? _filterStatus = null;
+    private readonly HashSet<int> _togglingItemIds = new();
+
+    private bool IsAnyFilterActive => !string.IsNullOrWhiteSpace(_searchKeyword) || _filterCategoryId != 0 || _filterStatus != null;
 
     private IEnumerable<ComboDetailDto> FilteredCombos => _combos
         .Where(c => string.IsNullOrWhiteSpace(_searchKeyword) 
-                 || c.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase))
+                 || c.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)
+                 || (!string.IsNullOrEmpty(c.NameEn) && c.NameEn.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)))
+        .Where(c => _filterCategoryId == 0 || c.CategoryId == _filterCategoryId)
         .Where(c => _filterStatus == null || (_filterStatus == true ? !c.IsSoldOut : c.IsSoldOut));
 
     // Modal State
@@ -396,12 +761,62 @@ else
     // Item Search Modal State
     private bool _showItemSearch = false;
     private string _itemSearchKeyword = "";
+    private int _itemSearchCategoryId = 0;
     private int _targetGroupIndex = -1;
 
     private IEnumerable<MenuItemDto> AvailableMenuItemsForSearch => _allMenuItems
         .Where(m => !m.IsCombo && m.IsActive) // Không chọn combo lồng combo
-        .Where(m => string.IsNullOrWhiteSpace(_itemSearchKeyword) || m.Name.Contains(_itemSearchKeyword, StringComparison.OrdinalIgnoreCase))
-        .Take(20);
+        .Where(m => _itemSearchCategoryId == 0 || m.CategoryId == _itemSearchCategoryId)
+        .Where(m => string.IsNullOrWhiteSpace(_itemSearchKeyword) 
+                 || m.Name.Contains(_itemSearchKeyword, StringComparison.OrdinalIgnoreCase)
+                 || (!string.IsNullOrEmpty(m.NameEn) && m.NameEn.Contains(_itemSearchKeyword, StringComparison.OrdinalIgnoreCase)));
+
+    private bool IsItemAlreadySelected(int menuItemId)
+    {
+        if (_targetGroupIndex == -1)
+        {
+            return _model.FixedItems.Any(i => i.MenuItemId == menuItemId);
+        }
+        else if (_targetGroupIndex >= 0 && _targetGroupIndex < _model.Groups.Count)
+        {
+            return _model.Groups[_targetGroupIndex].Items.Any(i => i.MenuItemId == menuItemId);
+        }
+        return false;
+    }
+
+    private decimal EstimatedOriginalPrice
+    {
+        get
+        {
+            decimal total = 0;
+            // Fixed items retail price * quantity
+            foreach (var fixedItem in _model.FixedItems)
+            {
+                var originalItem = _allMenuItems.FirstOrDefault(m => m.Id == fixedItem.MenuItemId);
+                if (originalItem != null)
+                {
+                    total += originalItem.Price * fixedItem.DefaultQuantity;
+                }
+            }
+
+            // Choice groups: take minimum price of items in each group multiplied by min selections
+            foreach (var group in _model.Groups)
+            {
+                if (group.Items.Any() && group.MinSelections > 0)
+                {
+                    var groupItemPrices = group.Items
+                        .Select(i => _allMenuItems.FirstOrDefault(m => m.Id == i.MenuItemId)?.Price ?? 0)
+                        .Where(p => p > 0)
+                        .OrderBy(p => p)
+                        .Take(group.MinSelections);
+
+                    total += groupItemPrices.Sum();
+                }
+            }
+
+            return total;
+        }
+    }
 
     // Delete State
     private bool _showDeleteConfirm = false;
@@ -415,19 +830,21 @@ else
     private async Task LoadData()
     {
         _isLoading = true;
+        _hasLoadError = false;
         try
         {
             var taskCombos = ApiClient.GetCombosAsync();
-            var taskItems = ApiClient.GetMenuItemsAsync(); // to get all menu items for searching
+            var taskItems = ApiClient.GetMenuItemsAsync();
+            var taskCategories = ApiClient.GetCategoriesAsync();
 
-            await Task.WhenAll(taskCombos, taskItems);
-
-            _combos = taskCombos.Result.OrderByDescending(c => c.Id).ToList();
-            _allMenuItems = taskItems.Result;
+            try { _combos = (await taskCombos).OrderByDescending(c => c.Id).ToList(); } catch (Exception ex) { Console.WriteLine($"Combos error: {ex.Message}"); }
+            try { _allMenuItems = await taskItems; } catch (Exception ex) { Console.WriteLine($"Menu items error: {ex.Message}"); }
+            try { _categories = (await taskCategories).Where(c => c.IsActive).OrderBy(c => c.SortOrder).ToList(); } catch (Exception ex) { Console.WriteLine($"Categories error: {ex.Message}"); }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading combos: {ex.Message}");
+            _hasLoadError = true;
         }
         finally
         {
@@ -435,13 +852,47 @@ else
         }
     }
 
+    private void ResetFilters()
+    {
+        _searchKeyword = "";
+        _filterCategoryId = 0;
+        _filterStatus = null;
+    }
+
+    private async Task ToggleQuickSoldOut(ComboDetailDto combo)
+    {
+        if (_togglingItemIds.Contains(combo.Id)) return;
+        _togglingItemIds.Add(combo.Id);
+        try
+        {
+            var success = await ApiClient.ToggleSoldOutAsync(combo.Id);
+            if (success)
+            {
+                combo.IsSoldOut = !combo.IsSoldOut;
+                _successMessage = $"Đã cập nhật trạng thái của '{combo.Name}' thành {(combo.IsSoldOut ? "Tạm hết hàng" : "Đang bán")}.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling sold out: {ex.Message}");
+        }
+        finally
+        {
+            _togglingItemIds.Remove(combo.Id);
+        }
+    }
+
     private void OpenAddModal()
     {
         _isEditing = false;
+        _editingId = 0;
         _model = new ComboFormModel 
         { 
+            CategoryId = _categories.FirstOrDefault(c => c.Name.Contains("Combo", StringComparison.OrdinalIgnoreCase))?.Id 
+                         ?? _categories.FirstOrDefault()?.Id ?? 0,
             IsActive = true,
             Price = 0,
+            FixedItems = new List<ComboItemFormModel>(),
             Groups = new List<ComboGroupFormModel>() 
         };
         _errorMessage = null;
@@ -460,22 +911,35 @@ else
                 _editingId = comboId;
                 _model = new ComboFormModel
                 {
+                    CategoryId = detail.CategoryId,
                     Name = detail.Name,
+                    NameEn = detail.NameEn,
                     Description = detail.Description,
                     Price = detail.Price,
                     ImageUrl = detail.ImageUrl,
                     IsSoldOut = detail.IsSoldOut,
                     IsActive = detail.IsActive,
+                    FixedItems = detail.FixedAndAddOnItems.Select(i => new ComboItemFormModel
+                    {
+                        Id = i.Id,
+                        MenuItemId = i.MenuItemId,
+                        MenuItemName = i.DisplayName,
+                        DefaultQuantity = i.DefaultQuantity,
+                        AdditionalPrice = i.AdditionalPrice
+                    }).ToList(),
                     Groups = detail.Groups.Select(g => new ComboGroupFormModel
                     {
+                        Id = g.Id,
                         Name = g.Name,
                         MinSelections = g.MinSelections,
                         MaxSelections = g.MaxSelections,
                         IsRequired = g.IsRequired,
                         Items = g.Items.Select(i => new ComboItemFormModel
                         {
+                            Id = i.Id,
                             MenuItemId = i.MenuItemId,
-                            MenuItemName = i.MenuItemName,
+                            MenuItemName = i.DisplayName,
+                            DefaultQuantity = i.DefaultQuantity,
                             AdditionalPrice = i.AdditionalPrice
                         }).ToList()
                     }).ToList()
@@ -486,7 +950,7 @@ else
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            Console.WriteLine($"Error opening combo edit: {ex.Message}");
         }
         finally
         {
@@ -500,6 +964,20 @@ else
         _showModal = false;
     }
 
+    // --- FIXED ITEMS LOGIC ---
+    private void RemoveFixedItem(int index)
+    {
+        if (index >= 0 && index < _model.FixedItems.Count)
+        {
+            _model.FixedItems.RemoveAt(index);
+        }
+    }
+
+    private void ChangeFixedItemQuantity(ComboItemFormModel item, int delta)
+    {
+        item.DefaultQuantity = Math.Max(1, item.DefaultQuantity + delta);
+    }
+
     // --- GROUP LOGIC ---
     private void AddGroup()
     {
@@ -511,6 +989,43 @@ else
             IsRequired = true,
             Items = new List<ComboItemFormModel>() 
         });
+    }
+
+    private void AddGroupPreset(string type)
+    {
+        if (type == "single")
+        {
+            _model.Groups.Add(new ComboGroupFormModel
+            {
+                Name = "Chọn 1 Món chính / Nước",
+                MinSelections = 1,
+                MaxSelections = 1,
+                IsRequired = true,
+                Items = new List<ComboItemFormModel>()
+            });
+        }
+        else if (type == "optional")
+        {
+            _model.Groups.Add(new ComboGroupFormModel
+            {
+                Name = "Món thêm tùy chọn",
+                MinSelections = 0,
+                MaxSelections = 2,
+                IsRequired = false,
+                Items = new List<ComboItemFormModel>()
+            });
+        }
+    }
+
+    private string GetGroupRuleSummary(ComboGroupFormModel g)
+    {
+        if (g.IsRequired)
+        {
+            return g.MinSelections == g.MaxSelections 
+                ? $"Bắt buộc · Chọn đúng {g.MinSelections} món" 
+                : $"Bắt buộc · Chọn {g.MinSelections} - {g.MaxSelections} món";
+        }
+        return g.MaxSelections > 1 ? $"Tùy chọn · Tối đa {g.MaxSelections} món" : "Tùy chọn · Tối đa 1 món";
     }
 
     private void RemoveGroup(int index)
@@ -537,21 +1052,37 @@ else
     {
         _targetGroupIndex = groupIndex;
         _itemSearchKeyword = "";
+        _itemSearchCategoryId = 0;
         _showItemSearch = true;
     }
 
     private void SelectItemForGroup(MenuItemDto item)
     {
-        if (_targetGroupIndex >= 0 && _targetGroupIndex < _model.Groups.Count)
+        if (_targetGroupIndex == -1)
         {
+            // Fixed Items
+            if (!_model.FixedItems.Any(i => i.MenuItemId == item.Id))
+            {
+                _model.FixedItems.Add(new ComboItemFormModel
+                {
+                    MenuItemId = item.Id,
+                    MenuItemName = item.DisplayName,
+                    DefaultQuantity = 1,
+                    AdditionalPrice = 0
+                });
+            }
+        }
+        else if (_targetGroupIndex >= 0 && _targetGroupIndex < _model.Groups.Count)
+        {
+            // Choice Groups
             var group = _model.Groups[_targetGroupIndex];
-            // Check duplicate
             if (!group.Items.Any(i => i.MenuItemId == item.Id))
             {
                 group.Items.Add(new ComboItemFormModel
                 {
                     MenuItemId = item.Id,
                     MenuItemName = item.DisplayName,
+                    DefaultQuantity = 1,
                     AdditionalPrice = 0
                 });
             }
@@ -564,13 +1095,46 @@ else
     {
         if (string.IsNullOrWhiteSpace(_model.Name))
         {
-            _errorMessage = "Tên Combo không được để trống.";
+            if (!string.IsNullOrWhiteSpace(_model.NameEn))
+            {
+                _model.Name = _model.NameEn;
+            }
+            else
+            {
+                _errorMessage = "Tên Combo không được để trống.";
+                return false;
+            }
+        }
+        if (_model.CategoryId <= 0)
+        {
+            _errorMessage = "Vui lòng chọn danh mục cho Combo.";
             return false;
         }
         if (_model.Price < 0)
         {
             _errorMessage = "Giá bán không được âm.";
             return false;
+        }
+        if (!_model.FixedItems.Any() && !_model.Groups.Any())
+        {
+            _errorMessage = "Combo phải có ít nhất một món cố định hoặc một nhóm lựa chọn.";
+            return false;
+        }
+
+        // Fixed items validation
+        for (int i = 0; i < _model.FixedItems.Count; i++)
+        {
+            var item = _model.FixedItems[i];
+            if (item.DefaultQuantity <= 0)
+            {
+                _errorMessage = $"Món cố định '{item.MenuItemName}' phải có số lượng ít nhất là 1.";
+                return false;
+            }
+            if (item.AdditionalPrice < 0)
+            {
+                _errorMessage = $"Món cố định '{item.MenuItemName}' không được có phụ thu âm.";
+                return false;
+            }
         }
         
         // Group validation
@@ -593,7 +1157,7 @@ else
             
             if (!g.Items.Any())
             {
-                _errorMessage = $"Nhóm '{g.Name}' chưa có món ăn nào.";
+                _errorMessage = $"Nhóm '{g.Name}' chưa có món ăn nào. Vui lòng thêm món vào nhóm.";
                 return false;
             }
             
@@ -601,6 +1165,15 @@ else
             {
                 _errorMessage = $"Nhóm '{g.Name}' yêu cầu chọn ít nhất {g.MinSelections} món nhưng chỉ có {g.Items.Count} lựa chọn.";
                 return false;
+            }
+
+            foreach (var item in g.Items)
+            {
+                if (item.AdditionalPrice < 0)
+                {
+                    _errorMessage = $"Món '{item.MenuItemName}' trong nhóm '{g.Name}' không được có phụ thu âm.";
+                    return false;
+                }
             }
         }
 
@@ -616,70 +1189,71 @@ else
 
         try
         {
-            // Tạm thời fix CategoryId (ví dụ 1). Trong thực tế Combo có thể có Category riêng.
-            // Backend đang cần CategoryId cho MenuItem base class.
-            int defaultCategoryId = _allMenuItems.FirstOrDefault()?.CategoryId ?? 1;
+            var fixedRequests = _model.FixedItems.Select((f, idx) => new CreateComboItemRequest
+            {
+                Id = f.Id,
+                MenuItemId = f.MenuItemId,
+                ComponentType = Restaurant.Domain.Enums.ComboComponentType.Fixed,
+                DefaultQuantity = f.DefaultQuantity,
+                AdditionalPrice = f.AdditionalPrice,
+                SortOrder = idx + 1
+            }).ToList();
+
+            var groupRequests = _model.Groups.Select((g, index) => new CreateComboGroupRequest
+            {
+                Id = g.Id,
+                Name = g.Name,
+                MinSelections = g.MinSelections,
+                MaxSelections = g.MaxSelections,
+                IsRequired = g.IsRequired,
+                SortOrder = index + 1,
+                Items = g.Items.Select((i, idx) => new CreateComboItemRequest
+                {
+                    Id = i.Id,
+                    MenuItemId = i.MenuItemId,
+                    ComponentType = Restaurant.Domain.Enums.ComboComponentType.Choice,
+                    DefaultQuantity = 1,
+                    AdditionalPrice = i.AdditionalPrice,
+                    SortOrder = idx + 1
+                }).ToList()
+            }).ToList();
 
             if (_isEditing)
             {
                 var request = new UpdateComboRequest
                 {
-                    CategoryId = defaultCategoryId,
+                    CategoryId = _model.CategoryId,
                     Name = _model.Name,
+                    NameEn = _model.NameEn,
                     Description = _model.Description,
                     Price = _model.Price,
                     ImageUrl = _model.ImageUrl,
                     IsCombo = true,
                     IsSoldOut = _model.IsSoldOut,
                     IsActive = _model.IsActive,
-                    Groups = _model.Groups.Select((g, index) => new CreateComboGroupRequest
-                    {
-                        Name = g.Name,
-                        MinSelections = g.MinSelections,
-                        MaxSelections = g.MaxSelections,
-                        IsRequired = g.IsRequired,
-                        SortOrder = index + 1,
-                        Items = g.Items.Select((i, idx) => new CreateComboItemRequest
-                        {
-                            MenuItemId = i.MenuItemId,
-                            ComponentType = Restaurant.Domain.Enums.ComboComponentType.Choice,
-                            DefaultQuantity = 1,
-                            AdditionalPrice = i.AdditionalPrice,
-                            SortOrder = idx + 1
-                        }).ToList()
-                    }).ToList()
+                    FixedAndAddOnItems = fixedRequests,
+                    Groups = groupRequests
                 };
                 await ApiClient.UpdateComboAsync(_editingId, request);
+                _successMessage = $"Cập nhật Combo '{_model.Name}' thành công!";
             }
             else
             {
                 var request = new CreateComboRequest
                 {
-                    CategoryId = defaultCategoryId,
+                    CategoryId = _model.CategoryId,
                     Name = _model.Name,
+                    NameEn = _model.NameEn,
                     Description = _model.Description,
                     Price = _model.Price,
                     ImageUrl = _model.ImageUrl,
                     IsCombo = true,
                     SortOrder = 1,
-                    Groups = _model.Groups.Select((g, index) => new CreateComboGroupRequest
-                    {
-                        Name = g.Name,
-                        MinSelections = g.MinSelections,
-                        MaxSelections = g.MaxSelections,
-                        IsRequired = g.IsRequired,
-                        SortOrder = index + 1,
-                        Items = g.Items.Select((i, idx) => new CreateComboItemRequest
-                        {
-                            MenuItemId = i.MenuItemId,
-                            ComponentType = Restaurant.Domain.Enums.ComboComponentType.Choice,
-                            DefaultQuantity = 1,
-                            AdditionalPrice = i.AdditionalPrice,
-                            SortOrder = idx + 1
-                        }).ToList()
-                    }).ToList()
+                    FixedAndAddOnItems = fixedRequests,
+                    Groups = groupRequests
                 };
                 await ApiClient.CreateComboAsync(request);
+                _successMessage = $"Thêm mới Combo '{_model.Name}' thành công!";
             }
 
             _showModal = false;
@@ -705,8 +1279,10 @@ else
     {
         if (_itemToDelete != null)
         {
+            var name = _itemToDelete.Name;
             await ApiClient.DeleteComboAsync(_itemToDelete.Id);
             _showDeleteConfirm = false;
+            _successMessage = $"Đã xóa Combo '{name}' thành công!";
             await LoadData();
         }
     }
@@ -714,17 +1290,21 @@ else
     // --- FORM MODELS ---
     public class ComboFormModel
     {
+        public int CategoryId { get; set; }
         public string Name { get; set; } = string.Empty;
+        public string? NameEn { get; set; }
         public string? Description { get; set; }
         public decimal Price { get; set; }
         public string? ImageUrl { get; set; }
         public bool IsSoldOut { get; set; }
         public bool IsActive { get; set; } = true;
+        public List<ComboItemFormModel> FixedItems { get; set; } = new();
         public List<ComboGroupFormModel> Groups { get; set; } = new();
     }
 
     public class ComboGroupFormModel
     {
+        public int? Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public int MinSelections { get; set; } = 1;
         public int MaxSelections { get; set; } = 1;
@@ -734,8 +1314,10 @@ else
 
     public class ComboItemFormModel
     {
+        public int? Id { get; set; }
         public int MenuItemId { get; set; }
         public string MenuItemName { get; set; } = string.Empty;
+        public int DefaultQuantity { get; set; } = 1;
         public decimal AdditionalPrice { get; set; } = 0;
     }
 }

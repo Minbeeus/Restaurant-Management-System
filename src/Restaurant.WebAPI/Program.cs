@@ -154,7 +154,14 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
-        await dbContext.Database.EnsureCreatedAsync();
+        if (dbContext.Database.IsRelational())
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+        else
+        {
+            await dbContext.Database.EnsureCreatedAsync();
+        }
         await DbInitializer.SeedAsync(dbContext);
     }
     catch (Exception ex)

@@ -238,6 +238,36 @@ public class PosOrdersController : ControllerBase
         });
     }
 
+    [HttpPost("orders/{orderId}/items/{orderItemId}/void")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VoidOrderItem(int orderId, int orderItemId, [FromBody] VoidOrderItemRequest request, [FromServices] ICurrentUserService currentUserService)
+    {
+        int actingUserId = currentUserService.UserId ?? 1;
+        var success = await _posOrderService.VoidOrderItemAsync(orderId, orderItemId, request?.Reason ?? "Hủy món", actingUserId);
+        if (!success)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "VOID_ITEM_FAILED",
+                    message = "Hủy món không thành công."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = new { message = "Hủy món thành công." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
     [HttpPost("orders/submit")]
     [AllowAnonymous]
     public async Task<IActionResult> SubmitOrder([FromBody] SubmitPosOrderRequest request)

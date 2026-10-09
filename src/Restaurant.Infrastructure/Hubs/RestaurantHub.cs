@@ -49,6 +49,12 @@ public class RestaurantHub : Hub<IRestaurantHubClient>
             await Groups.AddToGroupAsync(Context.ConnectionId, ChefsGroup);
         }
 
+        var stationIdQuery = httpContext?.Request.Query["stationId"].ToString();
+        if (int.TryParse(stationIdQuery, out var stationId) && stationId > 0)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"Station_{stationId}");
+        }
+
         await base.OnConnectedAsync();
     }
 
@@ -57,6 +63,14 @@ public class RestaurantHub : Hub<IRestaurantHubClient>
         if (tableId > 0)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"TableGroup_{tableId}");
+        }
+    }
+
+    public async Task JoinStationGroup(int stationId)
+    {
+        if (stationId > 0)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"Station_{stationId}");
         }
     }
 }

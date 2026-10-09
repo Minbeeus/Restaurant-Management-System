@@ -202,6 +202,8 @@
     </div>
 </aside>
 
+@implements IDisposable
+
 @code {
     [Inject] public NavigationManager Navigation { get; set; } = default!;
 
@@ -211,6 +213,56 @@
     private bool _isReportOpen = false;
     private bool _isCrmOpen = false;
     private bool _isSystemOpen = false;
+
+    protected override void OnInitialized()
+    {
+        UpdateActiveAccordion(Navigation.Uri);
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        UpdateActiveAccordion(e.Location);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateActiveAccordion(string url)
+    {
+        try
+        {
+            var path = new Uri(url).AbsolutePath.ToLowerInvariant();
+            if (path.StartsWith("/admin/menu") || path.StartsWith("/admin/categories") || path.StartsWith("/admin/menu-items") || path.StartsWith("/admin/modifiers"))
+            {
+                _isMenuOpen = true;
+            }
+            else if (path.StartsWith("/admin/orders") || path.StartsWith("/admin/areas") || path.StartsWith("/admin/tables") || path.StartsWith("/admin/shifts"))
+            {
+                _isOperationsOpen = true;
+            }
+            else if (path.StartsWith("/admin/materials") || path.StartsWith("/admin/recipes") || path.StartsWith("/admin/suppliers") || path.StartsWith("/admin/goods-receipts") || path.StartsWith("/admin/stocktakes"))
+            {
+                _isInventoryOpen = true;
+            }
+            else if (path.StartsWith("/admin/reports"))
+            {
+                _isReportOpen = true;
+            }
+            else if (path.StartsWith("/admin/customers") || path.StartsWith("/admin/vouchers"))
+            {
+                _isCrmOpen = true;
+            }
+            else if (path.StartsWith("/admin/system"))
+            {
+                _isSystemOpen = true;
+            }
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
 
     private void ToggleMenuGroup() => _isMenuOpen = !_isMenuOpen;
     private void ToggleOperationsGroup() => _isOperationsOpen = !_isOperationsOpen;

@@ -20,5 +20,6 @@ public static class SystemConstants
         public const string Cashiers = "CashiersGroup";
         public const string Chefs = "ChefsGroup";
         public static string TableGroup(int tableId) => $"TableGroup_{tableId}";
+        public static string StationGroup(int stationId) => $"Station_{stationId}";
     }
 }

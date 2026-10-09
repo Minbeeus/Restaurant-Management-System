@@ -121,8 +121,16 @@ public class TakeawayOrderItemDto
     public decimal UnitPrice { get; set; }
     public decimal TotalPrice => UnitPrice * Quantity;
     public string? Note { get; set; }
+    public int? ParentItemId { get; set; }
+    public int? ComboGroupId { get; set; }
+    public int Status { get; set; }
     public List<string> Modifiers { get; set; } = new();
     public List<int> ModifierIds { get; set; } = new();
+}
+
+public class VoidOrderItemRequest
+{
+    public string Reason { get; set; } = string.Empty;
 }
 
 public class VoucherValidationResponseDto

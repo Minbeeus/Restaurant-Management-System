@@ -1,16 +1,11 @@
 @using Restaurant.Web.Components.UI.Inputs
 
 <div class="flex items-center justify-between gap-3 bg-surface p-3 rounded-2xl border border-outline-variant shadow-xs shrink-0 select-none overflow-x-auto">
-    <!-- Category Tabs List -->
-    <div class="flex items-center gap-1.5 overflow-x-auto">
-        <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(ActiveCategoryId == 0 ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
-                @onclick="() => HandleTabClick(0)">
-            TẤT CẢ
-        </button>
-        
+    <!-- Category Tabs List (No 'TẤT CẢ', horizontal scrollable) -->
+    <div class="flex items-center gap-1.5 overflow-x-auto py-0.5 scrollbar-none">
         @foreach (var cat in Categories)
         {
-            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(ActiveCategoryId == cat.Id ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
+            <button class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(ActiveCategoryId == cat.Id ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80 border border-outline-variant/40")"
                     @onclick="() => HandleTabClick(cat.Id)">
                 @cat.DisplayName
             </button>
