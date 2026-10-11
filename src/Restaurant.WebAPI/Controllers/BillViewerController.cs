@@ -31,6 +31,26 @@ public class BillViewerController : ControllerBase
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetAllBills([FromQuery] string? search, [FromQuery] int? status)
+    {
+        try
+        {
+            var data = await _billViewerService.QueryBillsAsync(new BillQueryRequest 
+            { 
+                SearchKeyword = search,
+                OrderStatus = status,
+                FromDate = DateTime.Today.AddDays(-60),
+                PageSize = 100
+            });
+            return Ok(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetBillDetails(int id)
     {

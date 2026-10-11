@@ -5,169 +5,606 @@
 @using Restaurant.Web.Services
 @inject AdminApiClient ApiClient
 
-<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-    <div>
-        <h2 class="text-2xl font-headline-sm text-primary m-0">@L["Stocktake_Management_Title"]</h2>
-        <p class="text-on-surface-variant text-sm mt-1">@L["Stocktake_Sub"]</p>
-    </div>
-    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center" @onclick="OpenStartAuditModal">
-        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="fact_check">fact_check</span> @L["Stocktake_Start"]
-    </button>
-</div>
-
-<!-- Lịch sử Đợt kiểm kê -->
-<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
-    <div class="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
-        <h3 class="font-bold text-on-surface text-base m-0">@L["Stocktake_History_Title"]</h3>
-        <span class="text-xs text-on-surface-variant">Tháng 09/2026</span>
-    </div>
-
-    <table class="w-full text-left border-collapse">
-        <thead class="bg-surface-container-low text-xs font-bold text-on-surface-variant uppercase">
-            <tr>
-                <th class="p-4">@L["Stocktake_Col_Code"]</th>
-                <th class="p-4">@L["Stocktake_Col_Staff"]</th>
-                <th class="p-4 text-center">@L["Stocktake_Col_Time"]</th>
-                <th class="p-4 text-right">@L["Stocktake_Col_TotalCount"]</th>
-                <th class="p-4 text-right">@L["Stocktake_Col_Variance"]</th>
-                <th class="p-4 text-center">@L["Stocktake_Col_Status"]</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class="border-b border-outline-variant/20 hover:bg-surface-low">
-                <td class="p-4 font-mono font-bold text-primary">AUDIT-20260915</td>
-                <td class="p-4 font-bold text-on-surface">Thủ kho Nguyễn Văn Nam</td>
-                <td class="p-4 text-center text-sm text-on-surface-variant">15/09/2026 17:00</td>
-                <td class="p-4 text-right font-mono font-bold">12 nguyên liệu</td>
-                <td class="p-4 text-right font-mono font-bold text-error">- 2.400.000đ</td>
-                <td class="p-4 text-center">
-                    <span class="px-2.5 py-1 bg-success-green/10 text-success-green rounded-full text-xs font-bold border border-success-green/20">@L["Stocktake_Status_Done"]</span>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<!-- Modal Start Audit -->
-@if (_showModal)
+@if (_currentView == ViewMode.List)
 {
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low shrink-0">
-                <h3 class="font-bold text-on-background m-0">@L["Stocktake_Modal_Title"]</h3>
-                <button class="text-on-surface-variant hover:text-error" @onclick="CloseModal">
-                    <span class="material-symbols-outlined" data-icon="close">close</span>
-                </button>
+    <!-- ========================================== -->
+    <!-- VIEW A: DANH SÁCH CÁC ĐỢT KIỂM KÊ KHO -->
+    <!-- ========================================== -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <h2 class="text-2xl font-headline-sm text-primary m-0">Quản Lý Kiểm Kê Kho & Cân Đối Tồn</h2>
+            <p class="text-on-surface-variant text-sm mt-1">Quy trình 2 bước: Nhân viên đếm kho thực tế khách quan → Quản lý trưởng đối soát & cân đối tồn kho</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button class="bg-primary hover:bg-primary/90 text-on-primary px-5 py-2.5 rounded-xl font-label-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                    @onclick="SwitchToBlindCountView">
+                <span class="material-symbols-outlined text-lg" data-icon="assignment">assignment</span>
+                <span>Tạo Phiếu Kiểm Kho (Đếm Thực Tế)</span>
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_feedbackMessage))
+    {
+        <div class="p-4 mb-6 rounded-xl border flex items-center justify-between @(_isError ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")">
+            <span class="font-medium text-sm">@_feedbackMessage</span>
+            <button type="button" @onclick="() => _feedbackMessage = null" class="text-sm font-bold">✕</button>
+        </div>
+    }
+
+    <!-- KPI Thống kê kiểm kê -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-surface rounded-2xl p-5 border border-outline-variant/30 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                <span class="material-symbols-outlined text-2xl" data-icon="pending_actions">pending_actions</span>
             </div>
+            <div>
+                <div class="text-xs text-on-surface-variant font-medium">Chờ Quản lý cân đối</div>
+                <div class="text-2xl font-bold text-amber-600">@_stocktakes.Count(s => s.Status == 2 || s.Status == 0) phiếu</div>
+            </div>
+        </div>
+        <div class="bg-surface rounded-2xl p-5 border border-outline-variant/30 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                <span class="material-symbols-outlined text-2xl" data-icon="verified">verified</span>
+            </div>
+            <div>
+                <div class="text-xs text-on-surface-variant font-medium">Đã chốt & cân đối</div>
+                <div class="text-2xl font-bold text-emerald-600">@_stocktakes.Count(s => s.Status == 1) phiếu</div>
+            </div>
+        </div>
+        <div class="bg-surface rounded-2xl p-5 border border-outline-variant/30 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <span class="material-symbols-outlined text-2xl" data-icon="inventory">inventory</span>
+            </div>
+            <div>
+                <div class="text-xs text-on-surface-variant font-medium">Tổng số đợt kiểm kho</div>
+                <div class="text-2xl font-bold text-on-surface">@_stocktakes.Count</div>
+            </div>
+        </div>
+    </div>
 
-            <div class="p-6 overflow-y-auto flex-1 space-y-4">
-                <div class="bg-primary-container/10 p-3 rounded-lg border border-primary/20 text-xs text-on-background">
-                    💡 @L["Stocktake_Guide"]
-                </div>
+    <!-- Bảng danh sách phiếu kiểm kê -->
+    <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant/30 overflow-hidden">
+        <div class="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container/30">
+            <h3 class="font-bold text-on-surface text-base m-0">Lịch Sử Các Đợt Kiểm Kê</h3>
+            <span class="text-xs text-on-surface-variant font-medium">Tổng cộng: @_stocktakes.Count đợt</span>
+        </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-surface-container-low text-xs font-bold text-on-surface-variant uppercase">
+        @if (_isLoading)
+        {
+            <div class="flex justify-center p-12">
+                <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-surface-container/50 border-b border-outline-variant/30 text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                        <tr>
+                            <th class="py-4 px-6">Mã Phiếu</th>
+                            <th class="py-4 px-6">Người Đếm Kho</th>
+                            <th class="py-4 px-6 text-center">Thời Gian Đếm</th>
+                            <th class="py-4 px-6 text-right">Mặt Hàng Kiểm</th>
+                            <th class="py-4 px-6 text-right">Chênh Lệch (VNĐ)</th>
+                            <th class="py-4 px-6 text-center">Trạng Thái</th>
+                            <th class="py-4 px-6 text-right">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant/20 text-sm">
+                        @if (!_stocktakes.Any())
+                        {
                             <tr>
-                                <th class="p-3">@L["Material_Col_Name"]</th>
-                                <th class="p-3 text-right">@L["Stocktake_Col_SystemStock"]</th>
-                                <th class="p-3 text-right">@L["Stocktake_Col_ActualStock"]</th>
-                                <th class="p-3 text-right">@L["Stocktake_Col_Diff"]</th>
-                                <th class="p-3">@L["Stocktake_Col_Reason"]</th>
+                                <td colspan="7" class="p-10 text-center text-on-surface-variant">
+                                    Chưa có đợt kiểm kê nào. Bấm <strong>"Tạo Phiếu Kiểm Kho (Đếm Thực Tế)"</strong> để bắt đầu.
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in _auditRows)
-                            {
-                                var diff = row.ActualStock - row.SystemStock;
-                                <tr class="border-b border-outline-variant/20 hover:bg-surface-low">
-                                    <td class="p-3 font-bold text-on-surface text-sm">@row.MaterialName (@row.UnitName)</td>
-                                    <td class="p-3 text-right font-mono font-bold text-on-surface-variant">@row.SystemStock</td>
-                                    <td class="p-3 text-right">
-                                        <input type="number" step="0.1" @bind="row.ActualStock" class="w-24 px-2 py-1 text-sm border border-outline rounded bg-surface font-mono text-right" />
-                                    </td>
-                                    <td class="p-3 text-right font-mono font-bold text-sm @(diff < 0 ? "text-error" : (diff > 0 ? "text-success-green" : "text-on-surface-variant"))">
-                                        @(diff > 0 ? "+" : "")@diff
-                                    </td>
-                                    <td class="p-3">
-                                        <input type="text" @bind="row.Reason" placeholder="Vỡ / Hao hụt tự nhiên..." class="w-full px-2 py-1 text-xs border border-outline rounded bg-surface" />
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                        }
+                        @foreach (var s in _stocktakes)
+                        {
+                            var isPending = s.Status == 2 || s.Status == 0;
+                            <tr class="hover:bg-surface-container/20 transition-colors">
+                                <td class="py-4 px-6 font-mono font-bold text-primary">@s.AuditCode</td>
+                                <td class="py-4 px-6 font-semibold text-on-surface">@s.ConductedByUserName</td>
+                                <td class="py-4 px-6 text-center text-xs text-on-surface-variant">@s.StartedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="py-4 px-6 text-right font-mono font-bold">@s.Items.Count mặt hàng</td>
+                                <td class="py-4 px-6 text-right font-mono font-bold">
+                                    @if (isPending)
+                                    {
+                                        <span class="text-amber-600 text-xs italic font-sans font-medium">Chờ QL đối soát</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="@(s.TotalDifferenceValue < 0 ? "text-red-600" : (s.TotalDifferenceValue > 0 ? "text-emerald-600" : "text-on-surface-variant"))">
+                                            @(s.TotalDifferenceValue > 0 ? "+" : "")@s.TotalDifferenceValue.ToString("N0")đ
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    @if (isPending)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
+                                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                            Chờ QL Cân Đối
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            Đã Chốt & Cân Đối
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-4 px-6 text-right">
+                                    @if (isPending)
+                                    {
+                                        <button class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-all shadow-xs cursor-pointer inline-flex items-center gap-1"
+                                                @onclick="() => SwitchToReconcileView(s)">
+                                            <span class="material-symbols-outlined text-sm" data-icon="balance">balance</span>
+                                            <span>QL Đối Soát & Cân Đối</span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-surface border border-outline-variant/40 hover:bg-surface-container text-on-surface transition-all cursor-pointer inline-flex items-center gap-1"
+                                                @onclick="() => SwitchToReconcileView(s, isReadOnly: true)">
+                                            <span class="material-symbols-outlined text-sm" data-icon="visibility">visibility</span>
+                                            <span>Xem Chi Tiết</span>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
-
-            <div class="px-6 py-4 border-t border-outline-variant/30 flex justify-end gap-3 bg-surface-container-low shrink-0">
-                <button class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded text-sm font-bold" @onclick="CloseModal">@L["Common_Cancel"]</button>
-                <button class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-bold shadow-sm hover:bg-primary/90 flex items-center" disabled="@_isSaving" @onclick="SubmitAudit">
+        }
+    </div>
+}
+else if (_currentView == ViewMode.BlindCount)
+{
+    <!-- ========================================== -->
+    <!-- VIEW B: GIAO DIỆN ĐẾM KHO THỰC TẾ (BLIND COUNT) -->
+    <!-- (Tuyệt đối không hiển thị tồn trên hệ thống) -->
+    <!-- ========================================== -->
+    <div class="mb-6">
+        <nav class="flex items-center gap-2 text-xs text-on-surface-variant mb-2">
+            <button class="hover:text-primary transition-colors cursor-pointer" @onclick="SwitchToListView">Quản Lý Kiểm Kê Kho</button>
+            <span>/</span>
+            <span class="font-bold text-on-surface">Tạo Phiếu Kiểm Kho (Đếm Thực Tế)</span>
+        </nav>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h2 class="text-2xl font-headline-sm text-primary m-0">Phiếu Đếm Kho Thực Tế (Blind Stock Count)</h2>
+                <p class="text-on-surface-variant text-sm mt-1">Dành cho nhân viên kiểm kho: Nhập số lượng thực tế kiểm đếm khách quan tại kho (tồn hệ thống được ẩn hoàn toàn)</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button type="button" class="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-on-surface hover:bg-surface-container font-semibold text-sm transition-all cursor-pointer"
+                        @onclick="SwitchToListView">
+                    Hủy & Quay Lại
+                </button>
+                <button type="button" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-sm shadow-md transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                        disabled="@_isSaving" @onclick="SubmitBlindCount">
                     @if (_isSaving)
                     {
-                        <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
-                        <span>@L["Common_Saving"]</span>
+                        <span class="material-symbols-outlined animate-spin text-base" data-icon="progress_activity">progress_activity</span>
+                        <span>Đang gửi phiếu...</span>
                     }
                     else
                     {
-                        <span>@L["Stocktake_Submit_Btn"]</span>
+                        <span class="material-symbols-outlined text-base" data-icon="send">send</span>
+                        <span>Hoàn Thành & Gửi Quản Lý Trưởng</span>
                     }
                 </button>
             </div>
         </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="p-4 mb-6 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm font-medium flex justify-between items-center">
+            <span>@_errorMessage</span>
+            <button type="button" @onclick="() => _errorMessage = null" class="font-bold">✕</button>
+        </div>
+    }
+
+    <div class="bg-surface rounded-2xl p-6 border border-outline-variant/30 shadow-sm space-y-6">
+        <!-- Thông tin ca kiểm kê -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 rounded-xl bg-surface-container/20 border border-outline-variant/20">
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1">Thời Gian Bắt Đầu Đếm</label>
+                <div class="text-sm font-semibold text-on-surface">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1">Vị Trí Kiểm Kê</label>
+                <div class="text-sm font-semibold text-on-surface">Kho Trung Tâm Nhà Hàng & Tủ Mát Bếp</div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1">Ghi Chú Đợt Kiểm Kho</label>
+                <input type="text" class="w-full px-3 py-1.5 border rounded-lg bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm"
+                       placeholder="VD: Kiểm kho chốt ca sáng / đột xuất..." @bind="_blindNote" />
+            </div>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3.5 flex items-center gap-3 text-xs text-blue-800">
+            <span class="material-symbols-outlined text-blue-600 text-lg" data-icon="info">info</span>
+            <span>
+                <strong>Lưu ý nghiệp vụ kiểm đếm mù:</strong> Nhân viên chỉ cần cân / đếm và nhập số lượng thực tế nhìn thấy tại kho. Quản lý trưởng sẽ thực hiện đối soát với số liệu trên phần mềm ở bước tiếp theo.
+            </span>
+        </div>
+
+        <!-- Bảng danh sách đếm thực tế -->
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <div class="relative w-72">
+                    <span class="material-symbols-outlined absolute left-3 top-2 text-on-surface-variant text-sm" data-icon="search">search</span>
+                    <input type="text" class="w-full pl-9 pr-3 py-1.5 border rounded-lg bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-xs"
+                           placeholder="Tìm nguyên liệu trong danh sách..." @bind="_blindSearch" @bind:event="oninput" />
+                </div>
+                <div class="text-xs text-on-surface-variant font-medium">
+                    Tổng cộng: <strong>@FilteredBlindItems.Count</strong> nguyên vật liệu cần kiểm
+                </div>
+            </div>
+
+            <div class="overflow-x-auto border border-outline-variant/30 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-surface-container/50 text-xs font-bold text-on-surface-variant border-b border-outline-variant/30 uppercase">
+                            <th class="py-3 px-4 w-12 text-center">STT</th>
+                            <th class="py-3 px-4">Tên Mặt Hàng / Nguyên Liệu</th>
+                            <th class="py-3 px-4 text-center w-28">Đơn Vị Tính</th>
+                            <th class="py-3 px-4 text-right w-48">Số Lượng Đếm Thực Tế *</th>
+                            <th class="py-3 px-4">Ghi Chú Tình Trạng Hàng Hóa</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant/20 text-sm">
+                        @for (int i = 0; i < FilteredBlindItems.Count; i++)
+                        {
+                            var item = FilteredBlindItems[i];
+                            <tr class="hover:bg-surface-container/10 transition-colors">
+                                <td class="py-3 px-4 text-center text-xs text-on-surface-variant font-mono">@(i + 1)</td>
+                                <td class="py-3 px-4 font-semibold text-on-surface">@item.MaterialName</td>
+                                <td class="py-3 px-4 text-center text-xs font-medium text-on-surface-variant">@item.UnitName</td>
+                                <td class="py-3 px-4 text-right">
+                                    <input type="number" step="0.1" min="0" class="w-36 px-3 py-1.5 border rounded-lg bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-bold text-right font-mono"
+                                           placeholder="Nhập số đếm..." @bind="item.ActualQuantity" />
+                                </td>
+                                <td class="py-3 px-4">
+                                    <input type="text" class="w-full px-3 py-1.5 border rounded-lg bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-xs"
+                                           placeholder="Tình trạng: bao bì, hỏng hóc..." @bind="item.Note" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
+{
+    <!-- ========================================== -->
+    <!-- VIEW C: GIAO DIỆN ĐỐI SOÁT & CÂN ĐỐI KHO CỦA QUẢN LÝ TRƯỞNG -->
+    <!-- (Hiển thị song song Tồn Hệ Thống vs Thực Tế và giải trình chênh lệch) -->
+    <!-- ========================================== -->
+    <div class="mb-6">
+        <nav class="flex items-center gap-2 text-xs text-on-surface-variant mb-2">
+            <button class="hover:text-primary transition-colors cursor-pointer" @onclick="SwitchToListView">Quản Lý Kiểm Kê Kho</button>
+            <span>/</span>
+            <span class="font-bold text-on-surface">Đối Soát & Cân Đối Kho @_reconcileModel.AuditCode</span>
+        </nav>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h2 class="text-2xl font-headline-sm text-primary m-0">Đối Soát & Cân Đối Tồn Kho (Quản Lý Trưởng)</h2>
+                <p class="text-on-surface-variant text-sm mt-1">So sánh số liệu phần mềm với kết quả đếm thực tế của nhân viên kiểm kho, giải trình và cập nhật tồn</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button type="button" class="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-on-surface hover:bg-surface-container font-semibold text-sm transition-all cursor-pointer"
+                        @onclick="SwitchToListView">
+                    Quay Lại Danh Sách
+                </button>
+                @if (!_isReadOnlyReconcile)
+                {
+                    <button type="button" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                            disabled="@_isSaving" @onclick="SaveReconciliation">
+                        @if (_isSaving)
+                        {
+                            <span class="material-symbols-outlined animate-spin text-base" data-icon="progress_activity">progress_activity</span>
+                            <span>Đang cân đối tồn...</span>
+                        }
+                        else
+                        {
+                            <span class="material-symbols-outlined text-base" data-icon="check_circle">check_circle</span>
+                            <span>Phê Duyệt & Cân Đối Kho Hệ Thống</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="p-4 mb-6 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm font-medium flex justify-between items-center">
+            <span>@_errorMessage</span>
+            <button type="button" @onclick="() => _errorMessage = null" class="font-bold">✕</button>
+        </div>
+    }
+
+    <!-- Thông tin phiếu đối soát -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-surface border border-outline-variant/30 mb-6 shadow-sm text-sm">
+        <div>
+            <span class="text-xs text-on-surface-variant block font-medium">Mã đợt kiểm kê:</span>
+            <strong class="text-primary font-mono text-base">@_reconcileModel.AuditCode</strong>
+        </div>
+        <div>
+            <span class="text-xs text-on-surface-variant block font-medium">Người đếm kho:</span>
+            <strong class="text-on-surface">@_reconcileModel.ConductedByUserName</strong>
+        </div>
+        <div>
+            <span class="text-xs text-on-surface-variant block font-medium">Thời gian kiểm đếm:</span>
+            <strong class="text-on-surface">@_reconcileModel.StartedAt.ToString("dd/MM/yyyy HH:mm")</strong>
+        </div>
+        <div>
+            <span class="text-xs text-on-surface-variant block font-medium">Trạng thái:</span>
+            @if (_reconcileModel.Status == 1)
+            {
+                <span class="text-emerald-700 font-bold inline-flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Đã cân đối tồn kho
+                </span>
+            }
+            else
+            {
+                <span class="text-amber-700 font-bold inline-flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    Đang chờ QL chốt & cân đối
+                </span>
+            }
+        </div>
+    </div>
+
+    <!-- Bảng so sánh tồn hệ thống vs đếm thực tế -->
+    <div class="bg-surface rounded-2xl p-6 border border-outline-variant/30 shadow-sm space-y-4">
+        <div class="flex justify-between items-center pb-2">
+            <h3 class="font-bold text-lg text-on-surface m-0">Bảng Đối Soát Chênh Lệch Kho</h3>
+            <div class="flex gap-4 text-xs font-bold">
+                <span class="text-red-600">Thiếu: @_reconcileModel.Items.Count(i => i.ActualQuantity < i.SystemQuantity) mặt hàng</span>
+                <span class="text-emerald-600">Thừa: @_reconcileModel.Items.Count(i => i.ActualQuantity > i.SystemQuantity) mặt hàng</span>
+                <span class="text-on-surface-variant">Khớp: @_reconcileModel.Items.Count(i => i.ActualQuantity == i.SystemQuantity) mặt hàng</span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto border border-outline-variant/30 rounded-xl">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="bg-surface-container/50 text-xs font-bold text-on-surface-variant border-b border-outline-variant/30 uppercase">
+                        <th class="py-3 px-3 w-10 text-center">STT</th>
+                        <th class="py-3 px-3">Tên Mặt Hàng</th>
+                        <th class="py-3 px-3 text-center w-20">Đơn Vị</th>
+                        <th class="py-3 px-3 text-right w-28 bg-blue-50/50">Tồn Hệ Thống</th>
+                        <th class="py-3 px-3 text-right w-36 bg-amber-50/50">Đếm Thực Tế *</th>
+                        <th class="py-3 px-3 text-right w-28">Chênh Lệch</th>
+                        <th class="py-3 px-3 text-right w-36">Giá Trị Lệch (VNĐ)</th>
+                        <th class="py-3 px-3">Lý Do Chênh Lệch / Giải Trình</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline-variant/20">
+                    @for (int i = 0; i < _reconcileModel.Items.Count; i++)
+                    {
+                        var item = _reconcileModel.Items[i];
+                        var diff = item.ActualQuantity - item.SystemQuantity;
+                        var mat = _allMaterials.FirstOrDefault(m => m.Id == item.MaterialId);
+                        var cost = mat?.CostPerUnit ?? 0;
+                        var diffVal = diff * cost;
+
+                        <tr class="hover:bg-surface-container/10 transition-colors">
+                            <td class="py-3 px-3 text-center text-xs text-on-surface-variant font-mono">@(i + 1)</td>
+                            <td class="py-3 px-3 font-semibold text-on-surface">@item.MaterialName</td>
+                            <td class="py-3 px-3 text-center text-xs text-on-surface-variant font-medium">@item.UnitName</td>
+                            <td class="py-3 px-3 text-right font-mono font-semibold text-blue-800 bg-blue-50/30">
+                                @item.SystemQuantity.ToString("N1")
+                            </td>
+                            <td class="py-3 px-3 text-right bg-amber-50/30">
+                                @if (_isReadOnlyReconcile)
+                                {
+                                    <span class="font-mono font-bold text-on-surface">@item.ActualQuantity.ToString("N1")</span>
+                                }
+                                else
+                                {
+                                    <input type="number" step="0.1" min="0" class="w-full px-2 py-1 border rounded-lg bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-bold text-right font-mono"
+                                           @bind="item.ActualQuantity" />
+                                }
+                            </td>
+                            <td class="py-3 px-3 text-right font-mono font-bold">
+                                @if (diff < 0)
+                                {
+                                    <span class="text-red-600">@diff.ToString("N1")</span>
+                                }
+                                else if (diff > 0)
+                                {
+                                    <span class="text-emerald-600">+@diff.ToString("N1")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-on-surface-variant">0.0</span>
+                                }
+                            </td>
+                            <td class="py-3 px-3 text-right font-mono font-bold">
+                                <span class="@(diffVal < 0 ? "text-red-600" : (diffVal > 0 ? "text-emerald-600" : "text-on-surface-variant"))">
+                                    @(diffVal > 0 ? "+" : "")@diffVal.ToString("N0")đ
+                                </span>
+                            </td>
+                            <td class="py-3 px-3">
+                                @if (_isReadOnlyReconcile)
+                                {
+                                    <span class="text-xs text-on-surface">@(string.IsNullOrEmpty(item.Note) ? "Không có giải trình" : item.Note)</span>
+                                }
+                                else
+                                {
+                                    <input type="text" class="w-full px-2.5 py-1 border rounded-lg bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-xs"
+                                           placeholder="Nhập lý do: hao hụt, rơi vãi, hư hỏng..." @bind="item.Note" />
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (!_isReadOnlyReconcile)
+        {
+            <div class="pt-4 border-t border-outline-variant/20 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-xs text-on-surface-variant max-w-lg">
+                    ⚠️ <strong>Lưu ý Quản lý trưởng:</strong> Khi bấm <em>"Phê Duyệt & Cân Đối Kho Hệ Thống"</em>, toàn bộ số lượng thực tế sẽ ghi đè lên tồn kho hiện tại trên phần mềm và tạo các bút toán kiểm kê kho.
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" class="px-5 py-2.5 rounded-xl border border-outline-variant/40 text-on-surface hover:bg-surface-container font-semibold text-sm cursor-pointer"
+                            @onclick="SwitchToListView">
+                        Hủy Bỏ
+                    </button>
+                    <button type="button" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md cursor-pointer flex items-center gap-2"
+                            disabled="@_isSaving" @onclick="SaveReconciliation">
+                        <span class="material-symbols-outlined text-base" data-icon="done_all">done_all</span>
+                        <span>Xác Nhận Cân Đối Tồn Kho</span>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
 }
 
 @code {
-    private List<MaterialDto> _materials = new();
-    private bool _showModal = false;
-    private bool _isSaving = false;
+    private enum ViewMode { List, BlindCount, ManagerReconcile }
 
-    private List<AuditRow> _auditRows = new();
+    private ViewMode _currentView = ViewMode.List;
+    private List<StocktakeDto> _stocktakes = new();
+    private List<MaterialDto> _allMaterials = new();
+
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private string? _feedbackMessage;
+    private string? _errorMessage;
+    private bool _isError = false;
+
+    // Blind count fields
+    private string _blindNote = string.Empty;
+    private string _blindSearch = string.Empty;
+    private List<BlindCountItemModel> _blindItems = new();
+
+    // Reconcile view fields
+    private StocktakeDto? _reconcileModel;
+    private bool _isReadOnlyReconcile = false;
+
+    public class BlindCountItemModel
+    {
+        public int MaterialId { get; set; }
+        public string MaterialName { get; set; } = string.Empty;
+        public string UnitName { get; set; } = string.Empty;
+        public decimal ActualQuantity { get; set; }
+        public string? Note { get; set; }
+    }
+
+    private List<BlindCountItemModel> FilteredBlindItems => string.IsNullOrWhiteSpace(_blindSearch)
+        ? _blindItems
+        : _blindItems.Where(i => i.MaterialName.Contains(_blindSearch, StringComparison.OrdinalIgnoreCase)).ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        _materials = await ApiClient.GetMaterialsAsync();
+        await LoadDataAsync();
     }
 
-    private void OpenStartAuditModal()
+    private async Task LoadDataAsync()
     {
-        _auditRows = _materials.Select(m => new AuditRow
+        _isLoading = true;
+        try
+        {
+            _stocktakes = await ApiClient.GetStocktakesAsync();
+            _allMaterials = await ApiClient.GetMaterialsAsync();
+        }
+        catch (Exception ex)
+        {
+            _feedbackMessage = $"Lỗi: {ex.Message}";
+            _isError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void SwitchToListView()
+    {
+        _currentView = ViewMode.List;
+        _errorMessage = null;
+    }
+
+    private void SwitchToBlindCountView()
+    {
+        _blindNote = string.Empty;
+        _blindSearch = string.Empty;
+        _blindItems = _allMaterials.Select(m => new BlindCountItemModel
         {
             MaterialId = m.Id,
             MaterialName = m.Name,
             UnitName = m.UnitName,
-            SystemStock = m.CurrentStock,
-            ActualStock = m.CurrentStock
+            ActualQuantity = 0,
+            Note = string.Empty
         }).ToList();
-
-        _showModal = true;
+        _errorMessage = null;
+        _currentView = ViewMode.BlindCount;
     }
 
-    private void CloseModal() => _showModal = false;
-
-    private async Task SubmitAudit()
+    private void SwitchToReconcileView(StocktakeDto stocktake, bool isReadOnly = false)
     {
+        _reconcileModel = stocktake;
+        _isReadOnlyReconcile = isReadOnly;
+        _errorMessage = null;
+        _currentView = ViewMode.ManagerReconcile;
+    }
+
+    private async Task SubmitBlindCount()
+    {
+        var countedItems = _blindItems.Where(i => i.ActualQuantity > 0 || !string.IsNullOrWhiteSpace(i.Note)).ToList();
+        if (!countedItems.Any())
+        {
+            _errorMessage = "Vui lòng nhập số lượng đếm thực tế cho ít nhất một mặt hàng!";
+            return;
+        }
+
         _isSaving = true;
+        _errorMessage = null;
+
         try
         {
-            var req = new StockAuditRequest
+            var req = new CreateBlindStocktakeRequest
             {
-                Note = "Kiểm kê định kỳ",
-                Items = _auditRows.Select(r => new StockAuditItemRequest
+                Note = _blindNote,
+                Items = countedItems.Select(i => new BlindStocktakeItemRequest
                 {
-                    MaterialId = r.MaterialId,
-                    ActualStock = r.ActualStock,
-                    Reason = r.Reason
+                    MaterialId = i.MaterialId,
+                    ActualQuantity = i.ActualQuantity,
+                    Note = i.Note
                 }).ToList()
             };
 
-            await ApiClient.ConductStockAuditAsync(req);
-            _showModal = false;
+            var success = await ApiClient.CreateBlindStocktakeAsync(req);
+            if (success)
+            {
+                _feedbackMessage = "Tạo phiếu kiểm kho thực tế thành công! Phiếu đã chuyển sang Quản lý trưởng để đối soát & cân đối.";
+                _isError = false;
+                _currentView = ViewMode.List;
+                await LoadDataAsync();
+            }
+            else
+            {
+                _errorMessage = "Gửi phiếu kiểm kho thất bại. Vui lòng thử lại!";
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
-            // Optionally could add error message display here if UI is updated to support it
+            _errorMessage = $"Lỗi: {ex.Message}";
         }
         finally
         {
@@ -175,13 +612,47 @@
         }
     }
 
-    public class AuditRow
+    private async Task SaveReconciliation()
     {
-        public int MaterialId { get; set; }
-        public string MaterialName { get; set; } = string.Empty;
-        public string UnitName { get; set; } = string.Empty;
-        public decimal SystemStock { get; set; }
-        public decimal ActualStock { get; set; }
-        public string? Reason { get; set; }
+        if (_reconcileModel == null) return;
+
+        _isSaving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var req = new ReconcileStocktakeRequest
+            {
+                StocktakeId = _reconcileModel.Id,
+                Note = "Đã phê duyệt cân đối kho bởi Quản lý trưởng",
+                Items = _reconcileModel.Items.Select(i => new ReconcileStocktakeItemRequest
+                {
+                    MaterialId = i.MaterialId,
+                    ActualQuantity = i.ActualQuantity,
+                    Reason = i.Note
+                }).ToList()
+            };
+
+            var success = await ApiClient.ReconcileStocktakeAsync(_reconcileModel.Id, req);
+            if (success)
+            {
+                _feedbackMessage = "Cân đối và chốt kiểm kê kho thành công! Tồn kho hệ thống đã được cập nhật.";
+                _isError = false;
+                _currentView = ViewMode.List;
+                await LoadDataAsync();
+            }
+            else
+            {
+                _errorMessage = "Cân đối kho thất bại. Vui lòng thử lại!";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Lỗi: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
     }
 }

@@ -1,0 +1,204 @@
+@page "/admin/system/settings"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.AdminLayout
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Services
+@inject AdminApiClient ApiClient
+
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div>
+        <h2 class="text-2xl font-headline-sm text-primary m-0">Cấu Hình Chung Hệ Thống</h2>
+        <p class="text-on-surface-variant text-sm mt-1">Thông tin nhà hàng, thiết lập thuế suất VAT, phí phục vụ và nội dung in hóa đơn</p>
+    </div>
+    <button class="bg-primary hover:bg-primary/90 text-on-primary px-5 py-2.5 rounded-xl font-label-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer" @onclick="SaveSettings" disabled="@_isSaving">
+        <span class="material-symbols-outlined text-lg" data-icon="save">save</span>
+        <span>@(_isSaving ? "Đang lưu..." : "Lưu Cấu Hình")</span>
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(_feedbackMessage))
+{
+    <div class="p-4 mb-6 rounded-xl border flex items-center justify-between @(_isError ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")">
+        <span class="font-medium text-sm">@_feedbackMessage</span>
+        <button type="button" @onclick="() => _feedbackMessage = null" class="text-sm font-bold">✕</button>
+    </div>
+}
+
+@if (_isLoading)
+{
+    <div class="flex items-center justify-center p-12">
+        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    </div>
+}
+else
+{
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Thông tin thương hiệu & nhà hàng -->
+        <div class="bg-surface rounded-2xl p-6 shadow-sm border border-outline-variant/30 space-y-4">
+            <div class="flex items-center gap-3 pb-3 border-b border-outline-variant/20">
+                <span class="material-symbols-outlined text-primary text-2xl" data-icon="store">store</span>
+                <div>
+                    <h3 class="font-bold text-lg text-on-surface m-0">Thông Tin Nhà Hàng</h3>
+                    <p class="text-xs text-on-surface-variant">Hiển thị trên hóa đơn K80 và thông tin xuất hóa đơn điện tử</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1">Tên Nhà Hàng / Chuỗi Cửa Hàng</label>
+                <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none font-semibold"
+                       @bind="_settings.RestaurantName" />
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1">Địa Chỉ Chi Nhánh</label>
+                <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none"
+                       @bind="_settings.Address" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Số Điện Thoại Hotline</label>
+                    <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none"
+                           @bind="_settings.Phone" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Mã Số Thuế (MST)</label>
+                    <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none font-mono"
+                           @bind="_settings.TaxNumber" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Thuế & Phí dịch vụ -->
+        <div class="bg-surface rounded-2xl p-6 shadow-sm border border-outline-variant/30 space-y-4">
+            <div class="flex items-center gap-3 pb-3 border-b border-outline-variant/20">
+                <span class="material-symbols-outlined text-primary text-2xl" data-icon="percent">percent</span>
+                <div>
+                    <h3 class="font-bold text-lg text-on-surface m-0">Thuế Suất & Phí Dịch Vụ</h3>
+                    <p class="text-xs text-on-surface-variant">Tỷ lệ tự động cộng vào hóa đơn thanh toán khi in hóa đơn</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Thuế VAT (%)</label>
+                    <div class="relative">
+                        <input type="number" step="0.5" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none font-semibold"
+                               @bind="_settings.DefaultVatPercent" />
+                        <span class="absolute right-3 top-2.5 text-xs text-on-surface-variant font-medium">%</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Phí Dịch Vụ (%)</label>
+                    <div class="relative">
+                        <input type="number" step="0.5" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none font-semibold"
+                               @bind="_settings.ServiceChargePercent" />
+                        <span class="absolute right-3 top-2.5 text-xs text-on-surface-variant font-medium">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1">Ký Hiệu Tiền Tệ</label>
+                <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none w-32 font-semibold"
+                       @bind="_settings.CurrencySymbol" />
+            </div>
+
+            <div class="pt-2 space-y-3">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="autoKitchen" class="rounded text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                           @bind="_settings.EnableAutoSendKitchen" />
+                    <label for="autoKitchen" class="text-sm text-on-surface cursor-pointer">Tự động đẩy order xuống bếp khi in hóa đơn / thanh toán</label>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="tableTimer" class="rounded text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                           @bind="_settings.EnableTableTimer" />
+                    <label for="tableTimer" class="text-sm text-on-surface cursor-pointer">Bật đồng hồ đo thời gian ngồi của bàn (POS Table Timer)</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mẫu in hóa đơn (Receipt template) -->
+        <div class="bg-surface rounded-2xl p-6 shadow-sm border border-outline-variant/30 space-y-4 lg:col-span-2">
+            <div class="flex items-center gap-3 pb-3 border-b border-outline-variant/20">
+                <span class="material-symbols-outlined text-primary text-2xl" data-icon="receipt_long">receipt_long</span>
+                <div>
+                    <h3 class="font-bold text-lg text-on-surface m-0">Tùy Biến Phiếu In Hóa Đơn K80</h3>
+                    <p class="text-xs text-on-surface-variant">Dòng tiêu đề và lời chúc kết thúc xuất hiện trên phiếu in thanh toán</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Tiêu Đề Đầu Trang (Header)</label>
+                    <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none"
+                           @bind="_settings.ReceiptHeader" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Lời Chúc Chân Trang (Footer)</label>
+                    <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none"
+                           @bind="_settings.ReceiptFooter" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private SystemSettingsDto _settings = new();
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private string? _feedbackMessage;
+    private bool _isError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettingsAsync();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _settings = await ApiClient.GetSystemSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            _feedbackMessage = $"Lỗi: {ex.Message}";
+            _isError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        _isSaving = true;
+        try
+        {
+            var success = await ApiClient.SaveSystemSettingsAsync(_settings);
+            if (success)
+            {
+                _feedbackMessage = "Cấu hình hệ thống đã được lưu thành công!";
+                _isError = false;
+            }
+            else
+            {
+                _feedbackMessage = "Lưu cấu hình thất bại!";
+                _isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _feedbackMessage = $"Lỗi: {ex.Message}";
+            _isError = true;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

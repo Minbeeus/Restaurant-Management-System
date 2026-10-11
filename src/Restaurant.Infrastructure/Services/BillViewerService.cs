@@ -102,26 +102,57 @@ public class BillViewerService : IBillViewerService
         var parentIds = rootBillItems.Select(r => r.Id).ToHashSet();
         orderedBillItems.AddRange(bill.Items.Where(i => i.ParentItemId.HasValue && !parentIds.Contains(i.ParentItemId.Value)));
 
+        bool isPaid = bill.IsPaid;
+        string receiptTitle = isPaid ? "HÓA ĐƠN THANH TOÁN" : "PHIẾU TẠM TÍNH (PRE-BILL)";
+        string paymentStatusName = isPaid ? "Đã thanh toán" : "Chưa thanh toán";
+        string paymentMethod = isPaid ? bill.PaymentMethodName : "Chưa thanh toán";
+        decimal? cashReceived = isPaid && bill.CashReceived > 0 ? bill.CashReceived : null;
+        decimal? changeAmount = isPaid && bill.ChangeAmount >= 0 ? bill.ChangeAmount : null;
+
         return new K80ReceiptDto
         {
+            RestaurantName = "NHÀ HÀNG MINBEEUS",
+            RestaurantAddress = "123 Nguyễn Văn Linh, Q.7, TP.HCM",
+            RestaurantPhone = "0901.234.567",
+            WifiInfo = "Wifi: Minbeeus_Guest / Pass: 88888888",
+            ReceiptTitle = receiptTitle,
+
+            OrderId = bill.OrderId,
             OrderCode = bill.OrderCode,
             CreatedAt = bill.CreatedAt,
+            PrintedAt = DateTime.Now,
             TableName = bill.TableName,
-            CashierName = bill.CashierName,
-            CustomerName = bill.CustomerName,
+            OrderType = bill.OrderType,
+            CashierName = !string.IsNullOrWhiteSpace(bill.CashierName) ? bill.CashierName : "Thu ngân",
+            CustomerName = !string.IsNullOrWhiteSpace(bill.CustomerName) ? bill.CustomerName : "Khách lẻ",
             CustomerPhone = bill.CustomerPhone,
+            Note = bill.Note,
+
             SubTotal = bill.SubTotal,
             DiscountAmount = bill.DiscountAmount,
+            TaxAmount = bill.TaxAmount,
             TotalAmount = bill.TotalAmount,
-            PaymentMethod = bill.PaymentMethodName,
-            CashReceived = bill.CashReceived,
+
+            IsPaid = isPaid,
+            PaymentStatusName = paymentStatusName,
+            PaymentMethod = paymentMethod,
+            CashReceived = cashReceived,
+            ChangeAmount = changeAmount,
+
+            FooterMessage = isPaid
+                ? "CẢM ƠN QUÝ KHÁCH & HẸN GẶP LẠI!\nVui lòng kiểm tra lại hóa đơn trước khi rời quầy"
+                : "PHIẾU DÙNG ĐỂ ĐỐI CHIẾU MÓN ĂN\nQuý khách vui lòng thanh toán tại quầy thu ngân",
+
             Items = orderedBillItems.Select(i => new K80ReceiptItemDto
             {
+                Id = i.Id,
                 MenuItemName = i.MenuItemName,
                 Quantity = i.Quantity,
                 UnitPrice = i.UnitPrice,
                 DiscountAmount = i.DiscountAmount,
                 IsComboChild = i.ParentItemId.HasValue,
+                ParentItemId = i.ParentItemId,
+                Note = i.Note,
                 Modifiers = i.Modifiers
             }).ToList()
         };
@@ -129,13 +160,16 @@ public class BillViewerService : IBillViewerService
 
     private static BillDetailDto MapToBillDetailDto(Order o)
     {
-        var lastPayment = o.Payments.FirstOrDefault(p => p.Status == (int)PaymentStatus.Paid) ?? o.Payments.LastOrDefault();
-        var payMethodName = lastPayment?.PaymentMethod switch
+        var paidPayment = o.Payments.FirstOrDefault(p => p.Status == (int)PaymentStatus.Paid);
+        bool isPaid = o.PaymentStatus == (int)PaymentStatus.Paid || paidPayment != null;
+        var lastPayment = paidPayment ?? o.Payments.LastOrDefault();
+        
+        var payMethodName = isPaid && lastPayment != null ? (lastPayment.PaymentMethod switch
         {
             (int)PaymentMethod.Cash => "Tiền Mặt",
             (int)PaymentMethod.BankTransfer => "Chuyển Khoản VietQR",
-            _ => "Chưa thanh toán"
-        };
+            _ => "Đã thanh toán"
+        }) : "Chưa thanh toán";
 
         var statusName = ((OrderStatus)o.Status) switch
         {
@@ -160,15 +194,18 @@ public class BillViewerService : IBillViewerService
             TableAreaName = tableAreaName,
             OrderType = orderTypeName,
             CashierName = o.CreatedByUser?.FullName ?? "Thu ngân",
-            CustomerName = o.CustomerName ?? o.Customer?.FullName ?? "Khách lẻ",
+            CustomerName = !string.IsNullOrWhiteSpace(o.CustomerName) ? o.CustomerName : (o.Customer?.FullName ?? "Khách lẻ"),
             CustomerPhone = o.CustomerPhone ?? o.Customer?.PhoneNumber ?? string.Empty,
             SubTotal = o.SubTotal,
             DiscountAmount = o.DiscountAmount,
+            TaxAmount = 0m,
             TotalAmount = o.TotalAmount,
             PaymentMethodName = payMethodName,
             OrderStatusName = statusName,
-            CashReceived = lastPayment?.CashReceived ?? o.TotalAmount,
-            ChangeAmount = lastPayment?.ChangeAmount ?? 0,
+            IsPaid = isPaid,
+            Note = o.Note,
+            CashReceived = isPaid ? (lastPayment?.CashReceived ?? o.TotalAmount) : 0,
+            ChangeAmount = isPaid ? (lastPayment?.ChangeAmount ?? 0) : 0,
             Items = o.OrderItems.Where(i => i.Status != (int)OrderItemStatus.Voided).Select(i => new BillItemDto
             {
                 Id = i.Id,
@@ -178,7 +215,7 @@ public class BillViewerService : IBillViewerService
                 DiscountAmount = i.DiscountAmount,
                 ParentItemId = i.ParentItemId,
                 Note = i.Note,
-                Modifiers = i.OrderItemModifiers.Select(m => m.ModifierOption?.Name ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList()
+                Modifiers = i.OrderItemModifiers.Select(m => m.ModifierOption?.Name ?? m.ModifierOptionName ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList()
             }).ToList()
         };
     }

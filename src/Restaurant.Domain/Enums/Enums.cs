@@ -108,7 +108,8 @@ public enum LoyaltyTransactionType
 public enum StocktakeStatus
 {
     InProgress = 0,
-    Completed = 1
+    Completed = 1,
+    PendingReconciliation = 2
 }
 
 public enum InventoryTransactionType

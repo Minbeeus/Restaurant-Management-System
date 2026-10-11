@@ -107,11 +107,17 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("audit")]
+    [HttpPost("stock-audit")]
     public async Task<IActionResult> AuditStock([FromBody] StockAuditRequest request)
     {
-        if (!_currentUserService.UserId.HasValue) return Unauthorized();
+        if (!_currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+        }
 
-        var success = await _inventoryService.AuditStockAsync(_currentUserService.UserId.Value, request);
+        var userId = _currentUserService.UserId.Value;
+
+        var success = await _inventoryService.AuditStockAsync(userId, request);
         if (!success)
         {
             return BadRequest(new
@@ -131,6 +137,38 @@ public class InventoryController : ControllerBase
         {
             success = true,
             data = new { message = "Cập nhật kết quả kiểm kê kho thành công." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpGet("recipes/menu-item/{menuItemId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetMenuItemRecipe(int menuItemId)
+    {
+        var recipe = await _inventoryService.GetMenuItemRecipeAsync(menuItemId);
+        if (recipe == null) return NotFound(new { success = false, message = "Không tìm thấy món ăn." });
+
+        return Ok(new
+        {
+            success = true,
+            data = recipe,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpGet("recipes/modifier-option/{modifierOptionId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetModifierOptionRecipe(int modifierOptionId)
+    {
+        var recipe = await _inventoryService.GetModifierOptionRecipeAsync(modifierOptionId);
+        if (recipe == null) return NotFound(new { success = false, message = "Không tìm thấy tùy chọn." });
+
+        return Ok(new
+        {
+            success = true,
+            data = recipe,
             error = (object?)null,
             timestamp = DateTime.UtcNow
         });
@@ -192,8 +230,137 @@ public class InventoryController : ControllerBase
         });
     }
 
+    // Goods Receipts API
+    [HttpGet("goods-receipts")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAllGoodsReceipts()
+    {
+        var result = await _inventoryService.GetAllGoodsReceiptsAsync();
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpGet("goods-receipts/{id}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetGoodsReceipt(int id)
+    {
+        var result = await _inventoryService.GetGoodsReceiptByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    // Stocktakes API
+    [HttpGet("stocktakes")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAllStocktakes()
+    {
+        var result = await _inventoryService.GetAllStocktakesAsync();
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpGet("stocktakes/{id}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetStocktake(int id)
+    {
+        var result = await _inventoryService.GetStocktakeByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost("stocktakes/blind")]
+    public async Task<IActionResult> CreateBlindStocktake([FromBody] CreateBlindStocktakeRequest request)
+    {
+        if (!_currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+        }
+
+        var userId = _currentUserService.UserId.Value;
+        var result = await _inventoryService.CreateBlindStocktakeAsync(userId, request);
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            message = "Tạo phiếu đếm kho thực tế thành công.",
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost("stocktakes/{id}/reconcile")]
+    public async Task<IActionResult> ReconcileStocktake(int id, [FromBody] ReconcileStocktakeRequest request)
+    {
+        if (!_currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+        }
+
+        var userId = _currentUserService.UserId.Value;
+        request.StocktakeId = id;
+        var success = await _inventoryService.ReconcileStocktakeAsync(userId, request);
+        if (!success) return NotFound(new { success = false, message = "Không tìm thấy phiếu kiểm kê." });
+
+        return Ok(new
+        {
+            success = true,
+            message = "Cân đối và chốt kiểm kê kho thành công.",
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpGet("suppliers/{id}/materials")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSupplierMaterials(int id)
+    {
+        var result = await _inventoryService.GetMaterialsBySupplierIdAsync(id);
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    // Inventory Loss Report API
+    [HttpGet("reports/loss")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetLossReport([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+    {
+        var result = await _inventoryService.GetInventoryLossSummaryAsync(fromDate, toDate);
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
     // Suppliers API Endpoints
     [HttpGet("suppliers")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetAllSuppliers()
     {
         var result = await _inventoryService.GetAllSuppliersAsync();
@@ -225,6 +392,21 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierRequest request)
     {
         var result = await _inventoryService.CreateSupplierAsync(request);
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPut("suppliers/{id}")]
+    public async Task<IActionResult> UpdateSupplier(int id, [FromBody] CreateSupplierRequest request)
+    {
+        var result = await _inventoryService.UpdateSupplierAsync(id, request);
+        if (result == null) return NotFound();
+
         return Ok(new
         {
             success = true,

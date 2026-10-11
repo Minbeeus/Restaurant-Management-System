@@ -1,4 +1,7 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Components.Authorization;
+using Restaurant.Application.Common;
 using Restaurant.Application.DTOs;
 
 namespace Restaurant.Web.Services;
@@ -6,123 +9,370 @@ namespace Restaurant.Web.Services;
 public class AdminApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly AuthenticationStateProvider? _authenticationStateProvider;
+    private readonly ILogger<AdminApiClient>? _logger;
 
-    public AdminApiClient(HttpClient httpClient)
+    public AdminApiClient(
+        HttpClient httpClient, 
+        AuthenticationStateProvider? authenticationStateProvider = null,
+        ILogger<AdminApiClient>? logger = null)
     {
         _httpClient = httpClient;
+        _authenticationStateProvider = authenticationStateProvider;
+        _logger = logger;
     }
 
-    // Inventory - Materials
-    public async Task<List<MaterialDto>> GetMaterialsAsync()
+    private async Task SetAuthorizationHeaderAsync()
     {
+        if (_authenticationStateProvider == null) return;
         try
         {
-            var result = await _httpClient.GetFromJsonAsync<List<MaterialDto>>("api/inventory/materials");
-            return result ?? new List<MaterialDto>();
+            var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var tokenClaim = user.FindFirst("jwt_token");
+                if (tokenClaim != null && !string.IsNullOrEmpty(tokenClaim.Value))
+                {
+                    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenClaim.Value);
+                }
+            }
         }
-        catch
+        catch (InvalidOperationException) { }
+    }
+
+    public class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+        public object? Error { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    // ==========================================
+    // 1. INVENTORY - MATERIALS
+    // ==========================================
+    public async Task<List<MaterialDto>> GetMaterialsAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
         {
-            return GetMockMaterials();
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<MaterialDto>>>("api/v1/inventory/materials");
+            if (res?.Data != null) return res.Data;
+
+            var raw = await _httpClient.GetFromJsonAsync<List<MaterialDto>>("api/v1/inventory/materials");
+            if (raw != null) return raw;
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching materials: {ex.Message}");
+        }
+        return GetMockMaterials();
     }
 
     public async Task<MaterialDto?> CreateMaterialAsync(CreateMaterialRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/inventory/materials", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/materials", request);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<MaterialDto>();
+        var res = await response.Content.ReadFromJsonAsync<ApiResponseWrapper<MaterialDto>>();
+        return res?.Data ?? await response.Content.ReadFromJsonAsync<MaterialDto>();
     }
 
     public async Task UpdateMaterialAsync(int id, CreateMaterialRequest request)
     {
-        var response = await _httpClient.PutAsJsonAsync($"api/inventory/materials/{id}", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsJsonAsync($"api/v1/inventory/materials/{id}", request);
         response.EnsureSuccessStatusCode();
     }
 
     public async Task DeleteMaterialAsync(int id)
     {
-        var response = await _httpClient.DeleteAsync($"api/inventory/materials/{id}");
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.DeleteAsync($"api/v1/inventory/materials/{id}");
         response.EnsureSuccessStatusCode();
     }
 
-    // Inventory - Suppliers
+    // ==========================================
+    // 2. INVENTORY - SUPPLIERS
+    // ==========================================
     public async Task<List<SupplierDto>> GetSuppliersAsync()
     {
+        await SetAuthorizationHeaderAsync();
         try
         {
-            var result = await _httpClient.GetFromJsonAsync<List<SupplierDto>>("api/inventory/suppliers");
-            return result ?? new List<SupplierDto>();
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<SupplierDto>>>("api/v1/inventory/suppliers");
+            if (res?.Data != null) return res.Data;
+
+            var raw = await _httpClient.GetFromJsonAsync<List<SupplierDto>>("api/v1/inventory/suppliers");
+            if (raw != null) return raw;
         }
-        catch
+        catch (Exception ex)
         {
-            return GetMockSuppliers();
+            Console.WriteLine($"Error fetching suppliers: {ex.Message}");
         }
+        return GetMockSuppliers();
     }
 
     public async Task<SupplierDto?> CreateSupplierAsync(CreateSupplierRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/inventory/suppliers", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/suppliers", request);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<SupplierDto>();
+        var res = await response.Content.ReadFromJsonAsync<ApiResponseWrapper<SupplierDto>>();
+        return res?.Data ?? await response.Content.ReadFromJsonAsync<SupplierDto>();
     }
 
-    // Inventory - Purchase Orders / Goods Receipts
+    public async Task<SupplierDto?> UpdateSupplierAsync(int id, CreateSupplierRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsJsonAsync($"api/v1/inventory/suppliers/{id}", request);
+        response.EnsureSuccessStatusCode();
+        var res = await response.Content.ReadFromJsonAsync<ApiResponseWrapper<SupplierDto>>();
+        return res?.Data ?? await response.Content.ReadFromJsonAsync<SupplierDto>();
+    }
+
+    public async Task DeleteSupplierAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.DeleteAsync($"api/v1/inventory/suppliers/{id}");
+        response.EnsureSuccessStatusCode();
+    }
+
+    // ==========================================
+    // 3. INVENTORY - GOODS RECEIPTS (NHẬP KHO)
+    // ==========================================
+    public async Task<List<GoodsReceiptDto>> GetGoodsReceiptsAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<GoodsReceiptDto>>>("api/v1/inventory/goods-receipts");
+            if (res?.Data != null) return res.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching goods receipts: {ex.Message}");
+        }
+        return new List<GoodsReceiptDto>();
+    }
+
+    public async Task<GoodsReceiptDto?> GetGoodsReceiptByIdAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<GoodsReceiptDto>>($"api/v1/inventory/goods-receipts/{id}");
+            return res?.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching goods receipt {id}: {ex.Message}");
+            return null;
+        }
+    }
+
     public async Task CreatePurchaseOrderAsync(CreatePurchaseOrderRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/inventory/purchase-orders", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/purchase-orders", request);
         response.EnsureSuccessStatusCode();
     }
 
-    // Inventory - Stock Audit
+    public async Task<bool> CreateGoodsReceiptAsync(CreatePurchaseOrderRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/purchase-orders", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    // ==========================================
+    // 4. INVENTORY - STOCK AUDITS / KIỂM KÊ KHO
+    // ==========================================
+    public async Task<List<StocktakeDto>> GetStocktakesAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<StocktakeDto>>>("api/v1/inventory/stocktakes");
+            if (res?.Data != null) return res.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching stocktakes: {ex.Message}");
+        }
+        return new List<StocktakeDto>();
+    }
+
+    public async Task<StocktakeDto?> GetStocktakeByIdAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<StocktakeDto>>($"api/v1/inventory/stocktakes/{id}");
+            return res?.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching stocktake {id}: {ex.Message}");
+            return null;
+        }
+    }
+
     public async Task ConductStockAuditAsync(StockAuditRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/inventory/stock-audit", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/audit", request);
         response.EnsureSuccessStatusCode();
     }
 
-    // Recipe Management
+    public async Task<List<MaterialDto>> GetMaterialsBySupplierAsync(int supplierId)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<MaterialDto>>>($"api/v1/inventory/suppliers/{supplierId}/materials");
+            if (res?.Data != null && res.Data.Any()) return res.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching supplier materials: {ex.Message}");
+        }
+        return await GetMaterialsAsync();
+    }
+
+    public async Task<bool> CreateBlindStocktakeAsync(CreateBlindStocktakeRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/stocktakes/blind", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> ReconcileStocktakeAsync(int id, ReconcileStocktakeRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync($"api/v1/inventory/stocktakes/{id}/reconcile", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<InventoryLossSummaryDto> GetInventoryLossSummaryAsync(DateTime? fromDate = null, DateTime? toDate = null)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var url = "api/v1/inventory/reports/loss";
+            if (fromDate.HasValue && toDate.HasValue)
+            {
+                url += $"?fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}";
+            }
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<InventoryLossSummaryDto>>(url);
+            if (res?.Data != null) return res.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching loss summary: {ex.Message}");
+        }
+
+        return new InventoryLossSummaryDto
+        {
+            TotalVarianceAmount = 0,
+            TotalWasteAmount = 0,
+            DiscrepancyCount = 0
+        };
+    }
+
+    // ==========================================
+    // 5. RECIPES / BOM (BILL OF MATERIALS)
+    // ==========================================
+    public async Task<MenuItemRecipeDto?> GetMenuItemRecipeAsync(int menuItemId)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<MenuItemRecipeDto>>($"api/v1/inventory/recipes/menu-item/{menuItemId}");
+            return res?.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading recipe for menu item {menuItemId}: {ex.Message}");
+            return null;
+        }
+    }
+
     public async Task SetMenuItemRecipeAsync(SetMenuItemRecipeRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/inventory/recipes/menu-item", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/recipes/menu-item", request);
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<ModifierOptionRecipeDto?> GetModifierOptionRecipeAsync(int modifierOptionId)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<ModifierOptionRecipeDto>>($"api/v1/inventory/recipes/modifier-option/{modifierOptionId}");
+            return res?.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading recipe for modifier option {modifierOptionId}: {ex.Message}");
+            return null;
+        }
     }
 
     public async Task SetModifierRecipeAsync(SetModifierOptionRecipeRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/inventory/recipes/modifier-option", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/inventory/recipes/modifier-option", request);
         response.EnsureSuccessStatusCode();
     }
 
-    // Staff / User Management
+    // ==========================================
+    // 6. STAFF / USER MANAGEMENT
+    // ==========================================
     public async Task<List<UserDto>> GetUsersAsync()
     {
+        await SetAuthorizationHeaderAsync();
         try
         {
-            var result = await _httpClient.GetFromJsonAsync<List<UserDto>>("api/auth/users");
-            return result ?? new List<UserDto>();
+            var result = await _httpClient.GetFromJsonAsync<List<UserDto>>("api/v1/auth/users");
+            if (result != null) return result;
         }
-        catch
+        catch (Exception ex)
         {
-            return GetMockUsers();
+            Console.WriteLine($"Error fetching users: {ex.Message}");
         }
+        return GetMockUsers();
     }
 
     public async Task<UserDto?> CreateUserAsync(CreateUserRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/auth/users", request);
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/auth/users", request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<UserDto>();
     }
 
-    // Orders History
+    public async Task<bool> ToggleUserStatusAsync(int userId)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsync($"api/v1/auth/users/{userId}/toggle-status", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    // ==========================================
+    // 7. ORDERS HISTORY & BILLS
+    // ==========================================
     public async Task<List<OrderDto>> GetOrderHistoryAsync()
     {
+        await SetAuthorizationHeaderAsync();
         try
         {
-            var result = await _httpClient.GetFromJsonAsync<List<BillDetailDto>>("api/pos/orders");
-            if (result != null)
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<BillDetailDto>>>("api/v1/bills");
+            if (res?.Data != null)
             {
-                return result.Select(b => new OrderDto
+                return res.Data.Select(b => new OrderDto
                 {
                     Id = b.OrderId,
                     OrderId = b.OrderId,
@@ -151,11 +401,12 @@ public class AdminApiClient
             Console.WriteLine($"Error fetching order history: {ex.Message}");
         }
 
-        return new List<OrderDto>();
+        return GetMockOrders();
     }
 
     public async Task<K80ReceiptDto?> GetOrderK80ReceiptAsync(int orderId)
     {
+        await SetAuthorizationHeaderAsync();
         try
         {
             var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{orderId}/k80");
@@ -168,26 +419,235 @@ public class AdminApiClient
         }
     }
 
-    private class ApiResponseWrapper<T>
-    {
-        public bool Success { get; set; }
-        public T? Data { get; set; }
-    }
-
-    // Customers / Loyalty
+    // ==========================================
+    // 8. CUSTOMERS / LOYALTY
+    // ==========================================
     public async Task<List<CustomerDto>> GetCustomersAsync()
     {
-        var result = await _httpClient.GetFromJsonAsync<List<CustomerDto>>("api/v1/loyalty/customers");
-        return result ?? new List<CustomerDto>();
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var result = await _httpClient.GetFromJsonAsync<List<CustomerDto>>("api/v1/loyalty/customers");
+            if (result != null) return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching customers: {ex.Message}");
+        }
+        return GetMockCustomers();
     }
 
-    // Vouchers
-    public Task<List<VoucherDto>> GetVouchersAsync()
+    // ==========================================
+    // 9. VOUCHERS / MARKETING
+    // ==========================================
+    public async Task<List<VoucherDto>> GetVouchersAsync()
     {
-        return Task.FromResult(GetMockVouchers());
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<Restaurant.Domain.Entities.Voucher>>>("api/v1/vouchers");
+            if (res?.Data != null)
+            {
+                return res.Data.Select(v => new VoucherDto
+                {
+                    Id = v.Id,
+                    Code = v.Code,
+                    DiscountType = v.DiscountType == 2 ? "FixedAmount" : "Percentage",
+                    DiscountValue = v.DiscountValue,
+                    MinOrderAmount = v.MinOrderAmount,
+                    MaxDiscountAmount = v.MaxDiscountAmount,
+                    StartDate = v.StartDate,
+                    EndDate = v.EndDate,
+                    UsageLimit = v.UsageLimit,
+                    UsedCount = v.UsedCount,
+                    IsActive = v.IsActive
+                }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching vouchers from API: {ex.Message}");
+        }
+        return GetMockVouchers();
     }
 
-    // Mock Data Fallbacks for UI preview when BE is running standalone
+    public async Task<bool> CreateVoucherAsync(CreateVoucherRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/vouchers", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> UpdateVoucherAsync(int id, CreateVoucherRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsJsonAsync($"api/v1/vouchers/{id}", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteVoucherAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.DeleteAsync($"api/v1/vouchers/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    // ==========================================
+    // SYSTEM MANAGEMENT (ROLES, REGISTERS, STATIONS, AUDIT, SETTINGS, POLICY)
+    // ==========================================
+    public async Task<List<RoleDto>> GetRolesAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<RoleDto>>>("api/v1/system/roles");
+            return response?.Data ?? new List<RoleDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error fetching roles");
+            return new List<RoleDto>
+            {
+                new RoleDto { Id = 1, Name = "Admin", Description = "Quản trị viên toàn quyền hệ thống", UserCount = 1, Permissions = new() { "Toàn quyền quản trị", "Quản lý nhân sự & tài khoản", "Xem & phân bổ kho hàng" } },
+                new RoleDto { Id = 2, Name = "Manager", Description = "Quản lý ca, duyệt hủy món, quản lý kho", UserCount = 1, Permissions = new() { "Quản lý ca làm việc", "Duyệt void/cancel món", "Nhập kho & kiểm kê" } },
+                new RoleDto { Id = 3, Name = "Cashier", Description = "Thu ngân, thanh toán và in hóa đơn", UserCount = 1, Permissions = new() { "Mở ca & Đóng ca", "Tạo đơn hàng", "Thanh toán", "In hóa đơn" } },
+                new RoleDto { Id = 4, Name = "Chef", Description = "Bếp trưởng và điều phối KDS", UserCount = 1, Permissions = new() { "Xem màn hình KDS", "Đổi trạng thái món", "Xem định lượng món (BOM)" } }
+            };
+        }
+    }
+
+    public async Task<List<RegisterDto>> GetRegistersAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<RegisterDto>>>("api/v1/system/registers");
+            return response?.Data ?? new List<RegisterDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error fetching registers");
+            return new List<RegisterDto>
+            {
+                new RegisterDto { Id = 1, Code = "POS-01", Name = "Quầy Thu Ngân Chính (Tầng 1)", IsActive = true, CreatedAt = DateTime.Now.AddMonths(-1) },
+                new RegisterDto { Id = 2, Code = "POS-02", Name = "Quầy Thu Ngân Bar & Đồ Uống", IsActive = true, CreatedAt = DateTime.Now.AddMonths(-1) }
+            };
+        }
+    }
+
+    public async Task<bool> CreateRegisterAsync(CreateRegisterRequest req)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/system/registers", req);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> ToggleRegisterStatusAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsync($"api/v1/system/registers/{id}/toggle-status", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<KitchenStationDto>> GetKitchenStationsAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<KitchenStationDto>>>("api/v1/system/kitchen-stations");
+            return response?.Data ?? new List<KitchenStationDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error fetching kitchen stations");
+            return new List<KitchenStationDto>
+            {
+                new KitchenStationDto { Id = 1, Code = "HOT", Name = "Bếp Nóng & Mì Ý", SortOrder = 1, IsActive = true, MenuItemCount = 8 },
+                new KitchenStationDto { Id = 2, Code = "PIZZA", Name = "Bếp Nướng Pizza Lò Củi", SortOrder = 2, IsActive = true, MenuItemCount = 12 },
+                new KitchenStationDto { Id = 3, Code = "BAR", Name = "Quầy Pha Chế Bar", SortOrder = 3, IsActive = true, MenuItemCount = 6 }
+            };
+        }
+    }
+
+    public async Task<bool> CreateKitchenStationAsync(CreateKitchenStationRequest req)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/system/kitchen-stations", req);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> ToggleKitchenStationStatusAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsync($"api/v1/system/kitchen-stations/{id}/toggle-status", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<AuditLogDto>> GetAuditLogsAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<AuditLogDto>>>("api/v1/system/audit-logs");
+            return response?.Data ?? new List<AuditLogDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error fetching audit logs");
+            return new List<AuditLogDto>
+            {
+                new AuditLogDto { Id = 1, UserName = "admin", Action = "System.Init", EntityName = "System", Details = "Khởi tạo hệ thống BOH", CreatedAt = DateTime.Now.AddHours(-1) }
+            };
+        }
+    }
+
+    public async Task<SystemSettingsDto> GetSystemSettingsAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<ApiResponse<SystemSettingsDto>>("api/v1/system/settings");
+            return response?.Data ?? new SystemSettingsDto();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error fetching settings");
+            return new SystemSettingsDto();
+        }
+    }
+
+    public async Task<bool> SaveSystemSettingsAsync(SystemSettingsDto settings)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsJsonAsync("api/v1/system/settings", settings);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<PosPolicyOptions> GetPosPolicyAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var policy = await _httpClient.GetFromJsonAsync<PosPolicyOptions>("api/pos/policy");
+            return policy ?? new PosPolicyOptions();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error fetching POS policy");
+            return new PosPolicyOptions();
+        }
+    }
+
+    public async Task<bool> UpdatePosPolicyAsync(PosPolicyOptions policy)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsJsonAsync("api/pos/policy", policy);
+        return response.IsSuccessStatusCode;
+    }
+
+    // ==========================================
+    // MOCK DATA FALLBACKS FOR ROBUST OFFLINE / TEST
+    // ==========================================
     private List<MaterialDto> GetMockMaterials() => new()
     {
         new MaterialDto { Id = 1, Name = "Bột mì Tipo 00", UnitName = "Kg", CurrentStock = 120.5m, MinStockLevel = 30m, CostPerUnit = 25000, IsActive = true },
@@ -230,20 +690,6 @@ public class AdminApiClient
         new VoucherDto { Id = 1, Code = "MOZZARELLA10", DiscountType = "Percentage", DiscountValue = 10, MinOrderAmount = 200000, MaxDiscountAmount = 50000, StartDate = DateTime.Now.AddDays(-10), EndDate = DateTime.Now.AddDays(20), UsageLimit = 100, UsedCount = 34, IsActive = true },
         new VoucherDto { Id = 2, Code = "WELCOME50K", DiscountType = "FixedAmount", DiscountValue = 50000, MinOrderAmount = 300000, MaxDiscountAmount = 50000, StartDate = DateTime.Now.AddDays(-5), EndDate = DateTime.Now.AddDays(15), UsageLimit = 50, UsedCount = 18, IsActive = true }
     };
-}
-
-
-
-public class CreateUserRequest
-{
-    public int RoleId { get; set; }
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty;
-    public string? EmployeeCode { get; set; }
-    public string? PinCode { get; set; }
-    public string? PhoneNumber { get; set; }
-    public string? Email { get; set; }
 }
 
 public class OrderDto

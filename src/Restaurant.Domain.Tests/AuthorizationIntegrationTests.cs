@@ -100,4 +100,36 @@ public class AuthorizationIntegrationTests : IClassFixture<WebApplicationFactory
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Theory]
+    [InlineData("/api/v1/pos/orders/1/cancel", "POST")]
+    [InlineData("/api/v1/pos/orders/1/items/1/void", "POST")]
+    [InlineData("/api/v1/pos/tables/move", "POST")]
+    [InlineData("/api/v1/pos/tables/merge", "POST")]
+    [InlineData("/api/v1/payments/cash", "POST")]
+    [InlineData("/api/v1/shifts/current", "GET")]
+    [InlineData("/api/v1/shifts/open", "POST")]
+    [InlineData("/api/v1/shifts/close", "POST")]
+    [InlineData("/api/v1/cashier/till-in/1", "POST")]
+    [InlineData("/api/v1/approvals/pending", "GET")]
+    [InlineData("/api/v1/reconciliation/preview/1", "GET")]
+    [InlineData("/api/v1/vouchers", "POST")]
+    [InlineData("/api/dashboard/summary", "GET")]
+    public async Task SensitiveEndpoints_ShouldReturn401Unauthorized_WhenAnonymous(string endpoint, string method)
+    {
+        var client = _factory.CreateClient();
+        // Anonymous client without token
+
+        HttpResponseMessage response;
+        if (method == "POST")
+        {
+            response = await client.PostAsync(endpoint, new StringContent("{}", System.Text.Encoding.UTF8, "application/json"));
+        }
+        else
+        {
+            response = await client.GetAsync(endpoint);
+        }
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }

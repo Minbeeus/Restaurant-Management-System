@@ -21,6 +21,7 @@ public partial class SharedLogin
     protected bool ShowAreaSelector { get; set; }
     protected string AuthenticatedUserFullName { get; set; } = string.Empty;
     protected string AuthenticatedRoleName { get; set; } = string.Empty;
+    protected string _pendingToken = string.Empty;
 
     protected ElementReference containerRef;
 
@@ -107,15 +108,27 @@ public partial class SharedLogin
 
                 if (string.Equals(response.DestinationArea, "BOTH", StringComparison.OrdinalIgnoreCase))
                 {
+                    _pendingToken = response.Token;
                     ShowAreaSelector = true;
-                }
-                else if (string.Equals(response.DestinationArea, "KDS", StringComparison.OrdinalIgnoreCase))
-                {
-                    NavigationManager.NavigateTo("/kds");
                 }
                 else
                 {
-                    NavigationManager.NavigateTo("/pos");
+                    string targetPath;
+                    if (string.Equals(response.DestinationArea, "KDS", StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetPath = "/kds";
+                    }
+                    else if (string.Equals(response.DestinationArea, "ADMIN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetPath = "/admin/dashboard";
+                    }
+                    else
+                    {
+                        targetPath = "/pos";
+                    }
+
+                    var loginUrl = $"/Account/Login?token={Uri.EscapeDataString(response.Token)}&returnUrl={Uri.EscapeDataString(targetPath)}";
+                    NavigationManager.NavigateTo(loginUrl, forceLoad: true);
                 }
             }
         }
@@ -140,6 +153,14 @@ public partial class SharedLogin
     protected void SelectArea(string path)
     {
         ShowAreaSelector = false;
-        NavigationManager.NavigateTo(path);
+        if (!string.IsNullOrEmpty(_pendingToken))
+        {
+            var loginUrl = $"/Account/Login?token={Uri.EscapeDataString(_pendingToken)}&returnUrl={Uri.EscapeDataString(path)}";
+            NavigationManager.NavigateTo(loginUrl, forceLoad: true);
+        }
+        else
+        {
+            NavigationManager.NavigateTo(path);
+        }
     }
 }

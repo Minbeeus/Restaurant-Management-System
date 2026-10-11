@@ -104,7 +104,6 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("orders/{id}/approve")]
-    [AllowAnonymous]
     public async Task<IActionResult> ApproveOrder(int id, [FromBody] ApproveOrderRequest? request)
     {
         var success = await _posOrderService.ApproveQrOrderAsync(id, request?.Note);
@@ -133,7 +132,6 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("tables/move")]
-    [AllowAnonymous]
     public async Task<IActionResult> MoveTable([FromBody] MoveTableRequest request)
     {
         try
@@ -179,7 +177,6 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("tables/merge")]
-    [AllowAnonymous]
     public async Task<IActionResult> MergeTables([FromBody] MergeTableRequest request)
     {
         var success = await _posOrderService.MergeTablesAsync(request);
@@ -208,10 +205,24 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("orders/{id}/cancel")]
-    [AllowAnonymous]
     public async Task<IActionResult> CancelOrder(int id, [FromBody] CancelOrderRequest request, [FromServices] ICancelOrderService cancelOrderService, [FromServices] ICurrentUserService currentUserService)
     {
-        int actingUserId = currentUserService.UserId ?? 1;
+        if (!currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "UNAUTHORIZED",
+                    message = "Chưa xác thực danh tính người dùng."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        int actingUserId = currentUserService.UserId.Value;
 
         var success = await cancelOrderService.CancelOrderAsync(actingUserId, id, request.Reason);
         if (!success)
@@ -239,10 +250,24 @@ public class PosOrdersController : ControllerBase
     }
 
     [HttpPost("orders/{orderId}/items/{orderItemId}/void")]
-    [AllowAnonymous]
     public async Task<IActionResult> VoidOrderItem(int orderId, int orderItemId, [FromBody] VoidOrderItemRequest request, [FromServices] ICurrentUserService currentUserService)
     {
-        int actingUserId = currentUserService.UserId ?? 1;
+        if (!currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "UNAUTHORIZED",
+                    message = "Chưa xác thực danh tính người dùng."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        int actingUserId = currentUserService.UserId.Value;
         var success = await _posOrderService.VoidOrderItemAsync(orderId, orderItemId, request?.Reason ?? "Hủy món", actingUserId);
         if (!success)
         {

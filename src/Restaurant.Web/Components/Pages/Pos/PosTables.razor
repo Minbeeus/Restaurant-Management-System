@@ -41,22 +41,19 @@
                     }
                 </div>
 
-                <!-- Canvas vs Grid Switcher -->
-                @if (SelectedAreaId != 0)
-                {
-                    <div class="flex items-center bg-surface-high p-1 border border-outline-variant rounded-xl text-xs font-bold shrink-0">
-                        <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Canvas" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
-                                @onclick='() => ViewMode = "Canvas"'>
-                            <span class="material-symbols-outlined text-[16px]">dashboard</span>
-                            <span>Sơ Đồ Canvas</span>
-                        </button>
-                        <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Grid" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
-                                @onclick='() => ViewMode = "Grid"'>
-                            <span class="material-symbols-outlined text-[16px]">grid_view</span>
-                            <span>Dạng Lưới</span>
-                        </button>
-                    </div>
-                }
+                <!-- Canvas vs Grid Switcher (Always available for unified single floorplan) -->
+                <div class="flex items-center bg-surface-high p-1 border border-outline-variant rounded-xl text-xs font-bold shrink-0">
+                    <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Canvas" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                            @onclick='() => ViewMode = "Canvas"'>
+                        <span class="material-symbols-outlined text-[16px]">dashboard</span>
+                        <span>Sơ Đồ Canvas</span>
+                    </button>
+                    <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Grid" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
+                            @onclick='() => ViewMode = "Grid"'>
+                        <span class="material-symbols-outlined text-[16px]">grid_view</span>
+                        <span>Dạng Lưới</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Main Content Area -->
@@ -93,6 +90,10 @@
                                  @ondblclick="() => OpenTableOrder(table)">
                                 
                                 <span class="font-extrabold text-xs leading-tight truncate max-w-full">@table.TableName</span>
+                                @if (SelectedAreaId == 0 && !string.IsNullOrEmpty(table.AreaName))
+                                {
+                                    <span class="text-[9px] font-bold text-primary bg-primary/10 px-1 py-0.5 rounded leading-none mt-0.5">@table.AreaName</span>
+                                }
                                 <span class="text-[10px] font-semibold opacity-80 mt-0.5">👤 @table.Capacity người</span>
                                 
                                 @if (table.TotalAmount > 0)
@@ -386,7 +387,7 @@
     protected string MoveErrorMessage { get; set; } = string.Empty;
     protected string ToastMessage { get; set; } = string.Empty;
     protected List<int> SelectedSourceMergeTableIds { get; set; } = new();
-    protected string ViewMode { get; set; } = "Grid"; // Default to Grid view initially since Area is 0
+    protected string ViewMode { get; set; } = "Canvas"; // Default to Canvas view on unified floorplan
 
     private HubConnection? _hubConnection;
 
@@ -424,7 +425,7 @@
 
             await Task.WhenAll(areasTask, tablesRespTask);
 
-            Areas = await areasTask ?? new List<AreaDto>();
+            Areas = (await areasTask ?? new List<AreaDto>()).Where(a => a.IsActive).OrderBy(a => a.SortOrder).ToList();
             var tablesResp = await tablesRespTask;
             if (tablesResp.IsSuccessStatusCode)
             {

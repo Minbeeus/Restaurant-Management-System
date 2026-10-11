@@ -6,15 +6,24 @@ namespace Restaurant.Infrastructure.Services;
 
 public class PosPolicyService : IPosPolicyService
 {
-    private readonly PosPolicyOptions _options;
+    private static PosPolicyOptions _currentOptions = new PosPolicyOptions();
 
     public PosPolicyService(IOptions<PosPolicyOptions>? options = null)
     {
-        _options = options?.Value ?? new PosPolicyOptions();
+        if (options?.Value != null)
+        {
+            _currentOptions = options.Value;
+        }
     }
 
     public Task<PosPolicyOptions> GetPolicyAsync()
     {
-        return Task.FromResult(_options);
+        return Task.FromResult(_currentOptions);
+    }
+
+    public Task UpdatePolicyAsync(PosPolicyOptions options)
+    {
+        _currentOptions = options ?? new PosPolicyOptions();
+        return Task.CompletedTask;
     }
 }

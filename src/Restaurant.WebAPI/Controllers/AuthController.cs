@@ -133,14 +133,31 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> VerifyManagerPin([FromBody] VerifyPinRequest request)
     {
-        var isValid = await _identityService.VerifyManagerPinAsync(request.PinCode);
-        return Ok(new
+        try
         {
-            success = isValid,
-            data = new { isValid },
-            error = isValid ? null : new { code = "INVALID_PIN", message = "Mã PIN Quản lý không đúng." },
-            timestamp = DateTime.UtcNow
-        });
+            var isValid = await _identityService.VerifyManagerPinAsync(request.PinCode);
+            return Ok(new
+            {
+                success = isValid,
+                data = new { isValid },
+                error = isValid ? null : new { code = "INVALID_PIN", message = "Mã PIN Quản lý không đúng." },
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(429, new
+            {
+                success = false,
+                data = new { isValid = false },
+                error = new
+                {
+                    code = "PIN_LOCKED",
+                    message = ex.Message
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
     }
 
     [HttpPost("logout")]
@@ -179,5 +196,37 @@ public class AuthController : ControllerBase
     public IActionResult AdminOnlyTest()
     {
         return Ok("Admin accessed");
+    }
+
+    [HttpGet("users")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> GetUsers()
+    {
+        var users = await _identityService.GetAllUsersAsync();
+        return Ok(users);
+    }
+
+    [HttpPost("users")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+    {
+        try
+        {
+            var user = await _identityService.CreateUserAsync(request);
+            return Ok(user);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("users/{id}/toggle-status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ToggleUserStatus(int id)
+    {
+        var success = await _identityService.ToggleUserStatusAsync(id);
+        if (!success) return NotFound();
+        return Ok(new { success = true, message = "Cập nhật trạng thái người dùng thành công." });
     }
 }

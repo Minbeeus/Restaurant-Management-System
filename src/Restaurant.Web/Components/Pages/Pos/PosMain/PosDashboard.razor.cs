@@ -84,7 +84,7 @@ public partial class PosDashboard : IAsyncDisposable
 
             await Task.WhenAll(areasTask, tablesTask);
 
-            Areas = await areasTask ?? new List<AreaDto>();
+            Areas = (await areasTask ?? new List<AreaDto>()).Where(a => a.IsActive).OrderBy(a => a.SortOrder).ToList();
             var tablesResult = await tablesTask;
             Tables = tablesResult?.Data ?? new List<TableStatusOverviewDto>();
         }

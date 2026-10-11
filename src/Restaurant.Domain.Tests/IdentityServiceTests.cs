@@ -80,4 +80,138 @@ public class IdentityServiceTests
         Assert.Equal("admin", result.Username);
         Assert.Equal("Admin", result.RoleName);
     }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_WithValidManagerPin_ReturnsTrue()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        var managerRole = new Role { Id = 10, Name = "Manager" };
+        var manager = new User
+        {
+            Id = 10,
+            Username = "mgr_test_" + Guid.NewGuid().ToString("N")[..6],
+            FullName = "Test Manager",
+            RoleId = 10,
+            Role = managerRole,
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword("888888"),
+            IsActive = true
+        };
+
+        _context.Roles.Add(managerRole);
+        _context.Users.Add(manager);
+        await _context.SaveChangesAsync();
+
+        var result = await _identityService.VerifyManagerPinAsync("888888");
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_WithValidAdminPin_ReturnsTrue()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        var adminRole = new Role { Id = 11, Name = "Admin" };
+        var admin = new User
+        {
+            Id = 11,
+            Username = "admin_pin_test_" + Guid.NewGuid().ToString("N")[..6],
+            FullName = "Admin Pin Test",
+            RoleId = 11,
+            Role = adminRole,
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword("999999"),
+            IsActive = true
+        };
+
+        _context.Roles.Add(adminRole);
+        _context.Users.Add(admin);
+        await _context.SaveChangesAsync();
+
+        var result = await _identityService.VerifyManagerPinAsync("999999");
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_WithCashierPin_ReturnsFalse()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        var cashierRole = new Role { Id = 12, Name = "Cashier" };
+        var cashier = new User
+        {
+            Id = 12,
+            Username = "cashier_pin_test_" + Guid.NewGuid().ToString("N")[..6],
+            FullName = "Cashier Test",
+            RoleId = 12,
+            Role = cashierRole,
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword("111111"),
+            IsActive = true
+        };
+
+        _context.Roles.Add(cashierRole);
+        _context.Users.Add(cashier);
+        await _context.SaveChangesAsync();
+
+        var result = await _identityService.VerifyManagerPinAsync("111111");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_WithInactiveManager_ReturnsFalse()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        var managerRole = new Role { Id = 13, Name = "Manager" };
+        var manager = new User
+        {
+            Id = 13,
+            Username = "inactive_mgr_" + Guid.NewGuid().ToString("N")[..6],
+            FullName = "Inactive Manager",
+            RoleId = 13,
+            Role = managerRole,
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword("777777"),
+            IsActive = false
+        };
+
+        _context.Roles.Add(managerRole);
+        _context.Users.Add(manager);
+        await _context.SaveChangesAsync();
+
+        var result = await _identityService.VerifyManagerPinAsync("777777");
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_WithHardcodedBypassPins_ReturnsFalse()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        Assert.False(await _identityService.VerifyManagerPinAsync("000000"));
+        Assert.False(await _identityService.VerifyManagerPinAsync("000003"));
+    }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_WithEmptyOrNullPin_ReturnsFalse()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        Assert.False(await _identityService.VerifyManagerPinAsync(null!));
+        Assert.False(await _identityService.VerifyManagerPinAsync(""));
+        Assert.False(await _identityService.VerifyManagerPinAsync("   "));
+    }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_FiveFailedAttempts_ThrowsLockoutException()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        var testPin = "654321";
+
+        for (int i = 0; i < 4; i++)
+        {
+            var res = await _identityService.VerifyManagerPinAsync(testPin);
+            Assert.False(res);
+        }
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _identityService.VerifyManagerPinAsync(testPin));
+
+        Assert.Contains("bị khóa", ex.Message);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _identityService.VerifyManagerPinAsync(testPin));
+    }
 }

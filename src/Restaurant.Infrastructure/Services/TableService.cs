@@ -22,6 +22,7 @@ public class TableService : ITableService
     {
         return await _context.Tables
             .Include(t => t.Area)
+            .Where(t => !t.IsDeleted && (t.Area == null || t.Area.IsActive))
             .OrderBy(t => t.SortOrder)
             .Select(t => MapToDto(t))
             .ToListAsync();
@@ -135,7 +136,9 @@ public class TableService : ITableService
 
     public async Task<bool> UpdateBatchLayoutAsync(int areaId, List<UpdateTableLayoutRequest> layout)
     {
-        var tables = await _context.Tables.Where(t => t.AreaId == areaId).ToListAsync();
+        var tables = (areaId == 0)
+            ? await _context.Tables.ToListAsync()
+            : await _context.Tables.Where(t => t.AreaId == areaId).ToListAsync();
         
         foreach (var req in layout)
         {

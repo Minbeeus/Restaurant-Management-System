@@ -7,7 +7,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/approvals")]
-[AllowAnonymous]
+[Authorize(Roles = "Admin,Manager,Cashier")]
 public class ApprovalCenterController : ControllerBase
 {
     private readonly IApprovalService _approvalService;
@@ -52,7 +52,12 @@ public class ApprovalCenterController : ControllerBase
     {
         try
         {
-            var userId = _currentUserService.UserId ?? 1;
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+            }
+
+            var userId = _currentUserService.UserId.Value;
             var data = await _approvalService.CreateRequestAsync(userId, request);
             return Ok(new { success = true, data });
         }
@@ -63,12 +68,18 @@ public class ApprovalCenterController : ControllerBase
     }
 
     [HttpPost("{id}/approve")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> ApproveRequest(int id, [FromBody] ProcessApprovalRequestDto request)
     {
         try
         {
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+            }
+
             request.ApprovalRequestId = id;
-            var userId = _currentUserService.UserId ?? 1;
+            var userId = _currentUserService.UserId.Value;
             var data = await _approvalService.ApproveRequestAsync(userId, request);
             return Ok(new { success = true, data, message = "Phê duyệt yêu cầu thành công!" });
         }
@@ -79,12 +90,18 @@ public class ApprovalCenterController : ControllerBase
     }
 
     [HttpPost("{id}/reject")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> RejectRequest(int id, [FromBody] ProcessApprovalRequestDto request)
     {
         try
         {
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+            }
+
             request.ApprovalRequestId = id;
-            var userId = _currentUserService.UserId ?? 1;
+            var userId = _currentUserService.UserId.Value;
             var data = await _approvalService.RejectRequestAsync(userId, request);
             return Ok(new { success = true, data, message = "Đã từ chối yêu cầu." });
         }

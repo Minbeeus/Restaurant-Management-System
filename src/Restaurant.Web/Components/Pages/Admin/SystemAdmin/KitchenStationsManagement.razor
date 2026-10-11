@@ -1,0 +1,211 @@
+@page "/admin/system/kitchen-stations"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.AdminLayout
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Services
+@inject AdminApiClient ApiClient
+
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div>
+        <h2 class="text-2xl font-headline-sm text-primary m-0">Khu Vực Bếp & Trạm Pha Chế (Kitchen Stations)</h2>
+        <p class="text-on-surface-variant text-sm mt-1">Định tuyến món ăn xuống các màn hình KDS và máy in bếp theo từng khu vực chế biến</p>
+    </div>
+    <button class="bg-primary hover:bg-primary/90 text-on-primary px-4 py-2.5 rounded-xl font-label-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer" @onclick="OpenAddModal">
+        <span class="material-symbols-outlined text-lg" data-icon="add">add</span>
+        <span>Thêm Khu Vực Bếp</span>
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(_feedbackMessage))
+{
+    <div class="p-4 mb-6 rounded-xl border flex items-center justify-between @(_isError ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")">
+        <span class="font-medium text-sm">@_feedbackMessage</span>
+        <button type="button" @onclick="() => _feedbackMessage = null" class="text-sm font-bold">✕</button>
+    </div>
+}
+
+@if (_isLoading)
+{
+    <div class="flex items-center justify-center p-12">
+        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    </div>
+}
+else
+{
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @foreach (var station in _stations)
+        {
+            <div class="bg-surface rounded-2xl p-6 shadow-sm border border-outline-variant/30 flex flex-col justify-between hover:border-primary/50 transition-all">
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                <span class="material-symbols-outlined text-2xl" data-icon="@GetStationIcon(station.Code)">@GetStationIcon(station.Code)</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg text-on-surface m-0">@station.Name</h3>
+                                <span class="text-xs font-mono font-semibold text-primary">Mã: @station.Code</span>
+                            </div>
+                        </div>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full @(station.IsActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600")">
+                            @(station.IsActive ? "Đang phục vụ" : "Tạm ngưng")
+                        </span>
+                    </div>
+
+                    <div class="bg-surface-container/50 rounded-xl p-3 my-4 flex justify-between items-center text-sm">
+                        <span class="text-on-surface-variant font-medium">Số món gán vào trạm:</span>
+                        <span class="font-bold text-on-surface text-base">@station.MenuItemCount món</span>
+                    </div>
+
+                    <div class="text-xs text-on-surface-variant flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm" data-icon="sort">sort</span>
+                        <span>Thứ tự hiển thị: <strong>#@station.SortOrder</strong></span>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-outline-variant/20 flex justify-between items-center">
+                    <button type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer @(station.IsActive ? "border-red-200 text-red-600 hover:bg-red-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50")"
+                            @onclick="() => ToggleStatus(station)">
+                        @(station.IsActive ? "Tạm ngưng trạm" : "Kích hoạt lại")
+                    </button>
+                    <a href="/kds" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+                        Xem KDS <span class="material-symbols-outlined text-sm" data-icon="open_in_new">open_in_new</span>
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (_isModalOpen)
+{
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-surface rounded-2xl p-6 w-full max-w-md shadow-xl border border-outline-variant/30">
+            <h3 class="text-lg font-bold text-on-surface mb-4">Thêm Khu Vực Bếp Mới</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Mã Trạm (Code) *</label>
+                    <input type="text" class="w-full px-3 py-2 border rounded-xl font-mono uppercase bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none"
+                           placeholder="VD: DESSERT" @bind="_newStation.Code" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Tên Trạm Bếp *</label>
+                    <input type="text" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none"
+                           placeholder="VD: Quầy Bánh & Tráng Miệng" @bind="_newStation.Name" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1">Thứ Tự Sắp Xếp</label>
+                    <input type="number" class="w-full px-3 py-2 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary focus:outline-none"
+                           @bind="_newStation.SortOrder" />
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="stationActive" class="rounded text-primary focus:ring-primary w-4 h-4" @bind="_newStation.IsActive" />
+                    <label for="stationActive" class="text-sm text-on-surface">Kích hoạt trạm ngay</label>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" class="px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-surface-container rounded-xl cursor-pointer"
+                        @onclick="() => _isModalOpen = false">
+                    Hủy
+                </button>
+                <button type="button" class="px-5 py-2 text-sm font-bold text-on-primary bg-primary hover:bg-primary/90 rounded-xl cursor-pointer"
+                        @onclick="SaveStation">
+                    Lưu Khu Vực Bếp
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<KitchenStationDto> _stations = new();
+    private bool _isLoading = true;
+    private bool _isModalOpen = false;
+    private CreateKitchenStationRequest _newStation = new();
+    private string? _feedbackMessage;
+    private bool _isError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStationsAsync();
+    }
+
+    private async Task LoadStationsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _stations = await ApiClient.GetKitchenStationsAsync();
+        }
+        catch (Exception ex)
+        {
+            _feedbackMessage = $"Lỗi: {ex.Message}";
+            _isError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenAddModal()
+    {
+        _newStation = new CreateKitchenStationRequest
+        {
+            SortOrder = _stations.Count + 1,
+            IsActive = true
+        };
+        _isModalOpen = true;
+    }
+
+    private async Task SaveStation()
+    {
+        if (string.IsNullOrWhiteSpace(_newStation.Code) || string.IsNullOrWhiteSpace(_newStation.Name))
+        {
+            _feedbackMessage = "Vui lòng nhập đầy đủ mã và tên khu vực bếp!";
+            _isError = true;
+            return;
+        }
+
+        var success = await ApiClient.CreateKitchenStationAsync(_newStation);
+        if (success)
+        {
+            _feedbackMessage = "Thêm khu vực bếp thành công!";
+            _isError = false;
+            _isModalOpen = false;
+            await LoadStationsAsync();
+        }
+        else
+        {
+            _feedbackMessage = "Thêm khu vực bếp thất bại!";
+            _isError = true;
+        }
+    }
+
+    private async Task ToggleStatus(KitchenStationDto station)
+    {
+        var success = await ApiClient.ToggleKitchenStationStatusAsync(station.Id);
+        if (success)
+        {
+            station.IsActive = !station.IsActive;
+            _feedbackMessage = $"Đã cập nhật trạng thái khu vực {station.Name}!";
+            _isError = false;
+        }
+        else
+        {
+            _feedbackMessage = "Cập nhật trạng thái thất bại!";
+            _isError = true;
+        }
+    }
+
+    private string GetStationIcon(string code) => code.ToUpperInvariant() switch
+    {
+        "PIZZA" => "local_pizza",
+        "HOT" => "soup_kitchen",
+        "BAR" => "local_bar",
+        "DESSERT" => "cake",
+        _ => "countertops"
+    };
+}

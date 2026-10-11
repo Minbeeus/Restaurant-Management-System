@@ -27,7 +27,7 @@ public class AreaService : IAreaService
                 NameEn = a.NameEn,
                 SortOrder = a.SortOrder,
                 IsActive = a.IsActive,
-                TableCount = a.Tables.Count
+                TableCount = a.Tables.Count(t => t.IsActive && !t.IsDeleted)
             })
             .ToListAsync();
     }
@@ -47,7 +47,7 @@ public class AreaService : IAreaService
             NameEn = area.NameEn,
             SortOrder = area.SortOrder,
             IsActive = area.IsActive,
-            TableCount = area.Tables.Count
+            TableCount = area.Tables.Count(t => t.IsActive && !t.IsDeleted)
         };
     }
 

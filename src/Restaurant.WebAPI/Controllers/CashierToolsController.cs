@@ -7,7 +7,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/cashier")]
-[AllowAnonymous]
+[Authorize(Roles = "Admin,Manager,Cashier")]
 public class CashierToolsController : ControllerBase
 {
     private readonly ICashMovementService _cashMovementService;
@@ -26,7 +26,12 @@ public class CashierToolsController : ControllerBase
     {
         try
         {
-            var userId = _currentUserService.UserId ?? 1;
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+            }
+
+            var userId = _currentUserService.UserId.Value;
             var data = await _cashMovementService.PerformTillInAsync(userId, shiftId, request);
             return Ok(new { success = true, data, message = "Nộp tiền vào két (Till In) thành công!" });
         }
@@ -41,7 +46,12 @@ public class CashierToolsController : ControllerBase
     {
         try
         {
-            var userId = _currentUserService.UserId ?? 1;
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+            }
+
+            var userId = _currentUserService.UserId.Value;
             var data = await _cashMovementService.PerformTillOutAsync(userId, shiftId, request);
             return Ok(new { success = true, data, message = data.ApprovalRequestId.HasValue ? "Đã gửi Yêu cầu Phê duyệt rút tiền cho Quản lý." : "Rút tiền két (Till Out) thành công!" });
         }
@@ -56,7 +66,12 @@ public class CashierToolsController : ControllerBase
     {
         try
         {
-            var userId = _currentUserService.UserId ?? 1;
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+            }
+
+            var userId = _currentUserService.UserId.Value;
             var data = await _cashMovementService.PerformCashAdjustmentAsync(userId, shiftId, request);
             return Ok(new { success = true, data, message = "Điều chỉnh số dư két thành công!" });
         }

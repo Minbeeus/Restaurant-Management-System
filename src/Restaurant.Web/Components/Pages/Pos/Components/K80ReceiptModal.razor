@@ -4,172 +4,289 @@
 @if (IsOpen && OrderData != null)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in no-print-bg">
-        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-outline-variant flex flex-col max-h-[90vh]">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-outline-variant flex flex-col max-h-[92vh]">
             
             <!-- Modal Header -->
             <div class="px-6 py-4 bg-primary text-on-primary flex justify-between items-center shrink-0">
-                <div class="flex items-center gap-2 font-bold text-lg">
-                    <span class="material-symbols-outlined">receipt_long</span>
-                    <span>Xem Trước Hóa Đơn (K80 - 80mm)</span>
+                <div class="flex items-center gap-2 font-bold text-base">
+                    <span class="material-symbols-outlined text-xl">receipt_long</span>
+                    <span>@(OrderData.IsPaid ? "Hóa Đơn Thanh Toán (K80 - 80mm)" : "Phiếu Tạm Tính Pre-Bill (K80 - 80mm)")</span>
                 </div>
-                <button class="hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer" @onclick="CloseAsync">
+                <button class="hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer" @onclick="CloseAsync" title="Đóng">
                     <span class="material-symbols-outlined text-xl">close</span>
                 </button>
             </div>
 
             <!-- Receipt Preview (Scrollable inside modal) -->
-            <div class="flex-1 overflow-y-auto p-6 bg-slate-100 dark:bg-slate-900 flex justify-center">
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-slate-900 flex flex-col items-center">
                 
-                <!-- Printable Thermal Receipt Area -->
-                <div id="k80-receipt" class="k80-print-container bg-white text-black p-4 rounded-md shadow-md text-xs font-mono leading-tight w-[80mm] min-h-[400px]">
+                <!-- Helper Note for Cashier / Tester -->
+                <div class="w-[80mm] max-w-full mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-[11px] text-blue-800 dark:text-blue-300 flex items-start gap-2 shadow-2xs">
+                    <span class="material-symbols-outlined text-base shrink-0 text-blue-600">info</span>
+                    <div>
+                        <span class="font-bold">Chế độ xem trước K80:</span>
+                        <span> Bấm <b>In K80 / Lưu PDF</b> bên dưới để mở hộp thoại in. Có thể chọn <i>"Save as PDF"</i> để lưu file mẫu mà không cần kết nối máy in thật.</span>
+                    </div>
+                </div>
+
+                <!-- Printable Thermal Receipt Area (Strict 80mm width) -->
+                <div id="k80-receipt" class="k80-print-container bg-white text-black p-4 rounded-md shadow-md text-xs font-mono leading-tight w-[80mm] max-w-[80mm] box-border select-text">
                     
-                    <!-- Header -->
+                    <!-- Header: Restaurant Info -->
                     <div class="text-center pb-3 border-b border-dashed border-black/40 mb-3">
-                        <div class="font-extrabold text-base uppercase tracking-wider">NHÀ HÀNG MINBEEUS</div>
-                        <div class="text-[11px] mt-0.5">ĐC: 123 Nguyễn Văn Linh, Q.7, TP.HCM</div>
-                        <div class="text-[11px]">Hotline: 0901.234.567</div>
-                        <div class="text-[10px] italic opacity-80 mt-1">Wifi: Minbeeus_Guest / Pass: 88888888</div>
+                        <div class="font-extrabold text-base uppercase tracking-wider text-black">
+                            @(string.IsNullOrWhiteSpace(OrderData.RestaurantName) ? "NHÀ HÀNG MINBEEUS" : OrderData.RestaurantName)
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(OrderData.RestaurantAddress))
+                        {
+                            <div class="text-[11px] mt-0.5 text-gray-800">ĐC: @OrderData.RestaurantAddress</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(OrderData.RestaurantPhone))
+                        {
+                            <div class="text-[11px] text-gray-800">Hotline: @OrderData.RestaurantPhone</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(OrderData.WifiInfo))
+                        {
+                            <div class="text-[10px] italic opacity-80 mt-1 text-gray-700">@OrderData.WifiInfo</div>
+                        }
                     </div>
 
                     <!-- Title -->
-                    <div class="text-center font-black text-sm uppercase my-2">HÓA ĐƠN THANH TOÁN</div>
+                    <div class="text-center font-black text-sm uppercase my-2 tracking-wide text-black">
+                        @OrderData.ReceiptTitle
+                    </div>
+                    @if (!OrderData.IsPaid)
+                    {
+                        <div class="text-center text-[10px] italic font-semibold text-gray-700 -mt-1 mb-2">
+                            (Phiếu đối chiếu món - Chưa thanh toán)
+                        </div>
+                    }
 
                     <!-- Order Info -->
-                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-3">
+                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-3 text-black">
                         <div class="flex justify-between">
-                            <span>Mã đơn:</span>
-                            <span class="font-bold">@OrderData.OrderCode</span>
+                            <span class="text-gray-700">Mã đơn:</span>
+                            <span class="font-bold text-black">@OrderData.OrderCode</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Thời gian:</span>
+                            <span class="text-gray-700">Thời gian đặt:</span>
                             <span>@OrderData.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Bàn / Loại:</span>
-                            <span class="font-bold">@(string.IsNullOrEmpty(OrderData.TableName) ? "Mang Về (Takeaway)" : OrderData.TableName)</span>
+                            <span class="text-gray-700">Thời gian in:</span>
+                            <span>@OrderData.PrintedAt.ToString("dd/MM/yyyy HH:mm")</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Thu ngân:</span>
-                            <span>@OrderData.CashierName</span>
+                            <span class="text-gray-700">Bàn / Loại:</span>
+                            <span class="font-bold text-black">@(string.IsNullOrEmpty(OrderData.TableName) ? "Mang Về (Takeaway)" : OrderData.TableName)</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Khách hàng:</span>
-                            <span>@(string.IsNullOrEmpty(OrderData.CustomerName) ? "Khách lẻ" : OrderData.CustomerName)</span>
+                            <span class="text-gray-700">Thu ngân:</span>
+                            <span>@(string.IsNullOrWhiteSpace(OrderData.CashierName) ? "Thu ngân POS" : OrderData.CashierName)</span>
                         </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Khách hàng:</span>
+                            <span>
+                                @(string.IsNullOrEmpty(OrderData.CustomerName) ? "Khách lẻ" : OrderData.CustomerName)
+                                @(string.IsNullOrEmpty(OrderData.CustomerPhone) ? "" : $" ({OrderData.CustomerPhone})")
+                            </span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(OrderData.Note))
+                        {
+                            <div class="text-[10px] italic text-gray-700 pt-0.5">
+                                Ghi chú đơn: @OrderData.Note
+                            </div>
+                        }
                     </div>
 
                     <!-- Items Table Header -->
-                    <div class="grid grid-cols-12 font-bold pb-1 border-b border-black text-[11px] mb-2">
+                    <div class="grid grid-cols-12 font-bold pb-1 border-b border-black text-[11px] mb-2 text-black">
                         <div class="col-span-6">Tên món</div>
                         <div class="col-span-2 text-center">SL</div>
                         <div class="col-span-4 text-right">Thành tiền</div>
                     </div>
 
                     <!-- Items List -->
-                    <div class="space-y-2 pb-3 border-b border-dashed border-black/40 mb-3 text-[11px]">
-                        @foreach (var item in OrderData.Items)
+                    <div class="space-y-2 pb-3 border-b border-dashed border-black/40 mb-3 text-[11px] text-black">
+                        @if (OrderData.Items != null && OrderData.Items.Any())
                         {
-                            @if (item.IsComboChild)
+                            @foreach (var item in OrderData.Items)
                             {
-                                <div class="pl-3 py-0.5 text-gray-700 flex justify-between items-center text-[10px]">
-                                    <span class="italic font-medium">+ @item.Quantity x @item.MenuItemName</span>
-                                    @if (item.TotalPrice > 0)
-                                    {
-                                        <span class="text-gray-600">+@item.TotalPrice.ToString("N0")đ</span>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div>
-                                    <div class="grid grid-cols-12 font-bold">
-                                        <div class="col-span-6 leading-tight">@item.MenuItemName</div>
-                                        <div class="col-span-2 text-center">@item.Quantity</div>
-                                        <div class="col-span-4 text-right">@item.TotalPrice.ToString("N0")đ</div>
-                                    </div>
-                                    <div class="text-[10px] text-gray-600">
-                                        Đơn giá: @item.UnitPrice.ToString("N0")đ
-                                        @if (item.DiscountAmount > 0)
+                                @if (item.IsComboChild)
+                                {
+                                    <!-- Child Combo Component Item -->
+                                    <div class="pl-3 py-0.5 flex flex-col text-[10px] text-gray-800">
+                                        <div class="flex justify-between items-start">
+                                            <span class="italic font-medium break-words leading-tight flex-1">
+                                                + @item.Quantity x @item.MenuItemName
+                                            </span>
+                                            @if (item.TotalPrice > 0)
+                                            {
+                                                <span class="font-semibold text-right ml-2 shrink-0">
+                                                    +@item.TotalPrice.ToString("N0")đ
+                                                </span>
+                                            }
+                                        </div>
+                                        @if (item.Modifiers != null && item.Modifiers.Any())
                                         {
-                                            <span> (-@item.DiscountAmount.ToString("N0")đ)</span>
+                                            <div class="text-[9px] text-gray-600 pl-2 italic">
+                                                @string.Join(", ", item.Modifiers)
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(item.Note))
+                                        {
+                                            <div class="text-[9px] text-gray-600 pl-2 italic">
+                                                Ghi chú: @item.Note
+                                            </div>
                                         }
                                     </div>
-                                    @if (item.Modifiers != null && item.Modifiers.Any())
-                                    {
-                                        <div class="text-[10px] text-gray-500 italic pl-2">
-                                            + @string.Join(", ", item.Modifiers)
+                                }
+                                else
+                                {
+                                    <!-- Parent / Standalone Item -->
+                                    <div class="space-y-0.5">
+                                        <div class="grid grid-cols-12 font-bold leading-tight">
+                                            <div class="col-span-6 break-words">@item.MenuItemName</div>
+                                            <div class="col-span-2 text-center">@item.Quantity</div>
+                                            <div class="col-span-4 text-right font-mono">@item.TotalPrice.ToString("N0")đ</div>
                                         </div>
-                                    }
-                                </div>
+                                        
+                                        <div class="text-[10px] text-gray-600 flex justify-between">
+                                            <span>Đơn giá: @item.UnitPrice.ToString("N0")đ</span>
+                                            @if (item.DiscountAmount > 0)
+                                            {
+                                                <span class="text-rose-700">(-@item.DiscountAmount.ToString("N0")đ)</span>
+                                            }
+                                        </div>
+
+                                        @if (item.Modifiers != null && item.Modifiers.Any())
+                                        {
+                                            <div class="text-[10px] text-gray-700 italic pl-2">
+                                                @foreach (var mod in item.Modifiers)
+                                                {
+                                                    <div>· @mod</div>
+                                                }
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(item.Note))
+                                        {
+                                            <div class="text-[10px] italic text-gray-600 pl-2">
+                                                Ghi chú: @item.Note
+                                            </div>
+                                        }
+                                    </div>
+                                }
                             }
                         }
                     </div>
 
-                    <!-- Financial Summary -->
-                    <div class="space-y-1.5 text-[11px] pb-3 border-b border-black mb-3">
+                    <!-- Financial Summary (Strictly backend authoritative totals) -->
+                    <div class="space-y-1.5 text-[11px] pb-3 border-b border-black mb-3 text-black">
                         <div class="flex justify-between">
-                            <span>Tạm tính món:</span>
-                            <span>@OrderData.SubTotal.ToString("N0") đ</span>
+                            <span class="text-gray-700">Tạm tính món:</span>
+                            <span class="font-mono">@OrderData.SubTotal.ToString("N0") đ</span>
                         </div>
+
                         @if (OrderData.DiscountAmount > 0)
                         {
-                            <div class="flex justify-between font-bold">
+                            <div class="flex justify-between font-bold text-gray-800">
                                 <span>Giảm giá / Voucher:</span>
-                                <span>-@OrderData.DiscountAmount.ToString("N0") đ</span>
+                                <span class="font-mono text-rose-700">-@OrderData.DiscountAmount.ToString("N0") đ</span>
                             </div>
                         }
-                        <div class="flex justify-between font-black text-sm pt-1 border-t border-dashed border-black/40">
-                            <span>TỔNG THANH TOÁN:</span>
-                            <span>@OrderData.TotalAmount.ToString("N0") đ</span>
+
+                        @if (OrderData.TaxAmount > 0)
+                        {
+                            <div class="flex justify-between text-gray-700">
+                                <span>Thuế VAT:</span>
+                                <span class="font-mono">@OrderData.TaxAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+
+                        <div class="flex justify-between font-black text-sm pt-1 border-t border-dashed border-black/40 text-black">
+                            <span>TỔNG CẦN THU:</span>
+                            <span class="font-mono text-base">@OrderData.TotalAmount.ToString("N0") đ</span>
                         </div>
                     </div>
 
                     <!-- Payment Information -->
-                    <div class="space-y-1 text-[11px] pb-3 border-b border-dashed border-black/40 mb-3">
+                    <div class="space-y-1 text-[11px] pb-3 border-b border-dashed border-black/40 mb-3 text-black">
                         <div class="flex justify-between">
-                            <span>Phương thức:</span>
-                            <span class="font-bold">@OrderData.PaymentMethod</span>
+                            <span class="text-gray-700">Trạng thái:</span>
+                            <span class="font-bold @(OrderData.IsPaid ? "text-emerald-700" : "text-amber-700")">
+                                @OrderData.PaymentStatusName
+                            </span>
                         </div>
-                        @if (OrderData.CashReceived > 0)
+                        
+                        @if (OrderData.IsPaid)
                         {
                             <div class="flex justify-between">
-                                <span>Tiền khách đưa:</span>
-                                <span>@OrderData.CashReceived.ToString("N0") đ</span>
+                                <span class="text-gray-700">Phương thức:</span>
+                                <span class="font-bold">@OrderData.PaymentMethod</span>
                             </div>
-                            <div class="flex justify-between font-bold">
-                                <span>Tiền thừa trả khách:</span>
-                                <span>@OrderData.ChangeAmount.ToString("N0") đ</span>
-                            </div>
+
+                            @if (OrderData.CashReceived.HasValue && OrderData.CashReceived.Value > 0)
+                            {
+                                <div class="flex justify-between">
+                                    <span class="text-gray-700">Tiền khách đưa:</span>
+                                    <span class="font-mono">@OrderData.CashReceived.Value.ToString("N0") đ</span>
+                                </div>
+                                @if (OrderData.ChangeAmount.HasValue)
+                                {
+                                    <div class="flex justify-between font-bold">
+                                        <span>Tiền thừa trả khách:</span>
+                                        <span class="font-mono">@OrderData.ChangeAmount.Value.ToString("N0") đ</span>
+                                    </div>
+                                }
+                            }
                         }
                     </div>
 
                     <!-- Footer -->
-                    <div class="text-center space-y-1 pt-1">
-                        <div class="font-bold text-[11px]">CẢM ƠN QUÝ KHÁCH & HẸN GẶP LẠI!</div>
-                        <div class="text-[10px] text-gray-500">Vui lòng kiểm tra lại hóa đơn trước khi rời quầy</div>
+                    <div class="text-center space-y-1 pt-1 text-black">
+                        <div class="font-bold text-[11px] whitespace-pre-line leading-relaxed">
+                            @OrderData.FooterMessage
+                        </div>
+                        <div class="text-[9px] text-gray-500 pt-1">
+                            Phần mềm Quản lý Nhà hàng Minbeeus POS
+                        </div>
                     </div>
                 </div>
 
             </div>
 
-            <!-- Modal Footer -->
+            <!-- Modal Footer Controls -->
             <div class="px-6 py-4 bg-surface border-t border-outline-variant flex justify-between items-center shrink-0">
-                <button class="px-5 py-2.5 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high cursor-pointer"
+                <button class="px-5 py-2.5 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high cursor-pointer transition-colors"
                         @onclick="CloseAsync">
                     Đóng
                 </button>
-                <button class="px-6 py-2.5 text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
-                        @onclick="PrintReceiptAsync">
-                    <span class="material-symbols-outlined text-lg">print</span>
-                    IN HÓA ĐƠN K80
-                </button>
+                <div class="flex items-center gap-2">
+                    <button class="px-6 py-2.5 text-xs font-black bg-primary hover:bg-primary/90 text-on-primary rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+                            @onclick="PrintReceiptAsync">
+                        <span class="material-symbols-outlined text-lg">print</span>
+                        <span>IN K80 / LƯU PDF</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Print Media Styling -->
+    <!-- Print Media Styling for Strict 80mm Output -->
     <style>
         @@media print {
+            @@page {
+                size: 80mm auto;
+                margin: 0mm !important;
+            }
+            html, body {
+                width: 80mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+            }
+            /* Hide entire screen UI except the receipt */
             body * {
                 visibility: hidden !important;
             }
@@ -181,11 +298,21 @@
                 left: 0 !important;
                 top: 0 !important;
                 width: 80mm !important;
+                max-width: 80mm !important;
                 margin: 0 !important;
-                padding: 4mm !important;
+                padding: 3mm 2.5mm !important;
                 box-shadow: none !important;
                 border: none !important;
                 border-radius: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-family: ui-monospace, SFMono-Regular, "Courier New", monospace !important;
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;
+            }
+            .no-print-bg {
+                background: transparent !important;
+                backdrop-filter: none !important;
             }
         }
     </style>

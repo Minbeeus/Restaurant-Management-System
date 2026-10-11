@@ -200,40 +200,9 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // 6. Areas & Tables
-        if (!await context.Areas.AnyAsync())
-        {
-            var areaList = new List<Area>
-            {
-                new Area { Name = "Tầng 1 - Sảnh Chính", NameEn = "1st Floor - Main Hall", SortOrder = 1, IsActive = true },
-                new Area { Name = "Tầng 2 - Sân Thượng", NameEn = "2nd Floor - Rooftop", SortOrder = 2, IsActive = true },
-                new Area { Name = "Sân Vườn VIP", NameEn = "VIP Garden", SortOrder = 3, IsActive = true }
-            };
-            await context.Areas.AddRangeAsync(areaList);
-            await context.SaveChangesAsync();
-        }
+        // 6. Areas & Tables (Pizza Restaurant: 1 Floor, 4 Areas A-D, 34 Tables, 76 Total Capacity)
+        await SeedPizzaAreasAndTablesAsync(context);
 
-        if (!await context.Tables.AnyAsync())
-        {
-            var area1 = await context.Areas.OrderBy(a => a.SortOrder).FirstOrDefaultAsync() ?? new Area { Name = "Tầng 1", SortOrder = 1, IsActive = true };
-            var area2 = await context.Areas.OrderBy(a => a.SortOrder).Skip(1).FirstOrDefaultAsync() ?? area1;
-            var area3 = await context.Areas.OrderBy(a => a.SortOrder).Skip(2).FirstOrDefaultAsync() ?? area1;
-
-            var tables = new List<Table>
-            {
-                new Table { AreaId = area1.Id, Name = "Bàn 01", Capacity = 4, Status = 0, QrToken = "QR_TOKEN_TABLE_01_SECURE_TOKEN_32", PositionX = 40, PositionY = 40, Width = 90, Height = 90, Shape = 1, SortOrder = 1, IsActive = true },
-                new Table { AreaId = area1.Id, Name = "Bàn 02", Capacity = 4, Status = 1, QrToken = "QR_TOKEN_TABLE_02_SECURE_TOKEN_32", PositionX = 170, PositionY = 40, Width = 90, Height = 90, Shape = 1, SortOrder = 2, IsActive = true },
-                new Table { AreaId = area1.Id, Name = "Bàn 03 (VIP)", Capacity = 6, Status = 2, QrToken = "QR_TOKEN_TABLE_03_SECURE_TOKEN_32", PositionX = 300, PositionY = 40, Width = 130, Height = 90, Shape = 2, SortOrder = 3, IsActive = true },
-                new Table { AreaId = area1.Id, Name = "Bàn 04", Capacity = 2, Status = 0, QrToken = "QR_TOKEN_TABLE_04_SECURE_TOKEN_32", PositionX = 40, PositionY = 170, Width = 80, Height = 80, Shape = 0, SortOrder = 4, IsActive = true },
-                new Table { AreaId = area1.Id, Name = "Bàn 05", Capacity = 4, Status = 0, QrToken = "QR_TOKEN_TABLE_05_SECURE_TOKEN_32", PositionX = 170, PositionY = 170, Width = 90, Height = 90, Shape = 1, SortOrder = 5, IsActive = true },
-                new Table { AreaId = area2.Id, Name = "Bàn 11 (Sky)", Capacity = 2, Status = 0, QrToken = "QR_TOKEN_TABLE_11_SECURE_TOKEN_32", PositionX = 50, PositionY = 50, Width = 80, Height = 80, Shape = 0, SortOrder = 1, IsActive = true },
-                new Table { AreaId = area2.Id, Name = "Bàn 12 (Sky)", Capacity = 4, Status = 3, QrToken = "QR_TOKEN_TABLE_12_SECURE_TOKEN_32", PositionX = 180, PositionY = 50, Width = 90, Height = 90, Shape = 1, SortOrder = 2, IsActive = true },
-                new Table { AreaId = area3.Id, Name = "Bàn VIP 01", Capacity = 8, Status = 1, QrToken = "QR_TOKEN_TABLE_VIP01_SECURE_TOKEN", PositionX = 60, PositionY = 60, Width = 150, Height = 100, Shape = 2, SortOrder = 1, IsActive = true }
-            };
-
-            await context.Tables.AddRangeAsync(tables);
-            await context.SaveChangesAsync();
-        }
 
         // 7. UnitOfMeasures & Materials
         if (!await context.UnitOfMeasures.AnyAsync())
@@ -378,4 +347,173 @@ public static class DbInitializer
         // 13. Pizza Restaurant Complete Sample Data (POS + KDS + Combo + Inventory + BOM)
         await SampleDataSeeder.SeedSampleRestaurantDataAsync(context);
     }
+
+    public static async Task SeedPizzaAreasAndTablesAsync(ApplicationDbContext context)
+    {
+        // Permanently remove legacy demo areas and tables if they exist
+        var validAreaNames = new[] { "Khu A", "Khu B", "Khu C", "Khu D" };
+        var legacyAreas = await context.Areas.IgnoreQueryFilters().Where(a => !validAreaNames.Contains(a.Name)).ToListAsync();
+        if (legacyAreas.Count != 0)
+        {
+            var legacyAreaIds = legacyAreas.Select(a => a.Id).ToList();
+            var legacyTables = await context.Tables.IgnoreQueryFilters().Where(t => legacyAreaIds.Contains(t.AreaId)).ToListAsync();
+            var legacyTableIds = legacyTables.Select(t => t.Id).ToList();
+
+            // Unlink any orders referencing legacy tables
+            var ordersWithLegacyTables = await context.Orders.Where(o => o.TableId != null && legacyTableIds.Contains(o.TableId.Value)).ToListAsync();
+            foreach (var o in ordersWithLegacyTables)
+            {
+                o.TableId = null;
+            }
+
+            context.Tables.RemoveRange(legacyTables);
+            context.Areas.RemoveRange(legacyAreas);
+            await context.SaveChangesAsync();
+        }
+
+        // Define the 4 standard pizza areas for 1 Floor
+        var areaDefinitions = new[]
+        {
+            new { Name = "Khu A", NameEn = "Area A", SortOrder = 1 },
+            new { Name = "Khu B", NameEn = "Area B", SortOrder = 2 },
+            new { Name = "Khu C", NameEn = "Area C", SortOrder = 3 },
+            new { Name = "Khu D", NameEn = "Area D", SortOrder = 4 }
+        };
+
+        var areaEntityMap = new Dictionary<string, Area>();
+        foreach (var def in areaDefinitions)
+        {
+            var area = await context.Areas.FirstOrDefaultAsync(a => a.Name == def.Name);
+            if (area == null)
+            {
+                area = new Area
+                {
+                    Name = def.Name,
+                    NameEn = def.NameEn,
+                    SortOrder = def.SortOrder,
+                    IsActive = true
+                };
+                await context.Areas.AddAsync(area);
+                await context.SaveChangesAsync();
+            }
+            else
+            {
+                bool modified = false;
+                if (!area.IsActive) { area.IsActive = true; modified = true; }
+                if (area.NameEn != def.NameEn) { area.NameEn = def.NameEn; modified = true; }
+                if (area.SortOrder != def.SortOrder) { area.SortOrder = def.SortOrder; modified = true; }
+                if (modified)
+                {
+                    await context.SaveChangesAsync();
+                }
+            }
+            areaEntityMap[def.Name] = area;
+        }
+
+        // Define the 34 tables unified single-floor layout matching the architectural blueprint
+        var tableDefinitions = new List<(string AreaName, string TableName, int Capacity, int Shape, int Width, int Height, double X, double Y, int SortOrder)>
+        {
+            // === KHU A: Quầy Bar & Ghế Counter (8 bàn đôi, capacity 2) ===
+            // 6 bàn mặt ngang quầy counter (trước bếp)
+            ("Khu A", "A01", 2, 1, 60, 60, 380, 265, 1),
+            ("Khu A", "A02", 2, 1, 60, 60, 450, 265, 2),
+            ("Khu A", "A03", 2, 1, 60, 60, 520, 265, 3),
+            ("Khu A", "A04", 2, 1, 60, 60, 590, 265, 4),
+            ("Khu A", "A05", 2, 1, 60, 60, 660, 265, 5),
+            ("Khu A", "A06", 2, 1, 60, 60, 730, 265, 6),
+            // 2 bàn mặt đứng bên phải quầy bar
+            ("Khu A", "A07", 2, 1, 60, 60, 810, 135, 7),
+            ("Khu A", "A08", 2, 1, 60, 60, 810, 205, 8),
+
+            // === KHU B: Khu Sảnh Trung Tâm / Bàn Đảo Quả Trám (8 bàn đôi, capacity 2) ===
+            // Hàng trên: 4 bàn đảo trung tâm
+            ("Khu B", "B01", 2, 1, 65, 65, 430, 360, 1),
+            ("Khu B", "B02", 2, 1, 65, 65, 515, 360, 2),
+            ("Khu B", "B03", 2, 1, 65, 65, 600, 360, 3),
+            ("Khu B", "B04", 2, 1, 65, 65, 685, 360, 4),
+            // Hàng dưới: 4 bàn đảo trung tâm
+            ("Khu B", "B05", 2, 1, 65, 65, 430, 445, 5),
+            ("Khu B", "B06", 2, 1, 65, 65, 515, 445, 6),
+            ("Khu B", "B07", 2, 1, 65, 65, 600, 445, 7),
+            ("Khu B", "B08", 2, 1, 65, 65, 685, 445, 8),
+
+            // === KHU C: Khu Cánh Phải / Gần Lối Vào & Cửa Sổ (7 bàn đôi, capacity 2) ===
+            // Hàng trên
+            ("Khu C", "C01", 2, 1, 65, 65, 920, 320, 1),
+            ("Khu C", "C02", 2, 1, 65, 65, 1005, 320, 2),
+            ("Khu C", "C03", 2, 1, 65, 65, 1090, 320, 3),
+            // Hàng giữa
+            ("Khu C", "C04", 2, 1, 65, 65, 920, 405, 4),
+            ("Khu C", "C05", 2, 1, 65, 65, 1005, 405, 5),
+            ("Khu C", "C06", 2, 1, 65, 65, 1090, 405, 6),
+            // Bàn góc
+            ("Khu C", "C07", 2, 1, 65, 60, 1090, 485, 7),
+
+            // === KHU D: Dãy Bàn Dọc Tường Đáy / Sofa Banquette (11 bàn: 7 đôi + 4 bốn) ===
+            // 4 bàn bốn (chữ nhật 95x70, Shape = 2, Capacity = 4)
+            ("Khu D", "D08", 4, 2, 95, 70, 170, 560, 8),
+            ("Khu D", "D09", 4, 2, 95, 70, 280, 560, 9),
+            ("Khu D", "D10", 4, 2, 95, 70, 545, 560, 10),
+            ("Khu D", "D11", 4, 2, 95, 70, 655, 560, 11),
+            // 7 bàn đôi (Shape = 1, Capacity = 2)
+            ("Khu D", "D01", 2, 1, 60, 70, 390, 560, 1),
+            ("Khu D", "D02", 2, 1, 60, 70, 465, 560, 2),
+            ("Khu D", "D03", 2, 1, 60, 70, 770, 560, 3),
+            ("Khu D", "D04", 2, 1, 60, 70, 845, 560, 4),
+            ("Khu D", "D05", 2, 1, 60, 70, 920, 560, 5),
+            ("Khu D", "D06", 2, 1, 60, 70, 995, 560, 6),
+            ("Khu D", "D07", 2, 1, 60, 70, 1070, 560, 7)
+        };
+
+        bool hasChanges = false;
+        foreach (var def in tableDefinitions)
+        {
+            var area = areaEntityMap[def.AreaName];
+            var existingTable = await context.Tables.FirstOrDefaultAsync(t => t.AreaId == area.Id && t.Name == def.TableName);
+            if (existingTable == null)
+            {
+                var newTable = new Table
+                {
+                    AreaId = area.Id,
+                    Name = def.TableName,
+                    Capacity = def.Capacity,
+                    Status = 0, // Available
+                    QrToken = $"QR_PIZZA_{def.TableName}_{Guid.NewGuid():N}",
+                    PositionX = def.X,
+                    PositionY = def.Y,
+                    Width = def.Width,
+                    Height = def.Height,
+                    Shape = def.Shape,
+                    Rotation = 0,
+                    SortOrder = def.SortOrder,
+                    IsActive = true
+                };
+                await context.Tables.AddAsync(newTable);
+                hasChanges = true;
+            }
+            else
+            {
+                // Synchronize coordinates and dimensions to architectural floorplan
+                existingTable.PositionX = def.X;
+                existingTable.PositionY = def.Y;
+                existingTable.Width = def.Width;
+                existingTable.Height = def.Height;
+                existingTable.Shape = def.Shape;
+                existingTable.Capacity = def.Capacity;
+                existingTable.SortOrder = def.SortOrder;
+                existingTable.IsActive = true;
+                if (string.IsNullOrEmpty(existingTable.QrToken))
+                {
+                    existingTable.QrToken = $"QR_PIZZA_{def.TableName}_{Guid.NewGuid():N}";
+                }
+                hasChanges = true;
+            }
+        }
+
+        if (hasChanges)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
 }
+

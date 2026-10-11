@@ -23,4 +23,12 @@ public class PosPolicyController : ControllerBase
         var policy = await _policyService.GetPolicyAsync();
         return Ok(policy);
     }
+
+    [HttpPut]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult> UpdatePolicy([FromBody] PosPolicyOptions options)
+    {
+        await _policyService.UpdatePolicyAsync(options);
+        return Ok(new { success = true, data = options, message = "Cập nhật chính sách POS thành công" });
+    }
 }

@@ -16,6 +16,7 @@
             @if (_areas.Any())
             {
                 <select class="px-4 py-2 border border-outline rounded bg-surface focus:outline-none focus:border-primary font-label-bold text-on-surface" @onchange="OnAreaChanged">
+                    <option value="0" selected="@(_currentAreaId == 0)">Toàn Sàn (Tất cả khu ABCD)</option>
                     @foreach (var area in _areas)
                     {
                         <option value="@area.Id" selected="@(_currentAreaId == area.Id)">@area.Name</option>
@@ -98,10 +99,14 @@
                              style="left: 0; top: 0; transform: translate(@(table.PositionX)px, @(table.PositionY)px); width: @(table.Width)px; height: @(table.Height)px;"
                              @onclick="() => OnTableClicked(table)">
                             
-                            <span class="font-bold text-on-background pointer-events-none @(table.Width < 60 ? "text-xs" : "text-base")">@table.Name</span>
+                            <span class="font-bold text-on-background pointer-events-none @(table.Width < 60 ? "text-xs" : "text-sm")">@table.Name</span>
+                            @if (_currentAreaId == 0 && !string.IsNullOrEmpty(table.AreaName))
+                            {
+                                <span class="text-[9px] font-bold text-primary/80 pointer-events-none -mt-0.5">@table.AreaName</span>
+                            }
                             @if (table.Width >= 60 && table.Height >= 60)
                             {
-                                <span class="text-xs text-on-surface-variant pointer-events-none">@table.Capacity @L["Table_Capacity_Unit"]</span>
+                                <span class="text-[10px] text-on-surface-variant pointer-events-none">@table.Capacity @L["Table_Capacity_Unit"]</span>
                             }
                         </div>
                     }
@@ -325,11 +330,7 @@
             _areas = taskAreas.Result.Where(a => a.IsActive).OrderBy(a => a.SortOrder).ToList();
             _tables = taskTables.Result;
 
-            if (_areas.Any() && _currentAreaId == 0)
-            {
-                _currentAreaId = _areas.First().Id;
-            }
-
+            // Default to Toan San (0) to view all ABCD on single floor
             UpdateCurrentTables();
         }
         catch (Exception ex)
@@ -344,7 +345,9 @@
 
     private void UpdateCurrentTables()
     {
-        _currentTables = _tables.Where(t => t.AreaId == _currentAreaId).ToList();
+        _currentTables = (_currentAreaId == 0)
+            ? _tables.ToList()
+            : _tables.Where(t => t.AreaId == _currentAreaId).ToList();
         _selectedTable = null; // reset selection
         _isJsInitialized = false;
     }

@@ -22,11 +22,18 @@
                 </div>
             </div>
 
-            <button class="px-5 py-2.5 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2"
-                    @onclick='() => Navigation.NavigateTo("/pos")'>
-                <span class="material-symbols-outlined text-base">arrow_back</span>
-                <span>Quay Lại POS</span>
-            </button>
+            <div class="flex items-center gap-2">
+                <button class="px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2"
+                        @onclick='() => Navigation.NavigateTo("/pos/receipt-test")'>
+                    <span class="material-symbols-outlined text-base">print_connect</span>
+                    <span>Test In K80 (Không Cần Máy In)</span>
+                </button>
+                <button class="px-5 py-2.5 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2"
+                        @onclick='() => Navigation.NavigateTo("/pos")'>
+                    <span class="material-symbols-outlined text-base">arrow_back</span>
+                    <span>Quay Lại POS</span>
+                </button>
+            </div>
         </div>
 
         <!-- Search Bar -->

@@ -37,14 +37,19 @@ builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
 // HttpClients
-builder.Services.AddHttpClient("Api", client => client.BaseAddress = new Uri("http://localhost:5011/"));
+builder.Services.AddTransient<BlazorAuthorizationMessageHandler>();
+
+builder.Services.AddHttpClient("Api", client => client.BaseAddress = new Uri("http://localhost:5011/"))
+    .AddHttpMessageHandler<BlazorAuthorizationMessageHandler>();
+
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));
 builder.Services.AddHttpClient<IAuthApiClient, AuthApiClient>(client => client.BaseAddress = new Uri("http://localhost:5011/"));
 
 builder.Services.AddScoped<DashboardApiClient>();
 builder.Services.AddScoped<MenuApiClient>();
 builder.Services.AddScoped<TableApiClient>();
-builder.Services.AddHttpClient<AdminApiClient>(client => client.BaseAddress = new Uri("http://localhost:5011/"));
+builder.Services.AddHttpClient<AdminApiClient>(client => client.BaseAddress = new Uri("http://localhost:5011/"))
+    .AddHttpMessageHandler<BlazorAuthorizationMessageHandler>();
 
 var app = builder.Build();
 

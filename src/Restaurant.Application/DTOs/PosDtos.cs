@@ -71,6 +71,11 @@ public class ShiftReportDto
     public decimal ActualCash { get; set; }
     public decimal Difference { get; set; }
     public string? Note { get; set; }
+
+    public decimal OpeningBalance { get => InitialCash; set => InitialCash = value; }
+    public decimal ClosingBalance { get => ExpectedCash; set => ExpectedCash = value; }
+    public decimal ActualCashCounted { get => ActualCash; set => ActualCash = value; }
+    public decimal Variance { get => Difference; set => Difference = value; }
 }
 
 public class SubmitPosOrderRequest
@@ -145,28 +150,55 @@ public class VoucherValidationResponseDto
 
 public class K80ReceiptDto
 {
+    // Restaurant Metadata
+    public string RestaurantName { get; set; } = "NHÀ HÀNG MINBEEUS";
+    public string RestaurantAddress { get; set; } = "123 Nguyễn Văn Linh, Q.7, TP.HCM";
+    public string RestaurantPhone { get; set; } = "0901.234.567";
+    public string WifiInfo { get; set; } = "Wifi: Minbeeus_Guest / Pass: 88888888";
+    public string ReceiptTitle { get; set; } = "HÓA ĐƠN THANH TOÁN";
+
+    // Order Information
+    public int OrderId { get; set; }
     public string OrderCode { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime PrintedAt { get; set; } = DateTime.Now;
     public string TableName { get; set; } = string.Empty;
+    public string OrderType { get; set; } = "DineIn";
     public string CashierName { get; set; } = "Thu Ngân POS";
     public string CustomerName { get; set; } = "Khách Lẻ";
     public string CustomerPhone { get; set; } = string.Empty;
+    public string? Note { get; set; }
+
+    // Financials (Authoritative from backend Order)
     public decimal SubTotal { get; set; }
     public decimal DiscountAmount { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
-    public string PaymentMethod { get; set; } = "Tiền Mặt";
-    public decimal CashReceived { get; set; }
-    public decimal ChangeAmount => Math.Max(0, CashReceived - TotalAmount);
+
+    // Payment Lifecycle
+    public bool IsPaid { get; set; }
+    public string PaymentStatusName { get; set; } = "Chờ thanh toán";
+    public string PaymentMethod { get; set; } = "Chưa thanh toán";
+    public decimal? CashReceived { get; set; }
+    public decimal? ChangeAmount { get; set; }
+
+    // Customer / Footer message
+    public string FooterMessage { get; set; } = "CẢM ƠN QUÝ KHÁCH & HẸN GẶP LẠI!\nVui lòng kiểm tra lại hóa đơn trước khi rời quầy";
+
+    // Items list
     public List<K80ReceiptItemDto> Items { get; set; } = new();
 }
 
 public class K80ReceiptItemDto
 {
+    public int Id { get; set; }
     public string MenuItemName { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal TotalPrice => (UnitPrice - DiscountAmount) * Quantity;
     public bool IsComboChild { get; set; }
+    public int? ParentItemId { get; set; }
     public List<string> Modifiers { get; set; } = new();
+    public string? Note { get; set; }
 }

@@ -10,7 +10,7 @@ namespace Restaurant.Web.Controllers;
 public class AccountController : Controller
 {
     [HttpGet("Login")]
-    public async Task<IActionResult> Login([FromQuery] string token)
+    public async Task<IActionResult> Login([FromQuery] string token, [FromQuery] string? returnUrl = null)
     {
         if (string.IsNullOrEmpty(token))
         {
@@ -64,7 +64,11 @@ public class AccountController : Controller
             new ClaimsPrincipal(claimsIdentity), 
             authProperties);
 
-        return Redirect("/admin/dashboard");
+        var redirectPath = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : "/admin/dashboard";
+
+        return Redirect(redirectPath);
     }
 
     [HttpGet("Logout")]

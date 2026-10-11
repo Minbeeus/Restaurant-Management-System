@@ -51,7 +51,7 @@ public class MockIdentityService : IIdentityService
 
     public Task<bool> VerifyManagerPinAsync(string pinCode)
     {
-        return Task.FromResult(pinCode == "000000" || pinCode == "000003" || pinCode == "123456");
+        return Task.FromResult(pinCode == "123456");
     }
 
     public Task<UserDto?> GetUserByIdAsync(int userId)
@@ -67,5 +67,35 @@ public class MockIdentityService : IIdentityService
     public bool VerifyPassword(string password, string passwordHash)
     {
         return true; // Mock implementation
+    }
+
+    public Task<List<UserDto>> GetAllUsersAsync()
+    {
+        return Task.FromResult(new List<UserDto>
+        {
+            new UserDto { Id = 1, Username = "admin", FullName = "Quản trị viên Hệ thống", RoleName = "Admin", PhoneNumber = "0912345678", IsActive = true },
+            new UserDto { Id = 2, Username = "manager01", FullName = "Nguyễn Hoàng Nam", RoleName = "Manager", PhoneNumber = "0934567890", IsActive = true },
+            new UserDto { Id = 3, Username = "cashier01", FullName = "Lê Thị Thu", RoleName = "Cashier", PhoneNumber = "0945678901", IsActive = true },
+            new UserDto { Id = 4, Username = "chef01", FullName = "Phạm Quốc Bảo", RoleName = "Chef", PhoneNumber = "0956789012", IsActive = true }
+        });
+    }
+
+    public Task<UserDto> CreateUserAsync(CreateUserRequest request)
+    {
+        return Task.FromResult(new UserDto
+        {
+            Id = 99,
+            Username = request.Username,
+            FullName = request.FullName,
+            RoleName = "Staff",
+            Email = request.Email,
+            PhoneNumber = request.PhoneNumber,
+            IsActive = true
+        });
+    }
+
+    public Task<bool> ToggleUserStatusAsync(int id)
+    {
+        return Task.FromResult(true);
     }
 }

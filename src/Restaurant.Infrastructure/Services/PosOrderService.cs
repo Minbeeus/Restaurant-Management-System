@@ -30,7 +30,7 @@ public class PosOrderService : IPosOrderService
         var tables = await _context.Tables
             .AsNoTracking()
             .Include(t => t.Area)
-            .Where(t => t.IsActive && !t.IsDeleted)
+            .Where(t => t.IsActive && !t.IsDeleted && (t.Area == null || t.Area.IsActive))
             .OrderBy(t => t.SortOrder)
             .ToListAsync();
 

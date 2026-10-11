@@ -236,20 +236,58 @@ public class IdentityService : IIdentityService
         };
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (int FailedCount, DateTime LockoutUntil)> _managerPinAttempts = new();
+
+    public static void ResetManagerPinAttempts() => _managerPinAttempts.Clear();
+
     public async Task<bool> VerifyManagerPinAsync(string pinCode)
     {
         if (string.IsNullOrWhiteSpace(pinCode)) return false;
-        var employeeCodeWithPrefix = "NV" + pinCode;
-        var user = await _context.Users
-            .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => (u.EmployeeCode == pinCode || u.EmployeeCode == employeeCodeWithPrefix || u.Username == "admin" || u.Username == "manager01") && u.IsActive);
+        var trimmedPin = pinCode.Trim();
 
-        if (user != null && (user.Role.Name == "Admin" || user.Role.Name == "Manager"))
+        var clientKey = "MGR_PIN_LOCKOUT_" + trimmedPin;
+        if (_managerPinAttempts.TryGetValue(clientKey, out var attemptInfo))
         {
-            return true;
+            if (attemptInfo.LockoutUntil > DateTime.UtcNow)
+            {
+                var remaining = (int)Math.Ceiling((attemptInfo.LockoutUntil - DateTime.UtcNow).TotalMinutes);
+                throw new InvalidOperationException($"Mã PIN Quản lý bị khóa do nhập sai 5 lần. Vui lòng thử lại sau {remaining} phút.");
+            }
         }
 
-        return pinCode == "000000" || pinCode == "000003" || pinCode == "123456";
+        var activeManagersAndAdmins = await _context.Users
+            .Include(u => u.Role)
+            .Where(u => u.IsActive && (u.Role.Name == "Admin" || u.Role.Name == "Manager"))
+            .ToListAsync();
+
+        User? matchedUser = null;
+        foreach (var u in activeManagersAndAdmins)
+        {
+            if (!string.IsNullOrEmpty(u.PinCodeHash) && VerifyPassword(trimmedPin, u.PinCodeHash))
+            {
+                matchedUser = u;
+                break;
+            }
+        }
+
+        if (matchedUser == null)
+        {
+            var currentCount = attemptInfo.FailedCount + 1;
+            if (currentCount >= 5)
+            {
+                _managerPinAttempts[clientKey] = (currentCount, DateTime.UtcNow.AddMinutes(15));
+                throw new InvalidOperationException("Mã PIN Quản lý bị khóa do nhập sai 5 lần. Vui lòng thử lại sau 15 phút.");
+            }
+            else
+            {
+                _managerPinAttempts[clientKey] = (currentCount, DateTime.MinValue);
+            }
+            return false;
+        }
+
+        // Reset rate limiter on success
+        _managerPinAttempts.TryRemove(clientKey, out _);
+        return true;
     }
 
     public async Task<UserDto?> GetUserByIdAsync(int userId)
@@ -265,11 +303,81 @@ public class IdentityService : IIdentityService
             Id = user.Id,
             Username = user.Username,
             FullName = user.FullName,
-            RoleName = user.Role.Name,
+            RoleName = user.Role?.Name ?? "Staff",
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
             IsActive = user.IsActive
         };
+    }
+
+    public async Task<List<UserDto>> GetAllUsersAsync()
+    {
+        var users = await _context.Users
+            .AsNoTracking()
+            .Include(u => u.Role)
+            .Where(u => !u.IsDeleted)
+            .OrderBy(u => u.Id)
+            .ToListAsync();
+
+        return users.Select(u => new UserDto
+        {
+            Id = u.Id,
+            Username = u.Username,
+            FullName = u.FullName,
+            RoleName = u.Role?.Name ?? "Staff",
+            Email = u.Email,
+            PhoneNumber = u.PhoneNumber,
+            IsActive = u.IsActive
+        }).ToList();
+    }
+
+    public async Task<UserDto> CreateUserAsync(CreateUserRequest request)
+    {
+        var existing = await _context.Users.AnyAsync(u => u.Username.ToLower() == request.Username.Trim().ToLower());
+        if (existing)
+        {
+            throw new InvalidOperationException($"Tên đăng nhập '{request.Username}' đã tồn tại trong hệ thống.");
+        }
+
+        var roleId = request.RoleId > 0 ? request.RoleId : 3; // Default to Cashier if not specified
+        var role = await _context.Roles.FindAsync(roleId);
+
+        var newUser = new User
+        {
+            Username = request.Username.Trim(),
+            PasswordHash = HashPassword(!string.IsNullOrWhiteSpace(request.Password) ? request.Password : "123456"),
+            FullName = request.FullName.Trim(),
+            RoleId = roleId,
+            EmployeeCode = request.EmployeeCode?.Trim(),
+            PhoneNumber = request.PhoneNumber?.Trim(),
+            Email = request.Email?.Trim(),
+            PinCodeHash = !string.IsNullOrWhiteSpace(request.PinCode) ? BCrypt.Net.BCrypt.HashPassword(request.PinCode.Trim()) : null,
+            IsActive = true
+        };
+
+        _context.Users.Add(newUser);
+        await _context.SaveChangesAsync();
+
+        return new UserDto
+        {
+            Id = newUser.Id,
+            Username = newUser.Username,
+            FullName = newUser.FullName,
+            RoleName = role?.Name ?? "Staff",
+            Email = newUser.Email,
+            PhoneNumber = newUser.PhoneNumber,
+            IsActive = newUser.IsActive
+        };
+    }
+
+    public async Task<bool> ToggleUserStatusAsync(int userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return false;
+
+        user.IsActive = !user.IsActive;
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public string HashPassword(string password)

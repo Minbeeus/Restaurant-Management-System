@@ -321,6 +321,15 @@
         OnPaymentSuccess="HandlePaymentCompletedAsync" />
 }
 
+<!-- K80 Thermal Receipt Modal -->
+@if (ShowK80Modal && ReceiptData != null)
+{
+    <K80ReceiptModal 
+        IsOpen="ShowK80Modal" 
+        IsOpenChanged="val => ShowK80Modal = val" 
+        OrderData="ReceiptData" />
+}
+
 @code {
     protected List<TakeawayOrderDto> TakeawayOrders { get; set; } = new();
     protected TakeawayOrderDto? SelectedOrder { get; set; }
@@ -328,6 +337,8 @@
     protected bool IsLoading { get; set; } = true;
     protected bool IsDetailMode { get; set; } = false;
     protected bool ShowPaymentModalState { get; set; } = false;
+    protected bool ShowK80Modal { get; set; } = false;
+    protected K80ReceiptDto? ReceiptData { get; set; }
 
     private HubConnection? _hubConnection;
 
@@ -415,6 +426,12 @@
         try
         {
             await Http.PostAsync($"api/v1/pos/orders/{SelectedOrder.OrderId}/print-temp-bill", null);
+            var billRes = await Http.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{SelectedOrder.OrderId}/k80");
+            if (billRes?.Data != null)
+            {
+                ReceiptData = billRes.Data;
+                ShowK80Modal = true;
+            }
         }
         catch (Exception ex)
         {

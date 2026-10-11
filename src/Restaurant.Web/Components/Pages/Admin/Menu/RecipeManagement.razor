@@ -214,7 +214,7 @@ else
 
             if (_menuItems.Any())
             {
-                SelectMenuItem(_menuItems.First());
+                await SelectMenuItem(_menuItems.First());
             }
         }
         catch (Exception ex)
@@ -227,16 +227,33 @@ else
         }
     }
 
-    private void SelectMenuItem(MenuItemDto item)
+    private async Task SelectMenuItem(MenuItemDto item)
     {
         _selectedMenuItem = item;
-        // Mock current recipe items for display
-        _recipeItems = new List<RecipeDisplayItem>
+        try
         {
-            new RecipeDisplayItem { MaterialId = 1, MaterialName = "Bột mì Tipo 00", Quantity = 0.15m, UnitName = "Kg", CostPerUnit = 25000 },
-            new RecipeDisplayItem { MaterialId = 2, MaterialName = "Phô mai Mozzarella Fresh", Quantity = 0.12m, UnitName = "Kg", CostPerUnit = 180000 },
-            new RecipeDisplayItem { MaterialId = 3, MaterialName = "Sốt cà chua San Marzano", Quantity = 0.08m, UnitName = "Lít", CostPerUnit = 45000 }
-        };
+            var recipe = await AdminApiClient.GetMenuItemRecipeAsync(item.Id);
+            if (recipe != null && recipe.Items.Any())
+            {
+                _recipeItems = recipe.Items.Select(r => new RecipeDisplayItem
+                {
+                    MaterialId = r.MaterialId,
+                    MaterialName = r.MaterialName,
+                    Quantity = r.Quantity,
+                    UnitName = r.UnitName,
+                    CostPerUnit = r.CostPerUnit
+                }).ToList();
+            }
+            else
+            {
+                _recipeItems.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching recipe: {ex.Message}");
+            _recipeItems.Clear();
+        }
     }
 
     private void OpenAddRecipeModal()
@@ -302,19 +319,18 @@ else
                 {
                     MaterialId = r.MaterialId,
                     Quantity = r.Quantity,
-                    UnitOfMeasureId = 1
+                    UnitOfMeasureId = _availableMaterials.FirstOrDefault(m => m.Id == r.MaterialId)?.UnitOfMeasureId ?? 1
                 }).ToList()
             };
 
             await AdminApiClient.SetMenuItemRecipeAsync(request);
 
             _showModal = false;
-            SelectMenuItem(_selectedMenuItem);
+            await SelectMenuItem(_selectedMenuItem);
         }
         catch (Exception ex)
         {
-            _errorMessage = "Không thể lưu công thức. Đã áp dụng giao diện thử nghiệm.";
-            _showModal = false;
+            _errorMessage = $"Không thể lưu công thức: {ex.Message}";
             Console.WriteLine(ex);
         }
         finally

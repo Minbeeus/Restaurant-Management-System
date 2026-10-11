@@ -203,14 +203,17 @@ public class KitchenService : IKitchenService
         // 6. Audit Log logging
         if (_auditService != null)
         {
-            var actingUserId = _currentUserService?.UserId ?? 1;
-            await _auditService.LogAsync(
-                userId: actingUserId,
-                action: "Kitchen.ItemStatusUpdate",
-                entityName: "OrderItem",
-                entityId: item.Id.ToString(),
-                details: $"Updated KitchenStatus from {oldStatus} to {newStatus} for {item.MenuItemName} (Order {item.Order.OrderCode})"
-            );
+            var actingUserId = _currentUserService?.UserId ?? item.Order?.CreatedByUserId ?? 0;
+            if (actingUserId > 0)
+            {
+                await _auditService.LogAsync(
+                    userId: actingUserId,
+                    action: "Kitchen.ItemStatusUpdate",
+                    entityName: "OrderItem",
+                    entityId: item.Id.ToString(),
+                    details: $"Updated KitchenStatus from {oldStatus} to {newStatus} for {item.MenuItemName} (Order {item.Order.OrderCode})"
+                );
+            }
         }
 
         // 7. Domain Event publishing for BOM Inventory Deduction on Done (only for non-combo headers)

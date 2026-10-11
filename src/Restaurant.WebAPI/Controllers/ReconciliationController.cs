@@ -7,7 +7,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/reconciliation")]
-[AllowAnonymous]
+[Authorize(Roles = "Admin,Manager")]
 public class ReconciliationController : ControllerBase
 {
     private readonly IReconciliationService _reconciliationService;
@@ -40,7 +40,12 @@ public class ReconciliationController : ControllerBase
     {
         try
         {
-            var userId = _currentUserService.UserId ?? 1;
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
+            }
+
+            var userId = _currentUserService.UserId.Value;
             var success = await _reconciliationService.SaveShiftReconciliationAsync(userId, request);
             return Ok(new { success, message = "Lưu đối soát thanh toán thành công!" });
         }

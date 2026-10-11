@@ -1,4 +1,5 @@
 @page "/admin/staff"
+@page "/admin/system/users"
 @rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.AdminLayout
 @using Restaurant.Application.DTOs
@@ -69,8 +70,8 @@ else
                             }
                         </td>
                         <td class="p-4 text-center space-x-1">
-                            <button class="text-primary hover:bg-primary-container p-2 rounded-full transition-colors" title="@L["Common_Edit"]" @onclick="() => OpenEditModal(user)">
-                                <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+                            <button class="text-on-surface-variant hover:text-primary hover:bg-primary-container/20 p-2 rounded-full transition-colors" title="@(user.IsActive ? "Khóa tài khoản" : "Kích hoạt tài khoản")" @onclick="() => ToggleStatus(user.Id)">
+                                <span class="material-symbols-outlined text-sm">@(user.IsActive ? "lock" : "lock_open")</span>
                             </button>
                         </td>
                     </tr>
@@ -187,11 +188,18 @@ else
 
     private void CloseModal() => _showModal = false;
 
+    private string? _errorMessage;
+
     private async Task SaveUser()
     {
-        if (string.IsNullOrWhiteSpace(_model.FullName) || string.IsNullOrWhiteSpace(_model.Username)) return;
+        if (string.IsNullOrWhiteSpace(_model.FullName) || string.IsNullOrWhiteSpace(_model.Username))
+        {
+            _errorMessage = "Vui lòng nhập họ tên và tên đăng nhập.";
+            return;
+        }
 
         _isSaving = true;
+        _errorMessage = null;
         try
         {
             var req = new CreateUserRequest
@@ -207,13 +215,26 @@ else
             _showModal = false;
             await LoadData();
         }
-        catch
+        catch (Exception ex)
         {
-            _showModal = false;
+            _errorMessage = $"Lỗi khi lưu tài khoản: {ex.Message}";
         }
         finally
         {
             _isSaving = false;
+        }
+    }
+
+    private async Task ToggleStatus(int userId)
+    {
+        try
+        {
+            await ApiClient.ToggleUserStatusAsync(userId);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
         }
     }
 

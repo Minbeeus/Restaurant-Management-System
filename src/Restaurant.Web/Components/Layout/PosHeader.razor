@@ -121,15 +121,30 @@
         <div class="h-6 w-[1px] bg-outline-variant/60"></div>
 
         <!-- User Avatar & Profile -->
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
-                LT
-            </div>
-            <div class="hidden md:flex flex-col">
-                <span class="text-xs font-bold leading-tight">Lê Thị Thu</span>
-                <span class="text-[10px] text-on-surface-variant leading-tight font-medium">Thu ngân (POS)</span>
-            </div>
-        </div>
+        <AuthorizeView>
+            <Authorized>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
+                        @(context.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value?.Take(2).Aggregate("", (acc, c) => acc + c) ?? "NV")
+                    </div>
+                    <div class="hidden md:flex flex-col">
+                        <span class="text-xs font-bold leading-tight">@(context.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? context.User.Identity?.Name ?? "Nhân viên")</span>
+                        <span class="text-[10px] text-on-surface-variant leading-tight font-medium">@(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Thu ngân (POS)")</span>
+                    </div>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
+                        NV
+                    </div>
+                    <div class="hidden md:flex flex-col">
+                        <span class="text-xs font-bold leading-tight">Thu ngân</span>
+                        <span class="text-[10px] text-on-surface-variant leading-tight font-medium">POS</span>
+                    </div>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
     </div>
 </header>
 

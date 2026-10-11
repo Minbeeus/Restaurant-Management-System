@@ -7,7 +7,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/shifts")]
-[AllowAnonymous]
+[Authorize(Roles = "Admin,Manager,Cashier")]
 public class ShiftsController : ControllerBase
 {
     private readonly IShiftService _shiftService;
@@ -22,7 +22,22 @@ public class ShiftsController : ControllerBase
     [HttpGet("current")]
     public async Task<IActionResult> GetCurrentShift()
     {
-        var userId = _currentUserService.UserId ?? 1;
+        if (!_currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "UNAUTHORIZED",
+                    message = "Chưa xác thực danh tính người dùng."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        var userId = _currentUserService.UserId.Value;
 
         var shift = await _shiftService.GetCurrentShiftAsync(userId);
         if (shift == null)
@@ -52,7 +67,22 @@ public class ShiftsController : ControllerBase
     [HttpPost("open")]
     public async Task<IActionResult> OpenShift([FromBody] OpenShiftRequest request)
     {
-        var userId = _currentUserService.UserId ?? 1;
+        if (!_currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "UNAUTHORIZED",
+                    message = "Chưa xác thực danh tính người dùng."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        var userId = _currentUserService.UserId.Value;
 
         try
         {
@@ -84,7 +114,22 @@ public class ShiftsController : ControllerBase
     [HttpPost("close")]
     public async Task<IActionResult> CloseShift([FromBody] CloseShiftRequest request)
     {
-        var userId = _currentUserService.UserId ?? 1;
+        if (!_currentUserService.UserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "UNAUTHORIZED",
+                    message = "Chưa xác thực danh tính người dùng."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        var userId = _currentUserService.UserId.Value;
 
         try
         {
@@ -132,7 +177,22 @@ public class ShiftsController : ControllerBase
     {
         try
         {
-            var userId = _currentUserService.UserId ?? 1;
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "UNAUTHORIZED",
+                        message = "Chưa xác thực danh tính người dùng."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
+            var userId = _currentUserService.UserId.Value;
             var data = await _shiftService.ReopenShiftAsync(userId, id);
             return Ok(new { success = true, data, message = "Mở lại ca thành công!" });
         }

@@ -1,0 +1,685 @@
+@page "/pos/receipt-test"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.PosLayout
+@using Restaurant.Application.DTOs
+@using Restaurant.Web.Components.Layout
+@using Restaurant.Web.Components.Pages.Pos.Components
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<div class="flex flex-col h-full bg-background overflow-hidden select-none">
+    <PosHeader />
+
+    <!-- Top Action Toolbar -->
+    <div class="bg-surface px-6 py-4 border-b border-outline-variant flex flex-wrap justify-between items-center gap-4 shrink-0 shadow-xs">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary text-3xl">print_connect</span>
+            <div>
+                <h1 class="text-lg font-black text-on-surface m-0 tracking-wide uppercase">
+                    MÔI TRƯỜNG KIỂM THỬ IN HÓA ĐƠN K80 (NO-PRINTER TESTING HARNESS)
+                </h1>
+                <p class="text-xs text-on-surface-variant mt-0.5">
+                    Kiểm thử toàn diện mẫu in 80mm, định dạng tiếng Việt, ngắt dòng, phân cấp Combo & Lưu PDF mà không cần máy in vật lý.
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button class="px-4 py-2 bg-primary text-on-primary rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm hover:bg-primary/90 cursor-pointer"
+                    @onclick="TriggerDirectBrowserPrint">
+                <span class="material-symbols-outlined text-base">print</span>
+                <span>IN / LƯU PDF (CTRL+P)</span>
+            </button>
+            <button class="px-4 py-2 bg-surface-high border border-outline-variant rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-outline-variant/30 cursor-pointer"
+                    @onclick='() => Navigation.NavigateTo("/pos")'>
+                <span class="material-symbols-outlined text-base">arrow_back</span>
+                <span>Quay Lại POS</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Area: Left Scenarios Selector / Right 80mm Live Preview -->
+    <div class="flex-1 flex overflow-hidden p-6 gap-6 bg-surface-low">
+        
+        <!-- Left: Test Scenarios & Config -->
+        <div class="w-[360px] bg-surface rounded-2xl border border-outline-variant p-4 flex flex-col gap-4 shadow-sm overflow-y-auto shrink-0">
+            <div>
+                <h2 class="text-xs font-black uppercase text-on-surface tracking-wider mb-2 flex items-center gap-1.5 text-primary">
+                    <span class="material-symbols-outlined text-sm">checklist</span>
+                    Chọn Kịch Bản Kiểm Thử
+                </h2>
+                <div class="space-y-2">
+                    @foreach (var sc in Scenarios)
+                    {
+                        bool isSel = ActiveScenarioKey == sc.Key;
+                        <button class="w-full text-left p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex flex-col gap-1 @(isSel ? "bg-primary/10 border-primary text-primary ring-2 ring-primary/30" : "bg-surface-high hover:bg-surface-variant/40 border-outline-variant/70 text-on-surface")"
+                                @onclick="() => SelectScenario(sc.Key)">
+                            <div class="flex justify-between items-center font-bold">
+                                <span>@sc.Title</span>
+                                @if (isSel)
+                                {
+                                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                                }
+                            </div>
+                            <span class="text-[11px] text-on-surface-variant font-normal leading-tight">@sc.Description</span>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Live Order Fetch -->
+            <div class="pt-3 border-t border-outline-variant">
+                <h3 class="text-xs font-bold text-on-surface uppercase mb-2 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm">database</span>
+                    Hoặc Tra Cứu Đơn Thật
+                </h3>
+                <div class="flex gap-2">
+                    <input type="number" class="w-full px-3 py-2 text-xs border rounded-xl bg-surface-high border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                           placeholder="Nhập ID đơn (vd: 1)..." @bind="LiveOrderIdInput" />
+                    <button class="px-3 py-2 bg-secondary text-on-secondary rounded-xl font-bold text-xs shrink-0 cursor-pointer"
+                            @onclick="FetchLiveOrderReceiptAsync">
+                        Tải
+                    </button>
+                </div>
+                @if (!string.IsNullOrEmpty(LiveOrderErrorMessage))
+                {
+                    <p class="text-[11px] text-error mt-1 font-semibold">@LiveOrderErrorMessage</p>
+                }
+            </div>
+
+            <!-- Instructions Box -->
+            <div class="mt-auto p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-900 dark:text-amber-300 space-y-1.5">
+                <div class="font-black flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">lightbulb</span>
+                    <span>Hướng Dẫn Kiểm Thử Không Cần Máy In:</span>
+                </div>
+                <ol class="list-decimal pl-4 space-y-1 leading-tight">
+                    <li>Chọn kịch bản ở trên để xem bản dựng 80mm bên phải.</li>
+                    <li>Bấm nút <b>"IN / LƯU PDF"</b> ở trên.</li>
+                    <li>Trong hộp thoại in của trình duyệt (Chrome/Edge):</li>
+                    <ul class="list-disc pl-3 mt-0.5 space-y-0.5">
+                        <li>Chọn <b>Destination: Save as PDF</b>.</li>
+                        <li>Xem trực quan trang in: không viền thừa, không nút bấm, font tiếng Việt rõ nét.</li>
+                    </ul>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Right: 80mm Physical Width Simulation Area -->
+        <div class="flex-1 bg-surface rounded-2xl border border-outline-variant p-6 flex flex-col items-center justify-start overflow-y-auto shadow-sm">
+            
+            <!-- Width Indicator Ruler -->
+            <div class="w-[80mm] border-b-2 border-primary/40 pb-1 mb-4 flex justify-between items-center text-[10px] font-mono text-primary font-bold">
+                <span>| 0mm</span>
+                <span>Khổ Giấy Nhiệt K80 (80mm)</span>
+                <span>80mm |</span>
+            </div>
+
+            <!-- Embedded 80mm Thermal Receipt View (Matches print stylesheet) -->
+            @if (CurrentReceipt != null)
+            {
+                <div id="k80-receipt" class="k80-print-container bg-white text-black p-4 rounded-md shadow-lg text-xs font-mono leading-tight w-[80mm] max-w-[80mm] box-border select-text border border-gray-200">
+                    
+                    <!-- Header -->
+                    <div class="text-center pb-3 border-b border-dashed border-black/40 mb-3">
+                        <div class="font-extrabold text-base uppercase tracking-wider text-black">
+                            @(string.IsNullOrWhiteSpace(CurrentReceipt.RestaurantName) ? "NHÀ HÀNG MINBEEUS" : CurrentReceipt.RestaurantName)
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(CurrentReceipt.RestaurantAddress))
+                        {
+                            <div class="text-[11px] mt-0.5 text-gray-800">ĐC: @CurrentReceipt.RestaurantAddress</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(CurrentReceipt.RestaurantPhone))
+                        {
+                            <div class="text-[11px] text-gray-800">Hotline: @CurrentReceipt.RestaurantPhone</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(CurrentReceipt.WifiInfo))
+                        {
+                            <div class="text-[10px] italic opacity-80 mt-1 text-gray-700">@CurrentReceipt.WifiInfo</div>
+                        }
+                    </div>
+
+                    <!-- Title -->
+                    <div class="text-center font-black text-sm uppercase my-2 tracking-wide text-black">
+                        @CurrentReceipt.ReceiptTitle
+                    </div>
+                    @if (!CurrentReceipt.IsPaid)
+                    {
+                        <div class="text-center text-[10px] italic font-semibold text-gray-700 -mt-1 mb-2">
+                            (Phiếu đối chiếu món - Chưa thanh toán)
+                        </div>
+                    }
+
+                    <!-- Order Info -->
+                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-3 text-black">
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Mã đơn:</span>
+                            <span class="font-bold text-black">@CurrentReceipt.OrderCode</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Thời gian đặt:</span>
+                            <span>@CurrentReceipt.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Thời gian in:</span>
+                            <span>@CurrentReceipt.PrintedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Bàn / Loại:</span>
+                            <span class="font-bold text-black">@(string.IsNullOrEmpty(CurrentReceipt.TableName) ? "Mang Về (Takeaway)" : CurrentReceipt.TableName)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Thu ngân:</span>
+                            <span>@(string.IsNullOrWhiteSpace(CurrentReceipt.CashierName) ? "Thu ngân POS" : CurrentReceipt.CashierName)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Khách hàng:</span>
+                            <span>
+                                @(string.IsNullOrEmpty(CurrentReceipt.CustomerName) ? "Khách lẻ" : CurrentReceipt.CustomerName)
+                                @(string.IsNullOrEmpty(CurrentReceipt.CustomerPhone) ? "" : $" ({CurrentReceipt.CustomerPhone})")
+                            </span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(CurrentReceipt.Note))
+                        {
+                            <div class="text-[10px] italic text-gray-700 pt-0.5">
+                                Ghi chú đơn: @CurrentReceipt.Note
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Items Table Header -->
+                    <div class="grid grid-cols-12 font-bold pb-1 border-b border-black text-[11px] mb-2 text-black">
+                        <div class="col-span-6">Tên món</div>
+                        <div class="col-span-2 text-center">SL</div>
+                        <div class="col-span-4 text-right">Thành tiền</div>
+                    </div>
+
+                    <!-- Items List -->
+                    <div class="space-y-2 pb-3 border-b border-dashed border-black/40 mb-3 text-[11px] text-black">
+                        @foreach (var item in CurrentReceipt.Items)
+                        {
+                            @if (item.IsComboChild)
+                            {
+                                <div class="pl-3 py-0.5 flex flex-col text-[10px] text-gray-800">
+                                    <div class="flex justify-between items-start">
+                                        <span class="italic font-medium break-words leading-tight flex-1">
+                                            + @item.Quantity x @item.MenuItemName
+                                        </span>
+                                        @if (item.TotalPrice > 0)
+                                        {
+                                            <span class="font-semibold text-right ml-2 shrink-0">
+                                                +@item.TotalPrice.ToString("N0")đ
+                                            </span>
+                                        }
+                                    </div>
+                                    @if (item.Modifiers != null && item.Modifiers.Any())
+                                    {
+                                        <div class="text-[9px] text-gray-600 pl-2 italic">
+                                            @string.Join(", ", item.Modifiers)
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="space-y-0.5">
+                                    <div class="grid grid-cols-12 font-bold leading-tight">
+                                        <div class="col-span-6 break-words">@item.MenuItemName</div>
+                                        <div class="col-span-2 text-center">@item.Quantity</div>
+                                        <div class="col-span-4 text-right font-mono">@item.TotalPrice.ToString("N0")đ</div>
+                                    </div>
+                                    
+                                    <div class="text-[10px] text-gray-600 flex justify-between">
+                                        <span>Đơn giá: @item.UnitPrice.ToString("N0")đ</span>
+                                        @if (item.DiscountAmount > 0)
+                                        {
+                                            <span class="text-rose-700">(-@item.DiscountAmount.ToString("N0")đ)</span>
+                                        }
+                                    </div>
+
+                                    @if (item.Modifiers != null && item.Modifiers.Any())
+                                    {
+                                        <div class="text-[10px] text-gray-700 italic pl-2">
+                                            @foreach (var mod in item.Modifiers)
+                                            {
+                                                <div>· @mod</div>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(item.Note))
+                                    {
+                                        <div class="text-[10px] italic text-gray-600 pl-2">
+                                            Ghi chú: @item.Note
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <!-- Financial Summary -->
+                    <div class="space-y-1.5 text-[11px] pb-3 border-b border-black mb-3 text-black">
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Tạm tính món:</span>
+                            <span class="font-mono">@CurrentReceipt.SubTotal.ToString("N0") đ</span>
+                        </div>
+
+                        @if (CurrentReceipt.DiscountAmount > 0)
+                        {
+                            <div class="flex justify-between font-bold text-gray-800">
+                                <span>Giảm giá / Voucher:</span>
+                                <span class="font-mono text-rose-700">-@CurrentReceipt.DiscountAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+
+                        @if (CurrentReceipt.TaxAmount > 0)
+                        {
+                            <div class="flex justify-between text-gray-700">
+                                <span>Thuế VAT:</span>
+                                <span class="font-mono">@CurrentReceipt.TaxAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+
+                        <div class="flex justify-between font-black text-sm pt-1 border-t border-dashed border-black/40 text-black">
+                            <span>TỔNG CẦN THU:</span>
+                            <span class="font-mono text-base">@CurrentReceipt.TotalAmount.ToString("N0") đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Payment Information -->
+                    <div class="space-y-1 text-[11px] pb-3 border-b border-dashed border-black/40 mb-3 text-black">
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Trạng thái:</span>
+                            <span class="font-bold @(CurrentReceipt.IsPaid ? "text-emerald-700" : "text-amber-700")">
+                                @CurrentReceipt.PaymentStatusName
+                            </span>
+                        </div>
+                        
+                        @if (CurrentReceipt.IsPaid)
+                        {
+                            <div class="flex justify-between">
+                                <span class="text-gray-700">Phương thức:</span>
+                                <span class="font-bold">@CurrentReceipt.PaymentMethod</span>
+                            </div>
+
+                            @if (CurrentReceipt.CashReceived.HasValue && CurrentReceipt.CashReceived.Value > 0)
+                            {
+                                <div class="flex justify-between">
+                                    <span class="text-gray-700">Tiền khách đưa:</span>
+                                    <span class="font-mono">@CurrentReceipt.CashReceived.Value.ToString("N0") đ</span>
+                                </div>
+                                @if (CurrentReceipt.ChangeAmount.HasValue)
+                                {
+                                    <div class="flex justify-between font-bold">
+                                        <span>Tiền thừa trả khách:</span>
+                                        <span class="font-mono">@CurrentReceipt.ChangeAmount.Value.ToString("N0") đ</span>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="text-center space-y-1 pt-1 text-black">
+                        <div class="font-bold text-[11px] whitespace-pre-line leading-relaxed">
+                            @CurrentReceipt.FooterMessage
+                        </div>
+                        <div class="text-[9px] text-gray-500 pt-1">
+                            Phần mềm Quản lý Nhà hàng Minbeeus POS
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Print Stylesheet for Browser Print Preview & Save as PDF -->
+<style>
+    @@media print {
+        @@page {
+            size: 80mm auto;
+            margin: 0mm !important;
+        }
+        html, body {
+            width: 80mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+        }
+        body * {
+            visibility: hidden !important;
+        }
+        #k80-receipt, #k80-receipt * {
+            visibility: visible !important;
+        }
+        #k80-receipt {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            max-width: 80mm !important;
+            margin: 0 !important;
+            padding: 3mm 2.5mm !important;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: ui-monospace, SFMono-Regular, "Courier New", monospace !important;
+            page-break-inside: avoid !important;
+            page-break-after: avoid !important;
+        }
+    }
+</style>
+
+@code {
+    private record ScenarioItem(string Key, string Title, string Description, Func<K80ReceiptDto> Factory);
+
+    private string ActiveScenarioKey = "short";
+    private K80ReceiptDto? CurrentReceipt;
+    private int LiveOrderIdInput = 1;
+    private string LiveOrderErrorMessage = string.Empty;
+
+    private List<ScenarioItem> Scenarios = new();
+
+    protected override void OnInitialized()
+    {
+        Scenarios = new List<ScenarioItem>
+        {
+            new ScenarioItem(
+                "short",
+                "1. Đơn ngắn cơ bản (Chưa thanh toán)",
+                "1 món đơn lẻ, phiếu tạm tính pre-bill chuẩn, không tiền khách đưa.",
+                CreateShortUnpaidReceipt),
+
+            new ScenarioItem(
+                "combo",
+                "2. Đơn Combo phân cấp (Hierarchical)",
+                "Combo Family gồm 1 Pizza Margherita & 2 Coca Cola, thụt dòng rõ ràng.",
+                CreateComboHierarchicalReceipt),
+
+            new ScenarioItem(
+                "modifiers",
+                "3. Đơn Pizza nhiều tùy chọn & Note",
+                "Size 30cm, Viền phô mai, Sốt Pesto, Topping nhân đôi, Ghi chú dài.",
+                CreatePizzaWithModifiersReceipt),
+
+            new ScenarioItem(
+                "long",
+                "4. Đơn dài nhiều món & SL lớn",
+                "15+ món ăn, số lượng x10, x25, tên tiếng Việt dài có dấu, kiểm tra ngắt dòng.",
+                CreateLongMultiItemReceipt),
+
+            new ScenarioItem(
+                "discount_tax",
+                "5. Giảm giá Voucher & Thuế VAT",
+                "Tạm tính, Giảm giá voucher 50.000đ, Thuế VAT 8%, Tổng cộng chính xác.",
+                CreateDiscountAndTaxReceipt),
+
+            new ScenarioItem(
+                "paid_cash",
+                "6. Đã thanh toán (Tiền mặt chính thức)",
+                "Hóa đơn thanh toán chính thức, Tiền khách đưa 500k, Tiền thừa 75k.",
+                CreatePaidCashReceipt),
+
+            new ScenarioItem(
+                "missing_info",
+                "7. Khuyết thiếu dữ liệu tùy chọn",
+                "Không có tên nhà hàng, SĐT, Khách lẻ không SĐT, kiểm tra fallback an toàn.",
+                CreateMissingOptionalDataReceipt)
+        };
+
+        SelectScenario("short");
+    }
+
+    private void SelectScenario(string key)
+    {
+        ActiveScenarioKey = key;
+        var sc = Scenarios.FirstOrDefault(s => s.Key == key);
+        if (sc != null)
+        {
+            CurrentReceipt = sc.Factory();
+        }
+    }
+
+    private async Task TriggerDirectBrowserPrint()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task FetchLiveOrderReceiptAsync()
+    {
+        LiveOrderErrorMessage = string.Empty;
+        if (LiveOrderIdInput <= 0)
+        {
+            LiveOrderErrorMessage = "ID đơn hàng không hợp lệ.";
+            return;
+        }
+
+        try
+        {
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{LiveOrderIdInput}/k80");
+            if (res?.Data != null)
+            {
+                CurrentReceipt = res.Data;
+                ActiveScenarioKey = string.Empty;
+            }
+            else
+            {
+                LiveOrderErrorMessage = "Không tìm thấy mẫu in cho đơn hàng này.";
+            }
+        }
+        catch (Exception ex)
+        {
+            LiveOrderErrorMessage = "Lỗi tải đơn hàng: " + ex.Message;
+        }
+    }
+
+    // --- Fixture Generators ---
+    private static K80ReceiptDto CreateShortUnpaidReceipt() => new()
+    {
+        OrderCode = "HD-20261011-0001",
+        CreatedAt = DateTime.Now.AddMinutes(-15),
+        PrintedAt = DateTime.Now,
+        TableName = "Bàn 03",
+        OrderType = "DineIn",
+        CashierName = "Nguyễn Thu Ngân",
+        CustomerName = "Trần Văn An",
+        CustomerPhone = "0912.345.678",
+        ReceiptTitle = "PHIẾU TẠM TÍNH (PRE-BILL)",
+        IsPaid = false,
+        PaymentStatusName = "Chờ thanh toán",
+        PaymentMethod = "Chưa thanh toán",
+        SubTotal = 165000,
+        DiscountAmount = 0,
+        TotalAmount = 165000,
+        Items = new List<K80ReceiptItemDto>
+        {
+            new() { Id = 1, MenuItemName = "Mì Ý Sốt Bò Bằm Bolognese", Quantity = 1, UnitPrice = 165000, DiscountAmount = 0 }
+        }
+    };
+
+    private static K80ReceiptDto CreateComboHierarchicalReceipt() => new()
+    {
+        OrderCode = "HD-20261011-0002",
+        CreatedAt = DateTime.Now.AddMinutes(-30),
+        PrintedAt = DateTime.Now,
+        TableName = "Bàn 08 (VIP)",
+        OrderType = "DineIn",
+        CashierName = "Lê Thị Thu",
+        CustomerName = "Nguyễn Hoàng Long",
+        CustomerPhone = "0988.777.666",
+        ReceiptTitle = "PHIẾU TẠM TÍNH (PRE-BILL)",
+        IsPaid = false,
+        PaymentStatusName = "Chờ thanh toán",
+        PaymentMethod = "Chưa thanh toán",
+        SubTotal = 299000,
+        DiscountAmount = 0,
+        TotalAmount = 299000,
+        Items = new List<K80ReceiptItemDto>
+        {
+            new() { Id = 10, MenuItemName = "Combo Gia Đình Vui Vẻ", Quantity = 1, UnitPrice = 299000, IsComboChild = false },
+            new() { Id = 11, MenuItemName = "Pizza Hải Sản Nhiệt Đới (25cm)", Quantity = 1, UnitPrice = 0, IsComboChild = true, ParentItemId = 10 },
+            new() { Id = 12, MenuItemName = "Khoai Tây Chiên Phô Mai", Quantity = 1, UnitPrice = 0, IsComboChild = true, ParentItemId = 10 },
+            new() { Id = 13, MenuItemName = "Coca Cola Tươi", Quantity = 2, UnitPrice = 0, IsComboChild = true, ParentItemId = 10 }
+        }
+    };
+
+    private static K80ReceiptDto CreatePizzaWithModifiersReceipt() => new()
+    {
+        OrderCode = "HD-20261011-0003",
+        CreatedAt = DateTime.Now.AddMinutes(-20),
+        PrintedAt = DateTime.Now,
+        TableName = "Mang Về (Takeaway)",
+        OrderType = "Takeaway",
+        CashierName = "Phạm Văn Quản Lý",
+        CustomerName = "Đỗ Hoàng My",
+        CustomerPhone = "0909.112.233",
+        ReceiptTitle = "PHIẾU TẠM TÍNH (PRE-BILL)",
+        IsPaid = false,
+        PaymentStatusName = "Chờ thanh toán",
+        PaymentMethod = "Chưa thanh toán",
+        SubTotal = 345000,
+        DiscountAmount = 0,
+        TotalAmount = 345000,
+        Items = new List<K80ReceiptItemDto>
+        {
+            new()
+            {
+                Id = 21,
+                MenuItemName = "Pizza Bò Nướng Tiêu Đen Phô Mai Ngập Tràn",
+                Quantity = 1,
+                UnitPrice = 345000,
+                Note = "Nướng kỹ đế vàng giòn, cắt 8 miếng",
+                Modifiers = new List<string>
+                {
+                    "Kích thước: 30cm - Lớn (+60,000đ)",
+                    "Kiểu đế: Đế Viền Phô Mai Nướng (+40,000đ)",
+                    "Sốt nền: Sốt BBQ Hun Khói Đậm Đà",
+                    "Topping thêm: Gấp đôi Phô Mai Mozzarella (+35,000đ)"
+                }
+            }
+        }
+    };
+
+    private static K80ReceiptDto CreateLongMultiItemReceipt() => new()
+    {
+        OrderCode = "HD-20261011-0004",
+        CreatedAt = DateTime.Now.AddMinutes(-50),
+        PrintedAt = DateTime.Now,
+        TableName = "Bàn Tiệc 12 (Sân Vườn)",
+        OrderType = "DineIn",
+        CashierName = "Nguyễn Thu Ngân",
+        CustomerName = "Đoàn Khách Công Ty FPT Telecom",
+        CustomerPhone = "0934.556.789",
+        ReceiptTitle = "PHIẾU TẠM TÍNH (PRE-BILL)",
+        IsPaid = false,
+        PaymentStatusName = "Chờ thanh toán",
+        PaymentMethod = "Chưa thanh toán",
+        SubTotal = 3850000,
+        DiscountAmount = 200000,
+        TotalAmount = 3650000,
+        Note = "Bàn tiệc sinh nhật công ty, phục vụ bánh kèm nến",
+        Items = new List<K80ReceiptItemDto>
+        {
+            new() { Id = 101, MenuItemName = "Pizza Thập Cẩm Thượng Hạng Đặc Biệt", Quantity = 4, UnitPrice = 280000 },
+            new() { Id = 102, MenuItemName = "Pizza Hải Sản Sốt Pesto Húng Tây", Quantity = 3, UnitPrice = 295000 },
+            new() { Id = 103, MenuItemName = "Mì Ý Sốt Bò Bằm Phô Mai Đút Lò", Quantity = 5, UnitPrice = 145000 },
+            new() { Id = 104, MenuItemName = "Salad Cá Hồi Xông Khói Sốt Chanh Dây", Quantity = 4, UnitPrice = 135000 },
+            new() { Id = 105, MenuItemName = "Cánh Gà Nướng Mật Ong Tỏi Ớt", Quantity = 6, UnitPrice = 110000 },
+            new() { Id = 106, MenuItemName = "Bánh Mì Bơ Tỏi Nướng Giòn Rụm", Quantity = 8, UnitPrice = 45000 },
+            new() { Id = 107, MenuItemName = "Khoai Tây Múi Cau Chiên Lắc Phô Mai", Quantity = 5, UnitPrice = 55000 },
+            new() { Id = 108, MenuItemName = "Bia Heineken Silver Lon 330ml", Quantity = 24, UnitPrice = 30000 },
+            new() { Id = 109, MenuItemName = "Trà Đào Cam Sả Tươi Mát Size L", Quantity = 6, UnitPrice = 48000 },
+            new() { Id = 110, MenuItemName = "Nước Suối Tinh Khiết Aquafina 500ml", Quantity = 10, UnitPrice = 15000 }
+        }
+    };
+
+    private static K80ReceiptDto CreateDiscountAndTaxReceipt() => new()
+    {
+        OrderCode = "HD-20261011-0005",
+        CreatedAt = DateTime.Now.AddMinutes(-25),
+        PrintedAt = DateTime.Now,
+        TableName = "Bàn 05",
+        OrderType = "DineIn",
+        CashierName = "Lê Thị Thu",
+        CustomerName = "Hoàng Kim Oanh",
+        CustomerPhone = "0971.223.344",
+        ReceiptTitle = "PHIẾU TẠM TÍNH (PRE-BILL)",
+        IsPaid = false,
+        PaymentStatusName = "Chờ thanh toán",
+        PaymentMethod = "Chưa thanh toán",
+        SubTotal = 500000,
+        DiscountAmount = 50000,
+        TaxAmount = 36000,
+        TotalAmount = 486000,
+        Items = new List<K80ReceiptItemDto>
+        {
+            new() { Id = 201, MenuItemName = "Pizza Bò Bít Tết Thượng Hạng (30cm)", Quantity = 1, UnitPrice = 320000 },
+            new() { Id = 202, MenuItemName = "Mì Ý Sốt Kem Nấm Truffle", Quantity = 1, UnitPrice = 180000 }
+        }
+    };
+
+    private static K80ReceiptDto CreatePaidCashReceipt() => new()
+    {
+        OrderCode = "HD-20261011-0006",
+        CreatedAt = DateTime.Now.AddMinutes(-40),
+        PrintedAt = DateTime.Now,
+        TableName = "Bàn 02",
+        OrderType = "DineIn",
+        CashierName = "Nguyễn Thu Ngân",
+        CustomerName = "Vũ Đình Khải",
+        CustomerPhone = "0944.888.999",
+        ReceiptTitle = "HÓA ĐƠN THANH TOÁN",
+        IsPaid = true,
+        PaymentStatusName = "Đã thanh toán",
+        PaymentMethod = "Tiền Mặt",
+        SubTotal = 425000,
+        DiscountAmount = 0,
+        TotalAmount = 425000,
+        CashReceived = 500000,
+        ChangeAmount = 75000,
+        Items = new List<K80ReceiptItemDto>
+        {
+            new() { Id = 301, MenuItemName = "Pizza Margherita Truyền Thống (25cm)", Quantity = 1, UnitPrice = 175000 },
+            new() { Id = 302, MenuItemName = "Mì Ý Hải Sản Tươi Sốt Cà Chua Cay", Quantity = 1, UnitPrice = 180000 },
+            new() { Id = 303, MenuItemName = "Coca Cola Lon", Quantity = 2, UnitPrice = 35000 }
+        }
+    };
+
+    private static K80ReceiptDto CreateMissingOptionalDataReceipt() => new()
+    {
+        RestaurantName = "",
+        RestaurantAddress = "",
+        RestaurantPhone = "",
+        WifiInfo = "",
+        OrderCode = "HD-20261011-0007",
+        CreatedAt = DateTime.Now.AddMinutes(-5),
+        PrintedAt = DateTime.Now,
+        TableName = "",
+        OrderType = "Takeaway",
+        CashierName = "",
+        CustomerName = "",
+        CustomerPhone = "",
+        ReceiptTitle = "PHIẾU TẠM TÍNH (PRE-BILL)",
+        IsPaid = false,
+        PaymentStatusName = "Chờ thanh toán",
+        PaymentMethod = "Chưa thanh toán",
+        SubTotal = 85000,
+        DiscountAmount = 0,
+        TotalAmount = 85000,
+        Items = new List<K80ReceiptItemDto>
+        {
+            new() { Id = 401, MenuItemName = "Khoai Tây Lắc Phô Mai", Quantity = 1, UnitPrice = 85000 }
+        }
+    };
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+    }
+}

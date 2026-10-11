@@ -81,3 +81,15 @@ public class CashPaymentResponse
     public DateTime CompletedAt { get; set; }
 }
 
+public class CreateVoucherRequest
+{
+    public string Code { get; set; } = string.Empty;
+    public string DiscountType { get; set; } = "Percentage";
+    public decimal DiscountValue { get; set; }
+    public decimal? MinOrderAmount { get; set; }
+    public decimal? MaxDiscountAmount { get; set; }
+    public DateTime StartDate { get; set; } = DateTime.UtcNow;
+    public DateTime EndDate { get; set; } = DateTime.UtcNow.AddDays(30);
+    public int UsageLimit { get; set; } = 100;
+    public bool IsActive { get; set; } = true;
+}

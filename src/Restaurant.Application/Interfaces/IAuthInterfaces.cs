@@ -9,6 +9,9 @@ public interface IIdentityService
     Task<PinLoginResponse?> PinLoginAsync(PinLoginRequest request);
     Task<bool> VerifyManagerPinAsync(string pinCode);
     Task<UserDto?> GetUserByIdAsync(int userId);
+    Task<List<UserDto>> GetAllUsersAsync();
+    Task<UserDto> CreateUserAsync(CreateUserRequest request);
+    Task<bool> ToggleUserStatusAsync(int userId);
     string HashPassword(string password);
     bool VerifyPassword(string password, string passwordHash);
 }

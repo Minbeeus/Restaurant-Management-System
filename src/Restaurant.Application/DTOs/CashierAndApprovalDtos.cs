@@ -12,6 +12,7 @@ public class TillOutRequest
     public decimal Amount { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string? Note { get; set; }
+    public int? ApproverUserId { get; set; }
 }
 
 public class CashAdjustmentRequest
@@ -127,6 +128,9 @@ public class BillDetailDto
     public string OrderStatusName { get; set; } = "Hoàn thành";
     public decimal CashReceived { get; set; }
     public decimal ChangeAmount { get; set; }
+    public bool IsPaid { get; set; }
+    public decimal TaxAmount { get; set; }
+    public string? Note { get; set; }
     public List<BillItemDto> Items { get; set; } = new();
 }
 

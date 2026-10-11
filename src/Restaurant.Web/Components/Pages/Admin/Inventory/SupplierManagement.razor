@@ -5,111 +5,151 @@
 @using Restaurant.Web.Services
 @inject AdminApiClient ApiClient
 
-<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-    <div>
-        <h2 class="text-2xl font-headline-sm text-primary m-0">@L["Supplier_Management_Title"]</h2>
-        <p class="text-on-surface-variant text-sm mt-1">@L["Supplier_Sub"]</p>
-    </div>
-    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center" @onclick="OpenAddModal">
-        <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> @L["Supplier_Add_New"]
-    </button>
-</div>
-
-@if (_isLoading)
+@if (!_isFormOpen)
 {
-    <div class="flex justify-center p-12">
-        <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+    <!-- ========================================== -->
+    <!-- VIEW A: DANH SÁCH NHÀ CUNG CẤP -->
+    <!-- ========================================== -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <h2 class="text-2xl font-headline-sm text-primary m-0">Quản Lý Nhà Cung Cấp Hàng Hóa</h2>
+            <p class="text-on-surface-variant text-sm mt-1">Danh bạ nhà phân phối nguyên vật liệu, liên hệ đại diện và hợp đồng cung ứng</p>
+        </div>
+        <button class="bg-primary hover:bg-primary/90 text-on-primary px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" @onclick="OpenAddForm">
+            <span class="material-symbols-outlined text-base" data-icon="add_circle">add_circle</span>
+            <span>Thêm Nhà Cung Cấp Mới</span>
+        </button>
     </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex justify-center p-16">
+            <span class="material-symbols-outlined animate-spin text-4xl text-primary" data-icon="progress_activity">progress_activity</span>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            @foreach (var sup in _suppliers)
+            {
+                <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant/30 p-6 flex flex-col justify-between hover:border-primary/50 transition-all">
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                    <span class="material-symbols-outlined text-2xl" data-icon="local_shipping">local_shipping</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-on-surface m-0">@sup.Name</h3>
+                                    <span class="text-xs text-on-surface-variant font-mono">NCC ID #@sup.Id</span>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold border border-emerald-200">
+                                Đang hợp tác
+                            </span>
+                        </div>
+
+                        <div class="space-y-2.5 text-sm text-on-surface-variant mt-4 bg-surface-container/20 p-4 rounded-xl border border-outline-variant/20">
+                            <div class="flex items-center gap-2.5">
+                                <span class="material-symbols-outlined text-base text-primary" data-icon="person">person</span>
+                                <span>Người đại diện: <strong class="text-on-surface">@(sup.ContactPerson ?? "Chưa cập nhật")</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2.5">
+                                <span class="material-symbols-outlined text-base text-primary" data-icon="call">call</span>
+                                <span>Hotline: <strong class="text-on-surface font-mono">@(sup.PhoneNumber ?? "Chưa cập nhật")</strong></span>
+                            </div>
+                            <div class="flex items-center gap-2.5">
+                                <span class="material-symbols-outlined text-base text-primary" data-icon="location_on">location_on</span>
+                                <span>Địa chỉ kho: <span class="text-on-surface">@(sup.Address ?? "Chưa cập nhật")</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-4 mt-6 border-t border-outline-variant/20">
+                        <button class="px-3.5 py-2 text-xs bg-surface border border-outline-variant/40 hover:bg-surface-container text-on-surface rounded-xl font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                                @onclick="() => OpenEditForm(sup)">
+                            <span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+                            <span>Chỉnh sửa</span>
+                        </button>
+                        <button class="px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-xl font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                                @onclick="() => DeleteSupplier(sup.Id)">
+                            <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                            <span>Ngừng hợp tác</span>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 }
 else
 {
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        @foreach (var sup in _suppliers)
-        {
-            <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-6 flex flex-col justify-between hover:border-primary/50 transition-colors">
-                <div>
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <span class="text-xs font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">ID #@sup.Id</span>
-                            <h3 class="text-lg font-bold text-on-background mt-1 m-0">@sup.Name</h3>
-                        </div>
-                        <span class="px-2.5 py-1 bg-success-green/10 text-success-green rounded-full text-xs font-bold border border-success-green/20">@L["Supplier_Active_Badge"]</span>
-                    </div>
-
-                    <div class="space-y-2 text-sm text-on-surface-variant mt-4">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-base text-primary" data-icon="person">person</span>
-                            <span>@L["Supplier_Contact_Person"]: <strong class="text-on-surface">@(sup.ContactPerson ?? L["Supplier_Not_Updated"])</strong></span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-base text-primary" data-icon="call">call</span>
-                            <span>@L["Supplier_Phone"]: <strong class="text-on-surface font-mono">@(sup.PhoneNumber ?? L["Supplier_Not_Updated"])</strong></span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-base text-primary" data-icon="location_on">location_on</span>
-                            <span>@L["Supplier_Address"]: <span class="text-on-surface">@(sup.Address ?? L["Supplier_Not_Updated"])</span></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-4 mt-6 border-t border-outline-variant/30">
-                    <button class="px-3 py-1.5 text-xs bg-surface-container text-on-surface hover:bg-surface-low rounded font-bold transition-colors" @onclick="() => OpenEditModal(sup)">
-                        @L["Common_Edit"]
-                    </button>
-                </div>
+    <!-- ========================================== -->
+    <!-- VIEW B: GIAO DIỆN RIÊNG THÊM / SỬA NHÀ CUNG CẤP -->
+    <!-- (To bằng trang nội dung, giữ nguyên thanh nav) -->
+    <!-- ========================================== -->
+    <div class="mb-6">
+        <nav class="flex items-center gap-2 text-xs text-on-surface-variant mb-2">
+            <button class="hover:text-primary transition-colors cursor-pointer" @onclick="CloseForm">Nhà Cung Cấp</button>
+            <span>/</span>
+            <span class="font-bold text-on-surface">@(_isEditing ? $"Chỉnh Sửa: {_model.Name}" : "Thêm Nhà Cung Cấp Mới")</span>
+        </nav>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h2 class="text-2xl font-headline-sm text-primary m-0">@(_isEditing ? "Cập Nhật Hồ Sơ Nhà Cung Cấp" : "Đăng Ký Nhà Cung Cấp Mới")</h2>
+                <p class="text-on-surface-variant text-sm mt-1">Thông tin pháp lý, đầu mối liên hệ kinh doanh và địa điểm giao nhận hàng</p>
             </div>
-        }
-    </div>
-}
-
-<!-- Modal Add/Edit Supplier -->
-@if (_showModal)
-{
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-md overflow-hidden">
-            <div class="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
-                <h3 class="font-bold text-on-background m-0">@(_isEditing ? L["Supplier_Modal_Update"] : L["Supplier_Modal_Create"])</h3>
-                <button class="text-on-surface-variant hover:text-error" @onclick="CloseModal">
-                    <span class="material-symbols-outlined" data-icon="close">close</span>
+            <div class="flex items-center gap-3">
+                <button type="button" class="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-on-surface hover:bg-surface-container font-semibold text-sm transition-all cursor-pointer"
+                        @onclick="CloseForm">
+                    Hủy & Quay Lại
                 </button>
-            </div>
-
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-on-surface mb-1">@L["Supplier_Name_Label"] <span class="text-error">*</span></label>
-                    <input type="text" @bind="_model.Name" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary" placeholder="VD: Công ty Thực phẩm Ý Việt" />
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-on-surface mb-1">@L["Supplier_Contact_Label"]</label>
-                    <input type="text" @bind="_model.ContactPerson" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary" placeholder="VD: Nguyễn Văn A" />
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-on-surface mb-1">@L["Supplier_Phone_Label"]</label>
-                    <input type="text" @bind="_model.PhoneNumber" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary font-mono" placeholder="0901234567" />
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-on-surface mb-1">@L["Supplier_Address_Label"]</label>
-                    <textarea @bind="_model.Address" rows="2" class="w-full px-3 py-2 border border-outline rounded bg-surface text-sm focus:outline-none focus:border-primary resize-none" placeholder="Địa chỉ chi tiết..."></textarea>
-                </div>
-            </div>
-
-            <div class="px-6 py-4 border-t border-outline-variant/30 flex justify-end gap-3 bg-surface-container-low">
-                <button class="px-4 py-2 text-on-surface-variant hover:bg-surface-low rounded text-sm font-bold" @onclick="CloseModal">@L["Common_Cancel"]</button>
-                <button class="px-4 py-2 bg-primary text-on-primary rounded text-sm font-bold shadow-sm hover:bg-primary/90 flex items-center" disabled="@_isSaving" @onclick="SaveSupplier">
+                <button type="button" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-sm shadow-md transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                        disabled="@_isSaving" @onclick="SaveSupplier">
                     @if (_isSaving)
                     {
-                        <span class="material-symbols-outlined animate-spin text-sm mr-2" data-icon="progress_activity">progress_activity</span>
-                        <span>@L["Common_Saving"]</span>
+                        <span class="material-symbols-outlined animate-spin text-base" data-icon="progress_activity">progress_activity</span>
+                        <span>Đang lưu...</span>
                     }
                     else
                     {
-                        <span>@L["Supplier_Save_Btn"]</span>
+                        <span class="material-symbols-outlined text-base" data-icon="save">save</span>
+                        <span>Lưu Hồ Sơ NCC</span>
                     }
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div class="bg-surface rounded-2xl p-6 border border-outline-variant/30 shadow-sm max-w-3xl space-y-5">
+        <div class="flex items-center gap-3 pb-3 border-b border-outline-variant/20">
+            <span class="material-symbols-outlined text-primary text-2xl" data-icon="store">store</span>
+            <h3 class="font-bold text-lg text-on-surface m-0">Thông Tin Đối Tác</h3>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Tên Đơn Vị / Công Ty Nhà Cung Cấp <span class="text-red-500">*</span></label>
+            <input type="text" class="w-full px-3.5 py-2.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-bold"
+                   placeholder="VD: Công ty TNHH Thực phẩm Ý Việt" @bind="_model.Name" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Người Đại Diện / Phụ Trách Kinh Doanh</label>
+                <input type="text" class="w-full px-3.5 py-2.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-semibold"
+                       placeholder="VD: Nguyễn Văn Hùng" @bind="_model.ContactPerson" />
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Số Điện Thoại Hotline / Zalo</label>
+                <input type="text" class="w-full px-3.5 py-2.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-mono font-bold"
+                       placeholder="VD: 0901234567" @bind="_model.PhoneNumber" />
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Địa Chỉ Trụ Sở / Kho Hàng Giao Nhận</label>
+            <textarea rows="3" class="w-full px-3.5 py-2.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm"
+                      placeholder="Số nhà, tên đường, quận huyện, tỉnh thành..." @bind="_model.Address"></textarea>
         </div>
     </div>
 }
@@ -117,9 +157,10 @@ else
 @code {
     private List<SupplierDto> _suppliers = new();
     private bool _isLoading = true;
-    private bool _showModal = false;
+    private bool _isFormOpen = false;
     private bool _isEditing = false;
     private bool _isSaving = false;
+    private int _editingId;
 
     private SupplierFormModel _model = new();
 
@@ -141,16 +182,17 @@ else
         }
     }
 
-    private void OpenAddModal()
+    private void OpenAddForm()
     {
         _isEditing = false;
         _model = new SupplierFormModel();
-        _showModal = true;
+        _isFormOpen = true;
     }
 
-    private void OpenEditModal(SupplierDto sup)
+    private void OpenEditForm(SupplierDto sup)
     {
         _isEditing = true;
+        _editingId = sup.Id;
         _model = new SupplierFormModel
         {
             Name = sup.Name,
@@ -158,10 +200,13 @@ else
             PhoneNumber = sup.PhoneNumber,
             Address = sup.Address
         };
-        _showModal = true;
+        _isFormOpen = true;
     }
 
-    private void CloseModal() => _showModal = false;
+    private void CloseForm()
+    {
+        _isFormOpen = false;
+    }
 
     private async Task SaveSupplier()
     {
@@ -178,18 +223,28 @@ else
                 Address = _model.Address
             };
 
-            await ApiClient.CreateSupplierAsync(req);
-            _showModal = false;
+            if (_isEditing)
+            {
+                await ApiClient.UpdateSupplierAsync(_editingId, req);
+            }
+            else
+            {
+                await ApiClient.CreateSupplierAsync(req);
+            }
+
+            _isFormOpen = false;
             await LoadData();
-        }
-        catch
-        {
-            _showModal = false;
         }
         finally
         {
             _isSaving = false;
         }
+    }
+
+    private async Task DeleteSupplier(int id)
+    {
+        await ApiClient.DeleteSupplierAsync(id);
+        await LoadData();
     }
 
     public class SupplierFormModel
