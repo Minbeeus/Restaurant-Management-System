@@ -3,6 +3,7 @@
 @layout Restaurant.Web.Components.Layout.PosLayout
 @using Restaurant.Web.Components.Layout
 @using Restaurant.Application.DTOs
+@implements IDisposable
 
 <div class="flex flex-col h-full bg-background overflow-hidden">
     <!-- Top Nav Bar -->
@@ -123,6 +124,16 @@
 @code {
     private bool _showCashierToolsModal = false;
 
+    protected override void OnInitialized()
+    {
+        PosHeader.OnNotificationsChanged += HandleNotificationsChanged;
+    }
+
+    private void HandleNotificationsChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     private void OpenCashierToolsModal()
     {
         _showCashierToolsModal = true;
@@ -131,5 +142,10 @@
     private void HandleLogout()
     {
         Navigation.NavigateTo("/pos/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        PosHeader.OnNotificationsChanged -= HandleNotificationsChanged;
     }
 }

@@ -109,6 +109,10 @@
                                         <span>-@SelectedOrder.DiscountAmount.ToString("N0") đ</span>
                                     </div>
                                 }
+                                <div class="flex justify-between text-xs text-on-surface-variant">
+                                    <span>Thuế (VAT 8% bóc tách):</span>
+                                    <span class="font-bold text-on-surface">@Math.Round(SelectedOrder.TotalAmount - (SelectedOrder.TotalAmount / 1.08m), 0).ToString("N0") đ</span>
+                                </div>
                                 <div class="flex justify-between text-base font-black text-on-surface pt-2 border-t border-outline-variant">
                                     <span>TỔNG CẦN THU:</span>
                                     <span class="text-primary text-xl">@SelectedOrder.TotalAmount.ToString("N0") đ</span>
@@ -135,19 +139,23 @@
                             </button>
                             <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 0 ? "bg-amber-500 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
                                     @onclick="() => SelectedStatusFilter = 0">
-                                Chờ xác nhận (@TakeawayOrders.Count(o => o.Status == 0))
+                                Chờ xác nhận (@TakeawayOrders.Count(o => o.Status == 0 || o.Status == 1))
                             </button>
-                            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 1 ? "bg-blue-600 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
-                                    @onclick="() => SelectedStatusFilter = 1">
-                                Đang chuẩn bị (@TakeawayOrders.Count(o => o.Status == 1))
-                            </button>
-                            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 2 ? "bg-emerald-600 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
+                            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 2 ? "bg-blue-600 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
                                     @onclick="() => SelectedStatusFilter = 2">
-                                Đã xong (@TakeawayOrders.Count(o => o.Status == 2))
+                                Đang chuẩn bị (@TakeawayOrders.Count(o => o.Status == 2))
                             </button>
-                            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 4 ? "bg-rose-600 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
+                            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 3 ? "bg-cyan-600 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
+                                    @onclick="() => SelectedStatusFilter = 3">
+                                Sẵn sàng giao (@TakeawayOrders.Count(o => o.Status == 3))
+                            </button>
+                            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 4 ? "bg-emerald-600 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
                                     @onclick="() => SelectedStatusFilter = 4">
-                                Đã huỷ (@TakeawayOrders.Count(o => o.Status == 4))
+                                Hoàn thành (@TakeawayOrders.Count(o => o.Status == 4))
+                            </button>
+                            <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 @(SelectedStatusFilter == 5 ? "bg-rose-600 text-white shadow-xs" : "bg-surface-high text-on-surface hover:bg-surface-high/80")"
+                                    @onclick="() => SelectedStatusFilter = 5">
+                                Đã huỷ (@TakeawayOrders.Count(o => o.Status == 5))
                             </button>
                         </div>
                         
@@ -234,77 +242,102 @@
         </main>
 
         <!-- SECTION RIGHT (Strict 15% Width): Strict Toolbar (Requirement 5) -->
-        <aside class="w-[15%] min-w-[140px] bg-surface rounded-2xl border border-outline-variant p-3 shadow-sm flex flex-col justify-between shrink-0">
+        <aside class="w-[15%] min-w-[140px] max-w-[200px] h-full bg-surface rounded-2xl border border-outline-variant p-2.5 shadow-sm flex flex-col justify-between shrink-0 overflow-hidden">
             
             <!-- Requirement 5: Vertical Toolbar Buttons in Order -->
-            <div class="flex flex-col gap-3">
+            <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-0.5">
                 
                 @if (IsDetailMode)
                 {
                     <!-- Toolbar for Detail View Mode -->
-                    <button class="flex flex-col items-center justify-center p-3 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs"
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0"
                             @onclick="PrintInvoiceAsync">
-                        <span class="material-symbols-outlined text-2xl text-primary group-hover:text-on-primary mb-1">print</span>
+                        <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">print</span>
                         <span class="text-xs font-bold">In Hoá Đơn</span>
                     </button>
 
-                    <button class="flex flex-col items-center justify-center p-3 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-700 dark:text-rose-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs @(SelectedOrder?.Status == 4 ? "opacity-50 cursor-not-allowed" : "")"
-                            disabled="@(SelectedOrder?.Status == 4)"
-                            @onclick="CancelOrRefundOrderAsync">
-                        <span class="material-symbols-outlined text-2xl text-rose-600 group-hover:text-white mb-1">cancel</span>
+                    <!-- Nút Hoàn thành trong Detail Mode -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCompleteSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                            disabled="@(!CanCompleteSelectedOrder)"
+                            @onclick="CompleteOrderAsync">
+                        <span class="material-symbols-outlined text-xl text-emerald-600 group-hover:text-white mb-0.5">task_alt</span>
+                        <span class="text-xs font-bold">Hoàn Thành</span>
+                    </button>
+
+                    <!-- Nút Huỷ Đơn / Hoàn Tiền trong Detail Mode -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-700 dark:text-rose-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCancelOrRefundSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                            disabled="@(!CanCancelOrRefundSelectedOrder)"
+                            @onclick="OpenCancelModal">
+                        <span class="material-symbols-outlined text-xl text-rose-600 group-hover:text-white mb-0.5">cancel</span>
                         <span class="text-xs font-bold">@(SelectedOrder?.IsPaid == true ? "Hoàn Tiền ($)" : "Huỷ Đơn")</span>
                     </button>
                 }
                 else
                 {
-                    <!-- Requirement 5: Main Toolbar Buttons (1 to 5) -->
+                    <!-- Requirement 5: Main Toolbar Buttons -->
 
                     <!-- 1. Nút Tạo đơn (Requirement 6) -->
-                    <button class="flex flex-col items-center justify-center p-3.5 bg-primary text-on-primary hover:bg-primary/90 border border-primary/20 rounded-xl transition-all cursor-pointer text-center group shadow-xs"
+                    <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-primary text-on-primary hover:bg-primary/90 border border-primary/20 rounded-xl transition-all cursor-pointer text-center group shadow-xs shrink-0"
                             @onclick="CreateNewTakeawayOrder">
-                        <span class="material-symbols-outlined text-2xl mb-1">add_shopping_cart</span>
+                        <span class="material-symbols-outlined text-xl mb-0.5">add_shopping_cart</span>
                         <span class="text-xs font-extrabold">Tạo Đơn</span>
                     </button>
 
                     <!-- 2. Nút Xem chi tiết (Requirement 7) -->
-                    <button class="flex flex-col items-center justify-center p-3 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs @(SelectedOrder == null ? "opacity-50 cursor-not-allowed" : "")"
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedOrder == null ? "opacity-50 cursor-not-allowed" : "")"
                             disabled="@(SelectedOrder == null)"
                             @onclick="() => OpenDetailView(SelectedOrder)">
-                        <span class="material-symbols-outlined text-2xl text-primary group-hover:text-on-primary mb-1">visibility</span>
+                        <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">visibility</span>
                         <span class="text-xs font-bold">Xem Chi Tiết</span>
                     </button>
 
-                    <!-- 3. Nút In hoá đơn (Requirement 8) -->
-                    <button class="flex flex-col items-center justify-center p-3 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs @(SelectedOrder == null ? "opacity-50 cursor-not-allowed" : "")"
+                    <!-- 3. Nút Thanh toán (Requirement 10) -->
+                    <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanPaySelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                            disabled="@(!CanPaySelectedOrder)"
+                            @onclick="OpenPaymentModal">
+                        <span class="material-symbols-outlined text-xl text-emerald-600 group-hover:text-white mb-0.5">payments</span>
+                        <span class="text-xs font-extrabold">Thanh Toán</span>
+                    </button>
+
+                    <!-- 4. Nút Hoàn thành (Chuyển sang Hoàn thành khi bếp đã xong/giao khách) -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCompleteSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                            disabled="@(!CanCompleteSelectedOrder)"
+                            @onclick="CompleteOrderAsync">
+                        <span class="material-symbols-outlined text-xl mb-0.5">task_alt</span>
+                        <span class="text-xs font-extrabold">Hoàn Thành</span>
+                    </button>
+
+                    <!-- 5. Nút Huỷ Đơn / Hoàn Tiền (Yêu cầu mã PIN Quản lý) -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-700 dark:text-rose-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCancelOrRefundSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                            disabled="@(!CanCancelOrRefundSelectedOrder)"
+                            @onclick="OpenCancelModal">
+                        <span class="material-symbols-outlined text-xl text-rose-600 group-hover:text-white mb-0.5">cancel</span>
+                        <span class="text-xs font-bold">@(SelectedOrder?.IsPaid == true ? "Hoàn Tiền ($)" : "Huỷ Đơn")</span>
+                    </button>
+
+                    <!-- 6. Nút In hoá đơn (Requirement 8) -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedOrder == null ? "opacity-50 cursor-not-allowed" : "")"
                             disabled="@(SelectedOrder == null)"
                             @onclick="PrintInvoiceAsync">
-                        <span class="material-symbols-outlined text-2xl text-primary group-hover:text-on-primary mb-1">print</span>
+                        <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">print</span>
                         <span class="text-xs font-bold">In Hoá Đơn</span>
                     </button>
 
-                    <!-- 4. Nút Sửa hoá đơn (Requirement 9: Only allowed when Status = Chờ xác nhận & Unpaid) -->
-                    <button class="flex flex-col items-center justify-center p-3 bg-blue-500/10 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-blue-700 dark:text-blue-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs @(CanEditSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                    <!-- 7. Nút Sửa hoá đơn (Requirement 9: Only allowed when Status = Chờ xác nhận & Unpaid) -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-blue-500/10 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-blue-700 dark:text-blue-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanEditSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
                             disabled="@(!CanEditSelectedOrder)"
                             @onclick="EditInvoice">
-                        <span class="material-symbols-outlined text-2xl text-blue-600 group-hover:text-white mb-1">edit</span>
+                        <span class="material-symbols-outlined text-xl text-blue-600 group-hover:text-white mb-0.5">edit</span>
                         <span class="text-xs font-bold">Sửa Hoá Đơn</span>
-                    </button>
-
-                    <!-- 5. Nút Thanh toán (Requirement 10) -->
-                    <button class="flex flex-col items-center justify-center p-3.5 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs @(CanPaySelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
-                            disabled="@(!CanPaySelectedOrder)"
-                            @onclick="OpenPaymentModal">
-                        <span class="material-symbols-outlined text-2xl text-emerald-600 group-hover:text-white mb-1">payments</span>
-                        <span class="text-xs font-extrabold">Thanh Toán</span>
                     </button>
                 }
             </div>
 
-            <!-- 6. Bottom Nút "Quay lại" (Requirement 16) -->
-            <div class="pt-3 border-t border-outline-variant">
-                <button class="w-full flex flex-col items-center justify-center p-3 bg-surface-high hover:bg-error hover:text-on-error border border-outline-variant rounded-xl transition-all cursor-pointer text-center group"
+            <!-- Bottom Nút "Quay lại" (Requirement 16) - Always Visible -->
+            <div class="pt-2 border-t border-outline-variant shrink-0 mt-auto">
+                <button class="w-full flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-error hover:text-on-error border border-outline-variant rounded-xl transition-all cursor-pointer text-center group"
                         @onclick="HandleBackAction">
-                    <span class="material-symbols-outlined text-2xl text-on-surface-variant group-hover:text-on-error mb-1">arrow_back</span>
+                    <span class="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-on-error mb-0.5">arrow_back</span>
                     <span class="text-xs font-bold">Quay Lại</span>
                 </button>
             </div>
@@ -330,6 +363,17 @@
         OrderData="ReceiptData" />
 }
 
+<!-- Cancel / Refund Order Modal with Manager PIN requirement -->
+@if (ShowCancelModal && SelectedOrder != null)
+{
+    <PosCancelOrderModal 
+        IsOpen="ShowCancelModal"
+        IsOpenChanged="val => ShowCancelModal = val"
+        TableName="@SelectedOrder.OrderCode"
+        OrderId="@SelectedOrder.OrderId"
+        OnOrderCancelled="HandleOrderCancelledWithPinAsync" />
+}
+
 @code {
     protected List<TakeawayOrderDto> TakeawayOrders { get; set; } = new();
     protected TakeawayOrderDto? SelectedOrder { get; set; }
@@ -337,6 +381,7 @@
     protected bool IsLoading { get; set; } = true;
     protected bool IsDetailMode { get; set; } = false;
     protected bool ShowPaymentModalState { get; set; } = false;
+    protected bool ShowCancelModal { get; set; } = false;
     protected bool ShowK80Modal { get; set; } = false;
     protected K80ReceiptDto? ReceiptData { get; set; }
 
@@ -345,14 +390,22 @@
     protected List<TakeawayOrderDto> FilteredOrders =>
         SelectedStatusFilter == -1
             ? TakeawayOrders
-            : TakeawayOrders.Where(o => o.Status == SelectedStatusFilter).ToList();
+            : (SelectedStatusFilter == 0
+                ? TakeawayOrders.Where(o => o.Status == 0 || o.Status == 1).ToList()
+                : TakeawayOrders.Where(o => o.Status == SelectedStatusFilter).ToList());
 
     // Requirement 9 rule: Sửa hoá đơn CHỈ ĐƯỢC PHÉP khi Trạng thái = Chờ xác nhận (Status == 0) và Chưa thanh toán (!IsPaid)
     protected bool CanEditSelectedOrder =>
         SelectedOrder != null && SelectedOrder.Status == 0 && !SelectedOrder.IsPaid;
 
     protected bool CanPaySelectedOrder =>
-        SelectedOrder != null && SelectedOrder.Status != 4 && !SelectedOrder.IsPaid;
+        SelectedOrder != null && SelectedOrder.Status != 4 && SelectedOrder.Status != 5 && !SelectedOrder.IsPaid;
+
+    protected bool CanCompleteSelectedOrder =>
+        SelectedOrder != null && SelectedOrder.Status != 4 && SelectedOrder.Status != 5;
+
+    protected bool CanCancelOrRefundSelectedOrder =>
+        SelectedOrder != null && SelectedOrder.Status != 5;
 
     protected override async Task OnInitializedAsync()
     {
@@ -458,7 +511,13 @@
         IsDetailMode = false;
     }
 
-    private async Task CancelOrRefundOrderAsync()
+    private void OpenCancelModal()
+    {
+        if (SelectedOrder == null || !CanCancelOrRefundSelectedOrder) return;
+        ShowCancelModal = true;
+    }
+
+    private async Task HandleOrderCancelledWithPinAsync((string Reason, string ManagerPin) args)
     {
         if (SelectedOrder == null) return;
 
@@ -467,9 +526,30 @@
             var req = new CancelOrderRequest
             {
                 OrderId = SelectedOrder.OrderId,
-                Reason = SelectedOrder.IsPaid ? "Hoàn tiền đơn mang về" : "Hủy đơn mang về"
+                Reason = args.Reason,
+                ManagerPin = args.ManagerPin
             };
             var res = await Http.PostAsJsonAsync($"api/v1/pos/orders/{SelectedOrder.OrderId}/cancel", req);
+            if (res.IsSuccessStatusCode)
+            {
+                await LoadOrdersAsync();
+                IsDetailMode = false;
+                ShowCancelModal = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cancelling order: {ex.Message}");
+        }
+    }
+
+    private async Task CompleteOrderAsync()
+    {
+        if (SelectedOrder == null || !CanCompleteSelectedOrder) return;
+
+        try
+        {
+            var res = await Http.PostAsync($"api/v1/pos/orders/{SelectedOrder.OrderId}/complete", null);
             if (res.IsSuccessStatusCode)
             {
                 await LoadOrdersAsync();
@@ -478,7 +558,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cancelling order: {ex.Message}");
+            Console.WriteLine($"Error completing order: {ex.Message}");
         }
     }
 
@@ -497,10 +577,11 @@
     // Rules 2.1 & 17: Status Badges mapping
     private string GetStatusBadgeClass(TakeawayOrderDto order) => order.Status switch
     {
-        0 => "bg-amber-500/15 border border-amber-500 text-amber-900 dark:text-amber-200", // Chờ xác nhận
-        1 => "bg-blue-500/15 border border-blue-500 text-blue-900 dark:text-blue-200", // Đang chuẩn bị
-        2 => "bg-emerald-500/15 border border-emerald-500 text-emerald-900 dark:text-emerald-200", // Đã xong
-        4 => "bg-rose-500/15 border border-rose-500 text-rose-900 dark:text-rose-200", // Đã huỷ
+        0 or 1 => "bg-amber-500/15 border border-amber-500 text-amber-900 dark:text-amber-200", // Chờ xác nhận / Chờ xử lý
+        2 => "bg-blue-500/15 border border-blue-500 text-blue-900 dark:text-blue-200", // Đang chuẩn bị
+        3 => "bg-cyan-500/15 border border-cyan-500 text-cyan-900 dark:text-cyan-200", // Sẵn sàng giao
+        4 => "bg-emerald-500/15 border border-emerald-500 text-emerald-900 dark:text-emerald-200", // Hoàn thành
+        5 => "bg-rose-500/15 border border-rose-500 text-rose-900 dark:text-rose-200", // Đã huỷ
         _ => "bg-surface-high text-on-surface"
     };
 

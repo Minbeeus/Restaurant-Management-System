@@ -36,9 +36,23 @@
             <select class="bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
                     @bind="SelectedStationId" @bind:after="OnStationChangedAsync">
                 <option value="">-- Tất cả Trạm Bếp --</option>
-                <option value="1">Bếp Nóng (Kitchen)</option>
-                <option value="2">Quầy Pha Chế (Bar)</option>
-                <option value="3">Trạm Chiên/Nướng (Fry/Grill)</option>
+                @if (Stations.Any())
+                {
+                    @foreach (var station in Stations)
+                    {
+                        <option value="@station.Id">@station.Name</option>
+                    }
+                }
+                else
+                {
+                    <option value="1">Bếp Nướng Pizza</option>
+                    <option value="2">Bếp Nướng BBQ</option>
+                    <option value="3">Bếp Chiên Gà &amp; Snack</option>
+                    <option value="4">Bếp Mì Ý &amp; Cơm</option>
+                    <option value="5">Bếp Nguội &amp; Salad</option>
+                    <option value="6">Quầy Pha Chế &amp; Đồ Uống</option>
+                    <option value="7">Quầy Tráng Miệng &amp; Bánh</option>
+                }
             </select>
 
             <button class="px-4 py-2 text-slate-200 hover:bg-slate-700 rounded-lg transition-colors font-label-bold flex items-center gap-2 text-sm border border-slate-600"
@@ -81,10 +95,12 @@
             <div class="flex gap-6 h-full items-stretch">
                 @foreach (var ticket in DisplayedTickets)
                 {
+                    var isTicketDone = ticket.Items.All(i => i.KitchenStatus == 2 || i.Status == 1);
                     <KdsTicketCard 
                         OrderId="@ticket.OrderCode" 
                         TableName="@ticket.TableName" 
                         CreatedAt="@ticket.CreatedAt"
+                        ShowCompleteButton="@(!isTicketDone && !ShowCompletedOnly)"
                         OnComplete="() => CompleteAllItemsInTicketAsync(ticket)">
                         <ItemsList>
                             <div class="flex flex-col">

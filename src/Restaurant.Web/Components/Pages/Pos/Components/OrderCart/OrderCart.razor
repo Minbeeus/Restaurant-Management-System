@@ -34,6 +34,7 @@
                     <div class="pos-cart-item__main flex justify-between items-start gap-2">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="pos-cart-item__qty-prefix px-1.5 py-0.5 rounded-md text-[11px] font-black bg-primary/10 text-primary border border-primary/20 shrink-0 font-mono">@(item.Quantity)x</span>
                                 <span class="pos-cart-item__name font-black text-xs text-on-surface leading-tight">@item.Name</span>
                                 @if (item.NeedsConfiguration)
                                 {
@@ -94,9 +95,9 @@
                             }
                         </div>
 
-                        <!-- Total Line Price -->
+                        <!-- 1-Portion Unit Price at Top-Right Corner -->
                         <div class="pos-cart-item__price font-mono font-black text-sm text-primary shrink-0 text-right">
-                            @((item.Price * item.Quantity).ToString("N0"))đ
+                            @item.Price.ToString("N0")đ
                         </div>
                     </div>
                     
@@ -132,23 +133,23 @@
     <div class="pos-cart__summary p-3 bg-surface-high/30 border-t border-outline-variant space-y-1 text-xs">
         <div class="pos-cart__summary-row flex justify-between text-on-surface-variant">
             <span>Tạm tính (Subtotal):</span>
-            <span class="font-bold text-on-surface">@Subtotal.ToString("N0")đ</span>
+            <span class="font-bold text-on-surface font-mono tabular-nums">@Subtotal.ToString("N0") đ</span>
         </div>
         @if (Discount > 0)
         {
             <div class="pos-cart__summary-row flex justify-between text-emerald-600 font-bold">
                 <span>Giảm giá:</span>
-                <span>-@Discount.ToString("N0")đ</span>
+                <span class="font-mono tabular-nums">-@Discount.ToString("N0") đ</span>
             </div>
         }
         <div class="pos-cart__summary-row flex justify-between text-on-surface-variant">
-            <span>Thuế (VAT 8%):</span>
-            <span class="font-bold text-on-surface">@Tax.ToString("N0")đ</span>
+            <span>Thuế (VAT 8% bóc tách):</span>
+            <span class="font-bold text-on-surface font-mono tabular-nums">@Tax.ToString("N0") đ</span>
         </div>
         
         <div class="pos-cart__summary-total flex justify-between items-center pt-2 border-t border-outline-variant font-black text-sm">
             <span>TỔNG CẦN THU:</span>
-            <span class="pos-cart__total-val text-primary text-base">@Total.ToString("N0")đ</span>
+            <span class="pos-cart__total-val text-primary text-base font-mono tabular-nums">@Total.ToString("N0") đ</span>
         </div>
     </div>
     

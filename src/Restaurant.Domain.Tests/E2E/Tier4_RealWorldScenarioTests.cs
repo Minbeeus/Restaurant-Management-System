@@ -298,10 +298,13 @@ public class Tier4_RealWorldScenarioTests
         Assert.True(cancelled);
 
         // -------------------------------------------------------------
-        // Step 5: Verify BOM deductions converted to CancellationWaste
+        // Step 5: Verify BOM deductions: SaleDeduction preserved, CancellationWaste added
         // -------------------------------------------------------------
-        var wasteTx = await ctx.Db.InventoryTransactions.FirstAsync(t => t.ReferenceId == qrOrderItem.Id);
-        Assert.Equal((int)InventoryTransactionType.CancellationWaste, wasteTx.TransactionType);
+        var originalTx = await ctx.Db.InventoryTransactions.FirstAsync(t => t.ReferenceId == qrOrderItem.Id && t.TransactionType == (int)InventoryTransactionType.SaleDeduction);
+        Assert.NotNull(originalTx);
+
+        var wasteTx = await ctx.Db.InventoryTransactions.FirstOrDefaultAsync(t => t.ReferenceId == qrOrder.Id && t.TransactionType == (int)InventoryTransactionType.CancellationWaste);
+        Assert.NotNull(wasteTx);
         Assert.False(string.IsNullOrEmpty(wasteTx.Note));
 
         // -------------------------------------------------------------

@@ -9,6 +9,8 @@
 @inject DashboardApiClient ApiClient
 @inject NavigationManager Navigation
 @layout Restaurant.Web.Components.Layout.AdminLayout
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 
 <PageTitle>@L["Dashboard_Title"]</PageTitle>
 
@@ -39,11 +41,6 @@
 
             <button class="p-2 bg-surface-container text-on-surface hover:bg-surface-container-high rounded-lg border border-outline-variant/40 transition-colors shadow-xs" @onclick="LoadDashboardData" title="@L["Dashboard_Tooltip_Refresh"]">
                 <span class="material-symbols-outlined text-[20px] @(_isLoading ? "animate-spin text-primary" : "")" data-icon="refresh">refresh</span>
-            </button>
-
-            <button class="bg-primary text-on-primary px-4 py-2 rounded-lg shadow-sm hover:bg-primary/90 transition-all font-label-bold text-sm flex items-center gap-2" @onclick="GoToPos">
-                <span class="material-symbols-outlined text-[18px]" data-icon="point_of_sale">point_of_sale</span>
-                @L["Dashboard_Btn_Pos"]
             </button>
         </div>
     </div>
@@ -112,6 +109,8 @@
     
     private DateTime _selectedDate = DateTime.Today;
     private bool _isLoading = false;
+    private HubConnection? _hubConnection;
+    private System.Threading.Timer? _refreshTimer;
 
     private bool IsToday => _selectedDate.Date == DateTime.Today;
     private bool IsYesterday => _selectedDate.Date == DateTime.Today.AddDays(-1);
@@ -119,6 +118,49 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadDashboardData();
+
+        // 1. Periodic auto-refresh every 15 seconds
+        _refreshTimer = new System.Threading.Timer(_ =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                if (!_isLoading && IsToday)
+                {
+                    await LoadDashboardData();
+                    StateHasChanged();
+                }
+            });
+        }, null, 15000, 15000);
+
+        // 2. Real-time SignalR listeners
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=pos")
+            .WithAutomaticReconnect()
+            .Build();
+
+        void TriggerReload()
+        {
+            _ = InvokeAsync(async () =>
+            {
+                if (IsToday)
+                {
+                    await LoadDashboardData();
+                    StateHasChanged();
+                }
+            });
+        }
+
+        _hubConnection.On<int, int, string, string, decimal>("ReceiveNewQrOrder", (a, b, c, d, e) => TriggerReload());
+        _hubConnection.On<Restaurant.Application.DTOs.KitchenTicketDto>("ReceiveKitchenTicket", _ => TriggerReload());
+        _hubConnection.On<int, string, int>("ReceiveItemStatusUpdate", (a, b, c) => TriggerReload());
+        _hubConnection.On<int, string, decimal, string>("ReceivePaymentCompleted", (a, b, c, d) => TriggerReload());
+        _hubConnection.On<int, string>("ReceiveTableStatusSync", (a, b) => TriggerReload());
+
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch { }
     }
 
     private async Task LoadDashboardData()
@@ -173,8 +215,12 @@
         }
     }
 
-    private void GoToPos()
+    public async ValueTask DisposeAsync()
     {
-        Navigation.NavigateTo("/pos");
+        _refreshTimer?.Dispose();
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 }

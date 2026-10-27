@@ -361,9 +361,9 @@ public class InventoryController : ControllerBase
     // Suppliers API Endpoints
     [HttpGet("suppliers")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetAllSuppliers()
+    public async Task<IActionResult> GetAllSuppliers([FromQuery] bool includeInactive = false)
     {
-        var result = await _inventoryService.GetAllSuppliersAsync();
+        var result = await _inventoryService.GetAllSuppliersAsync(includeInactive);
         return Ok(new
         {
             success = true,
@@ -426,6 +426,21 @@ public class InventoryController : ControllerBase
         {
             success = true,
             data = new { message = "Xóa nhà cung cấp thành công." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost("suppliers/{id}/toggle-status")]
+    public async Task<IActionResult> ToggleSupplierStatus(int id)
+    {
+        var success = await _inventoryService.ToggleSupplierStatusAsync(id);
+        if (!success) return NotFound();
+
+        return Ok(new
+        {
+            success = true,
+            data = new { message = "Cập nhật trạng thái nhà cung cấp thành công." },
             error = (object?)null,
             timestamp = DateTime.UtcNow
         });

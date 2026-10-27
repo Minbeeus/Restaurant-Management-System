@@ -753,7 +753,7 @@ public class InventoryService : IInventoryService
 
         if (orderItem == null) return;
 
-        // 2. Load Recipes
+        // 2. Load Recipes & Materials
         var recipe = await _context.Recipes
             .AsNoTracking()
             .Include(r => r.RecipeItems)
@@ -766,21 +766,15 @@ public class InventoryService : IInventoryService
             .Where(r => modifierOptionIds.Contains(r.ModifierOptionId))
             .ToListAsync();
 
-        // Map material -> total quantity to deduct
-        var materialDeductions = new Dictionary<int, decimal>();
-
+        // Collect all needed material IDs and Unit IDs to query conversions
+        var rawRecipeItems = new List<(int MaterialId, int UnitOfMeasureId, decimal Quantity)>();
         if (recipe != null)
         {
             foreach (var ri in recipe.RecipeItems)
             {
-                var needed = ri.Quantity * orderItem.Quantity;
-                if (materialDeductions.ContainsKey(ri.MaterialId))
-                    materialDeductions[ri.MaterialId] += needed;
-                else
-                    materialDeductions[ri.MaterialId] = needed;
+                rawRecipeItems.Add((ri.MaterialId, ri.UnitOfMeasureId, ri.Quantity * orderItem.Quantity));
             }
         }
-
         foreach (var mod in orderItem.OrderItemModifiers)
         {
             var modRecipe = modifierRecipes.FirstOrDefault(r => r.ModifierOptionId == mod.ModifierOptionId);
@@ -788,66 +782,105 @@ public class InventoryService : IInventoryService
             {
                 foreach (var mri in modRecipe.ModifierRecipeItems)
                 {
-                    var needed = mri.Quantity * orderItem.Quantity;
-                    if (materialDeductions.ContainsKey(mri.MaterialId))
-                        materialDeductions[mri.MaterialId] += needed;
-                    else
-                        materialDeductions[mri.MaterialId] = needed;
+                    rawRecipeItems.Add((mri.MaterialId, mri.UnitOfMeasureId, mri.Quantity * orderItem.Quantity));
                 }
             }
         }
 
-        if (!materialDeductions.Any()) return;
+        if (!rawRecipeItems.Any()) return;
 
-        // 3. Batch Load all target Materials
-        var targetMaterialIds = materialDeductions.Keys.ToList();
-        var materials = await _context.Materials
-            .Where(m => targetMaterialIds.Contains(m.Id))
-            .ToListAsync();
+        var targetMaterialIds = rawRecipeItems.Select(r => r.MaterialId).Distinct().ToList();
+        var unitConversions = await _context.UnitConversions.AsNoTracking().ToListAsync();
 
-        var lowStockWarnings = new List<(int MaterialId, string Name, decimal Stock, decimal Min)>();
-
-        foreach (var material in materials)
+        // 3. Concurrency Retry Loop for Atomic Deduction
+        int maxRetries = 3;
+        while (maxRetries > 0)
         {
-            if (!materialDeductions.TryGetValue(material.Id, out var deductQty)) continue;
-
-            material.CurrentStock -= deductQty;
-
-            _context.InventoryTransactions.Add(new InventoryTransaction
+            try
             {
-                MaterialId = material.Id,
-                TransactionType = (int)InventoryTransactionType.SaleDeduction,
-                Quantity = -deductQty,
-                BalanceAfter = material.CurrentStock,
-                ReferenceType = SystemConstants.ReferenceTypes.OrderItem,
-                ReferenceId = orderItem.Id,
-                Note = $"BOM Deduction for OrderItem {orderItem.Id} (Order Code {orderItem.Order?.OrderCode})",
-                CreatedByUserId = orderItem.Order != null ? orderItem.Order.CreatedByUserId : 0,
-                CreatedAt = DateTime.UtcNow
-            });
+                var materials = await _context.Materials
+                    .Where(m => targetMaterialIds.Contains(m.Id))
+                    .ToListAsync();
 
-            if (material.CurrentStock <= material.MinStockLevel)
-            {
-                lowStockWarnings.Add((material.Id, material.Name, material.CurrentStock, material.MinStockLevel));
+                var materialDeductions = new Dictionary<int, decimal>();
+                foreach (var item in rawRecipeItems)
+                {
+                    var mat = materials.FirstOrDefault(m => m.Id == item.MaterialId);
+                    if (mat == null) continue;
+
+                    decimal actualQty = item.Quantity;
+                    // Check if unit conversion is needed (e.g. Recipe in Gram, Material in Kg)
+                    if (item.UnitOfMeasureId > 0 && mat.UnitOfMeasureId > 0 && item.UnitOfMeasureId != mat.UnitOfMeasureId)
+                    {
+                        var conv = unitConversions.FirstOrDefault(c => c.FromUnitId == item.UnitOfMeasureId && c.ToUnitId == mat.UnitOfMeasureId);
+                        if (conv != null && conv.ConversionFactor > 0)
+                        {
+                            actualQty = item.Quantity * conv.ConversionFactor;
+                        }
+                    }
+
+                    if (materialDeductions.ContainsKey(item.MaterialId))
+                        materialDeductions[item.MaterialId] += actualQty;
+                    else
+                        materialDeductions[item.MaterialId] = actualQty;
+                }
+
+                var lowStockWarnings = new List<(int MaterialId, string Name, decimal Stock, decimal Min)>();
+
+                foreach (var material in materials)
+                {
+                    if (!materialDeductions.TryGetValue(material.Id, out var deductQty)) continue;
+
+                    material.CurrentStock -= deductQty;
+
+                    _context.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        MaterialId = material.Id,
+                        TransactionType = (int)InventoryTransactionType.SaleDeduction,
+                        Quantity = -deductQty,
+                        BalanceAfter = material.CurrentStock,
+                        ReferenceType = SystemConstants.ReferenceTypes.OrderItem,
+                        ReferenceId = orderItem.Id,
+                        Note = $"BOM Deduction for OrderItem {orderItem.Id} (Order Code {orderItem.Order?.OrderCode})",
+                        CreatedByUserId = orderItem.Order != null ? orderItem.Order.CreatedByUserId : 0,
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    if (material.CurrentStock <= material.MinStockLevel)
+                    {
+                        lowStockWarnings.Add((material.Id, material.Name, material.CurrentStock, material.MinStockLevel));
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                foreach (var w in lowStockWarnings)
+                {
+                    await _notificationService.NotifyLowStockWarningAsync(w.MaterialId, w.Name, w.Stock, w.Min);
+                }
+
+                break; // Succeeded!
             }
-        }
-
-        await _context.SaveChangesAsync();
-
-        foreach (var w in lowStockWarnings)
-        {
-            await _notificationService.NotifyLowStockWarningAsync(w.MaterialId, w.Name, w.Stock, w.Min);
+            catch (DbUpdateConcurrencyException)
+            {
+                maxRetries--;
+                if (maxRetries == 0) throw;
+                // Wait briefly and retry with fresh material stock
+                await Task.Delay(50);
+            }
         }
     }
 
     // Supplier Management
-    public async Task<List<SupplierDto>> GetAllSuppliersAsync()
+    public async Task<List<SupplierDto>> GetAllSuppliersAsync(bool includeInactive = false)
     {
-        var suppliers = await _context.Suppliers
-            .AsNoTracking()
-            .Where(s => s.IsActive)
-            .OrderBy(s => s.Name)
-            .ToListAsync();
+        var query = _context.Suppliers.AsNoTracking();
+        if (!includeInactive)
+        {
+            query = query.Where(s => s.IsActive);
+        }
+
+        var suppliers = await query.OrderBy(s => s.Name).ToListAsync();
 
         return suppliers.Select(s => new SupplierDto
         {
@@ -930,6 +963,16 @@ public class InventoryService : IInventoryService
         if (supplier == null) return false;
 
         supplier.IsActive = false;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> ToggleSupplierStatusAsync(int id)
+    {
+        var supplier = await _context.Suppliers.FindAsync(id);
+        if (supplier == null) return false;
+
+        supplier.IsActive = !supplier.IsActive;
         await _context.SaveChangesAsync();
         return true;
     }

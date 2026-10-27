@@ -11,7 +11,7 @@
         <h2 class="text-2xl font-headline-sm text-primary m-0">@L["Recipe_Management_Title"]</h2>
         <p class="text-on-surface-variant text-sm mt-1">@L["Recipe_Sub"]</p>
     </div>
-    <button class="bg-primary text-on-primary px-4 py-2 rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center" @onclick="OpenAddRecipeModal">
+    <button class="bg-primary text-on-primary px-4 py-2 rounded-xl font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center" @onclick="OpenAddRecipeModal">
         <span class="material-symbols-outlined align-middle text-sm mr-1" data-icon="add">add</span> @L["Recipe_Setup_New"]
     </button>
 </div>
@@ -30,7 +30,7 @@ else
             <h3 class="font-bold text-on-surface text-lg mb-3">@L["Recipe_Select_Item"]</h3>
             <div class="relative mb-3">
                 <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-sm" data-icon="search">search</span>
-                <input type="text" @bind="_searchKeyword" @bind:event="oninput" placeholder="@L["Recipe_Search_Item"]" class="w-full pl-9 pr-3 py-1.5 text-sm border border-outline rounded bg-surface focus:outline-none focus:border-primary" />
+                <input type="text" @bind="_searchKeyword" @bind:event="oninput" placeholder="@L["Recipe_Search_Item"]" class="w-full pl-9 pr-3 py-1.5 text-sm border border-outline rounded-lg bg-surface focus:outline-none focus:border-primary" />
             </div>
             
             <div class="space-y-1 max-h-[600px] overflow-y-auto pr-1">
@@ -40,7 +40,7 @@ else
                     <div class="p-3 rounded-lg border @(isSelected ? "border-primary bg-primary-container/10" : "border-outline-variant/30 hover:bg-surface-low") cursor-pointer transition-colors flex justify-between items-center" @onclick="() => SelectMenuItem(item)">
                         <div>
                             <div class="font-bold text-on-surface text-sm">@item.Name</div>
-                            <div class="text-xs text-on-surface-variant">@item.CategoryName • @item.Price.ToString("N0")đ</div>
+                            <div class="text-xs text-on-surface-variant">@item.CategoryName • <span class="font-mono tabular-nums">@item.Price.ToString("N0")</span> đ</div>
                         </div>
                         <span class="material-symbols-outlined text-sm @(isSelected ? "text-primary" : "text-on-surface-variant")" data-icon="chevron_right">chevron_right</span>
                     </div>
@@ -64,7 +64,7 @@ else
                         <span class="text-xs font-bold text-primary bg-primary-container/20 px-2 py-0.5 rounded">@L["MenuItem_Management_Title"]</span>
                         <h3 class="text-xl font-bold text-on-background mt-1">@_selectedMenuItem.Name</h3>
                     </div>
-                    <button class="px-3 py-1.5 bg-secondary text-on-secondary rounded text-sm font-bold shadow-sm hover:bg-secondary/90 transition-colors flex items-center" @onclick="OpenEditRecipeModal">
+                    <button class="px-3 py-1.5 bg-secondary text-on-secondary rounded-xl text-sm font-bold shadow-sm hover:bg-secondary/90 transition-colors flex items-center" @onclick="OpenEditRecipeModal">
                         <span class="material-symbols-outlined text-sm mr-1" data-icon="edit">edit</span> @L["Recipe_Update_Btn"]
                     </button>
                 </div>
@@ -73,9 +73,9 @@ else
                 
                 @if (!_recipeItems.Any())
                 {
-                    <div class="p-8 bg-surface-low rounded-lg text-center text-on-surface-variant">
+                    <div class="p-8 bg-surface-low rounded-xl text-center text-on-surface-variant">
                         <p class="text-sm">@L["Recipe_Empty"]</p>
-                        <button class="mt-3 px-3 py-1.5 bg-primary text-on-primary rounded text-xs font-bold" @onclick="OpenEditRecipeModal">@L["Recipe_Add_Material_Now"]</button>
+                        <button class="mt-3 px-3 py-1.5 bg-primary text-on-primary rounded-xl text-xs font-bold" @onclick="OpenEditRecipeModal">@L["Recipe_Add_Material_Now"]</button>
                     </div>
                 }
                 else
@@ -95,18 +95,18 @@ else
                                 {
                                     <tr class="border-b border-outline-variant/20 hover:bg-surface-low">
                                         <td class="p-3 font-bold text-on-surface text-sm">@rItem.MaterialName</td>
-                                        <td class="p-3 text-right font-mono font-bold text-primary">@rItem.Quantity</td>
+                                        <td class="p-3 text-right font-mono tabular-nums font-bold text-primary">@rItem.Quantity</td>
                                         <td class="p-3 text-center text-sm text-on-surface-variant">@rItem.UnitName</td>
-                                        <td class="p-3 text-right font-mono text-sm">@((rItem.Quantity * rItem.CostPerUnit).ToString("N0"))đ</td>
+                                        <td class="p-3 text-right font-mono tabular-nums text-sm">@((rItem.Quantity * rItem.CostPerUnit).ToString("N0")) đ</td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
                     </div>
 
-                    <div class="mt-6 p-4 bg-surface-container rounded-lg border border-outline-variant/30 flex justify-between items-center">
+                    <div class="mt-6 p-4 bg-surface-container rounded-xl border border-outline-variant/30 flex justify-between items-center">
                         <span class="font-bold text-on-surface text-sm">@L["Recipe_Total_Cost"]</span>
-                        <span class="font-headline-sm text-xl font-bold text-primary">@_recipeItems.Sum(i => i.Quantity * i.CostPerUnit).ToString("N0") VNĐ</span>
+                        <span class="font-headline-sm text-xl font-bold text-primary font-mono tabular-nums">@_recipeItems.Sum(i => i.Quantity * i.CostPerUnit).ToString("N0") đ</span>
                     </div>
                 }
             }
@@ -144,7 +144,7 @@ else
                                 <option value="@mat.Id">@mat.Name (@mat.UnitName)</option>
                             }
                         </select>
-                        <input type="number" step="0.01" @bind="row.Quantity" placeholder="@L["Recipe_Quantity_Placeholder"]" class="w-28 px-3 py-1.5 text-sm border border-outline rounded bg-surface font-mono" />
+                        <input type="number" step="0.001" @bind="row.Quantity" placeholder="@L["Recipe_Quantity_Placeholder"]" class="w-28 px-3 py-1.5 text-sm border border-outline rounded bg-surface font-mono" />
                         <button class="text-error hover:bg-error-container p-1 rounded" @onclick="() => RemoveMaterialRow(row)">
                             <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
                         </button>

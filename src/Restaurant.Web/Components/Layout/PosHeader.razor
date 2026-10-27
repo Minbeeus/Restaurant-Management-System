@@ -34,13 +34,6 @@
             </button>
         </div>
 
-        <!-- Cashier Tools Button -->
-        <button class="px-3.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-800 dark:text-amber-200 border border-amber-500/40 text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                @onclick="() => _showCashierToolsModal = true">
-            <span class="material-symbols-outlined text-base">point_of_sale</span>
-            <span>CÔNG CỤ THU NGÂN</span>
-        </button>
-
         <!-- KDS Connection Status -->
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold @(IsKdsConnected ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400")">
             <span class="relative flex h-2.5 w-2.5">
@@ -148,15 +141,8 @@
     </div>
 </header>
 
-@if (_showCashierToolsModal)
-{
-    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal IsOpen="_showCashierToolsModal" IsOpenChanged="val => _showCashierToolsModal = val" />
-}
-
 @code {
     [Parameter] public Action? OnNotificationClick { get; set; }
-
-    private bool _showCashierToolsModal = false;
 
     private DateTime _currentTime = DateTime.Now;
     private System.Threading.Timer? _timer;
@@ -173,16 +159,31 @@
         public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 
-    public static List<PosNotificationItem> GlobalNotifications { get; } = new()
-    {
-        new PosNotificationItem { Title = "Đơn mới QR", Message = "Bàn 03 vừa gửi đơn gọi món mới", Icon = "qr_code_2", Timestamp = DateTime.Now.AddMinutes(-2) },
-        new PosNotificationItem { Title = "Bếp hoàn tất", Message = "Món Pizza Hải Sản - Bàn 01 đã sẵn sàng", Icon = "soup_kitchen", Timestamp = DateTime.Now.AddMinutes(-5) }
-    };
+    public static List<PosNotificationItem> GlobalNotifications { get; } = new();
+    public static event Action? OnNotificationsChanged;
 
     public List<PosNotificationItem> Notifications => GlobalNotifications;
     public int UnreadCount => Notifications.Count;
 
     private bool _showNotificationDrawer = false;
+
+    private static void AddNotification(string title, string message, string icon)
+    {
+        GlobalNotifications.Insert(0, new PosNotificationItem
+        {
+            Title = title,
+            Message = message,
+            Icon = icon,
+            Timestamp = DateTime.Now
+        });
+
+        if (GlobalNotifications.Count > 40)
+        {
+            GlobalNotifications.RemoveAt(GlobalNotifications.Count - 1);
+        }
+
+        OnNotificationsChanged?.Invoke();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -193,35 +194,104 @@
         }, null, 0, 1000);
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=pos")
             .WithAutomaticReconnect()
             .Build();
 
-        _hubConnection.On<string, string>("NewQrOrderReceived", (tableId, tableName) =>
+        // 1. Đơn hàng mới từ QR
+        _hubConnection.On<int, int, string, string, decimal>("ReceiveNewQrOrder", (orderId, tableId, tableName, orderCode, totalAmount) =>
         {
-            GlobalNotifications.Insert(0, new PosNotificationItem
-            {
-                Title = "Đơn mới QR",
-                Message = $"Bàn {tableName} vừa tạo order mới",
-                Icon = "qr_code_2",
-                Timestamp = DateTime.Now
-            });
+            AddNotification(
+                $"Đơn mới QR ({orderCode})",
+                $"Bàn {tableName} vừa đặt đơn qua QR ({totalAmount:N0} đ)",
+                "qr_code_2"
+            );
             _ = InvokeAsync(StateHasChanged);
         });
 
-        _hubConnection.On<int, int>("KitchenItemStatusChanged", (orderItemId, status) =>
+        // 2. Vé bếp / Chuyển món xuống bếp
+        _hubConnection.On<Restaurant.Application.DTOs.KitchenTicketDto>("ReceiveKitchenTicket", (ticket) =>
         {
-            if (status == 2)
+            AddNotification(
+                $"Gửi bếp ({ticket.OrderCode})",
+                $"Bàn {ticket.TableName}: Đã chuyển {ticket.Items.Count} món xuống bếp chế biến",
+                "soup_kitchen"
+            );
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        // 3. Trạng thái món bếp cập nhật
+        _hubConnection.On<int, string, int>("ReceiveItemStatusUpdate", (orderItemId, status, orderId) =>
+        {
+            var statusText = status switch
             {
-                GlobalNotifications.Insert(0, new PosNotificationItem
-                {
-                    Title = "Bếp hoàn thành món",
-                    Message = $"Món ăn #{orderItemId} đã chế biến xong!",
-                    Icon = "soup_kitchen",
-                    Timestamp = DateTime.Now
-                });
-                _ = InvokeAsync(StateHasChanged);
-            }
+                "Done" => "Đã nấu xong",
+                "Processing" => "Đang chế biến",
+                "Ready" => "Sẵn sàng phục vụ",
+                "Cancelled" => "Đã hủy món",
+                _ => status
+            };
+            var icon = status is "Done" or "Ready" ? "check_circle" : "skillet";
+
+            AddNotification(
+                $"Bếp: {statusText}",
+                $"Món #{orderItemId} trong đơn #{orderId} - {statusText}",
+                icon
+            );
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        // 4. Thanh toán hoàn tất
+        _hubConnection.On<int, string, decimal, string>("ReceivePaymentCompleted", (orderId, orderCode, amountPaid, paymentMethod) =>
+        {
+            AddNotification(
+                $"Thanh toán thành công ({orderCode})",
+                $"Đơn #{orderCode} đã thanh toán {amountPaid:N0} đ bằng {paymentMethod}",
+                "paid"
+            );
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        // 5. Cảnh báo thanh toán / Webhook
+        _hubConnection.On<int, string, string>("ReceivePaymentAlert", (orderId, orderCode, message) =>
+        {
+            AddNotification(
+                $"Thanh toán ({orderCode})",
+                message,
+                "payments"
+            );
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        // 6. Đồng bộ trạng thái bàn
+        _hubConnection.On<int, string>("ReceiveTableStatusSync", (tableId, status) =>
+        {
+            var statusVi = status switch
+            {
+                "Available" => "Trống",
+                "Occupied" => "Đang chọn món",
+                "Serving" => "Đang phục vụ",
+                "Billing" => "Chờ thanh toán",
+                "Paid" => "Đã thanh toán (chờ dọn)",
+                _ => status
+            };
+            AddNotification(
+                $"Cập nhật Bàn #{tableId}",
+                $"Bàn #{tableId} đã chuyển sang trạng thái: {statusVi}",
+                "table_restaurant"
+            );
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        // 7. Cảnh báo nguyên liệu tồn kho thấp
+        _hubConnection.On<int, string, decimal, decimal>("ReceiveLowStockWarning", (matId, matName, stock, min) =>
+        {
+            AddNotification(
+                "Cảnh báo tồn kho",
+                $"Nguyên liệu '{matName}' sắp hết (còn {stock:N1}, mức tối thiểu {min:N1})",
+                "warning"
+            );
+            _ = InvokeAsync(StateHasChanged);
         });
 
         try
@@ -241,6 +311,7 @@
     {
         GlobalNotifications.Clear();
         _showNotificationDrawer = false;
+        OnNotificationsChanged?.Invoke();
     }
 
     private void ChangeLanguage(string cultureCode)

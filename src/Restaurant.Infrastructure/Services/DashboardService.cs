@@ -15,19 +15,43 @@ public class DashboardService : IDashboardService
         _context = context;
     }
 
+    private static TimeZoneInfo GetRestaurantTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        }
+        catch
+        {
+            return TimeZoneInfo.Local;
+        }
+    }
+
+    private static (DateTime startUtc, DateTime endUtc, DateTime prevStartUtc, DateTime prevEndUtc) GetUtcDateRanges(DateTime? date)
+    {
+        var tz = GetRestaurantTimeZone();
+        var localDate = date?.Date ?? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
+
+        var startLocal = DateTime.SpecifyKind(localDate, DateTimeKind.Unspecified);
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal, tz);
+        var endUtc = startUtc.AddDays(1);
+        var prevStartUtc = startUtc.AddDays(-1);
+        var prevEndUtc = startUtc;
+
+        return (startUtc, endUtc, prevStartUtc, prevEndUtc);
+    }
+
     public async Task<DashboardSummaryDto> GetSummaryAsync(DateTime? date = null)
     {
-        var targetDate = date?.Date ?? DateTime.Today;
-        var nextDate = targetDate.AddDays(1);
-        var prevDate = targetDate.AddDays(-1);
+        var (startUtc, endUtc, prevStartUtc, prevEndUtc) = GetUtcDateRanges(date);
 
         // 1. Revenue (Paid orders)
         var todayRevenue = await _context.Orders
-            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= targetDate && o.CreatedAt < nextDate)
+            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= startUtc && o.CreatedAt < endUtc)
             .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
         var yesterdayRevenue = await _context.Orders
-            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= prevDate && o.CreatedAt < targetDate)
+            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= prevStartUtc && o.CreatedAt < prevEndUtc)
             .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
         decimal trend = 0;
@@ -45,9 +69,9 @@ public class DashboardService : IDashboardService
             .Where(o => o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
             .CountAsync();
 
-        // 3. Tables
+        // 3. Tables (Occupied includes Occupied, Serving, Billing, Paid)
         var totalTables = await _context.Tables.CountAsync();
-        var occupiedTables = await _context.Tables.CountAsync(t => t.Status == (int)TableStatus.Occupied);
+        var occupiedTables = await _context.Tables.CountAsync(t => t.Status != (int)TableStatus.Available);
 
         // 4. Low Stock
         var lowStock = await _context.Materials
@@ -68,15 +92,20 @@ public class DashboardService : IDashboardService
 
     public async Task<List<SalesChartPointDto>> GetSalesChartAsync(DateTime? date = null)
     {
-        var targetDate = date?.Date ?? DateTime.Today;
-        var nextDate = targetDate.AddDays(1);
+        var (startUtc, endUtc, _, _) = GetUtcDateRanges(date);
+        var tz = GetRestaurantTimeZone();
 
         var orders = await _context.Orders
-            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= targetDate && o.CreatedAt < nextDate)
-            .Select(o => new { o.CreatedAt.Hour, o.TotalAmount })
+            .Where(o => o.PaymentStatus == (int)PaymentStatus.Paid && o.CreatedAt >= startUtc && o.CreatedAt < endUtc)
+            .Select(o => new { o.CreatedAt, o.TotalAmount })
             .ToListAsync();
 
         var hourlyData = orders
+            .Select(o => new
+            {
+                Hour = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(o.CreatedAt, DateTimeKind.Utc), tz).Hour,
+                o.TotalAmount
+            })
             .GroupBy(o => o.Hour)
             .Select(g => new
             {
@@ -86,8 +115,8 @@ public class DashboardService : IDashboardService
             .ToDictionary(k => k.Hour, v => v.Total);
 
         var result = new List<SalesChartPointDto>();
-        // Return hours from 06:00 to 23:00
-        for (int i = 6; i <= 23; i++)
+        // Return hours from 00:00 to 23:00 for full 24-hour daily coverage
+        for (int i = 0; i <= 23; i++)
         {
             result.Add(new SalesChartPointDto
             {
@@ -101,11 +130,10 @@ public class DashboardService : IDashboardService
 
     public async Task<List<TopMoverDto>> GetTopMoversAsync(DateTime? date = null, int limit = 5)
     {
-        var targetDate = date?.Date ?? DateTime.Today;
-        var nextDate = targetDate.AddDays(1);
+        var (startUtc, endUtc, _, _) = GetUtcDateRanges(date);
 
         var topMovers = await _context.OrderItems
-            .Where(oi => oi.Order.PaymentStatus == (int)PaymentStatus.Paid && oi.Order.CreatedAt >= targetDate && oi.Order.CreatedAt < nextDate)
+            .Where(oi => oi.Order.PaymentStatus == (int)PaymentStatus.Paid && oi.Order.CreatedAt >= startUtc && oi.Order.CreatedAt < endUtc)
             .GroupBy(oi => new { oi.MenuItemId, oi.MenuItemName })
             .Select(g => new TopMoverDto
             {

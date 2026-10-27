@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
 
@@ -204,8 +205,15 @@ public class PosOrdersController : ControllerBase
         });
     }
 
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [HttpPost("orders/{id}/cancel")]
-    public async Task<IActionResult> CancelOrder(int id, [FromBody] CancelOrderRequest request, [FromServices] ICancelOrderService cancelOrderService, [FromServices] ICurrentUserService currentUserService)
+    public async Task<IActionResult> CancelOrder(
+        int id, 
+        [FromBody] CancelOrderRequest request, 
+        [FromServices] ICancelOrderService cancelOrderService, 
+        [FromServices] ICurrentUserService currentUserService, 
+        [FromServices] IIdentityService identityService,
+        [FromServices] Restaurant.Infrastructure.Persistence.ApplicationDbContext context)
     {
         if (!currentUserService.UserId.HasValue)
         {
@@ -223,6 +231,48 @@ public class PosOrdersController : ControllerBase
         }
 
         int actingUserId = currentUserService.UserId.Value;
+
+        // If Cashier calls, Manager PIN approval is strictly required
+        if (User.IsInRole("Cashier"))
+        {
+            if (string.IsNullOrWhiteSpace(request.ManagerPin))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "FORBIDDEN_MANAGER_PIN_REQUIRED",
+                        message = "Thu ngân yêu cầu mã PIN của Quản lý để thực hiện hủy đơn."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
+            var isPinValid = await identityService.VerifyManagerPinAsync(request.ManagerPin);
+            if (!isPinValid)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "FORBIDDEN_INVALID_MANAGER_PIN",
+                        message = "Mã PIN Quản lý không chính xác."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
+            var manager = await context.Users.Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.IsActive && (u.Role.Name == "Manager" || u.Role.Name == "Admin"));
+            if (manager != null)
+            {
+                actingUserId = manager.Id;
+            }
+        }
 
         var success = await cancelOrderService.CancelOrderAsync(actingUserId, id, request.Reason);
         if (!success)
@@ -249,8 +299,9 @@ public class PosOrdersController : ControllerBase
         });
     }
 
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [HttpPost("orders/{orderId}/items/{orderItemId}/void")]
-    public async Task<IActionResult> VoidOrderItem(int orderId, int orderItemId, [FromBody] VoidOrderItemRequest request, [FromServices] ICurrentUserService currentUserService)
+    public async Task<IActionResult> VoidOrderItem(int orderId, int orderItemId, [FromBody] VoidOrderItemRequest request, [FromServices] ICurrentUserService currentUserService, [FromServices] IIdentityService identityService)
     {
         if (!currentUserService.UserId.HasValue)
         {
@@ -265,6 +316,41 @@ public class PosOrdersController : ControllerBase
                 },
                 timestamp = DateTime.UtcNow
             });
+        }
+
+        // If Cashier calls, Manager PIN approval is strictly required
+        if (User.IsInRole("Cashier"))
+        {
+            if (string.IsNullOrWhiteSpace(request.ManagerPin))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "FORBIDDEN_MANAGER_PIN_REQUIRED",
+                        message = "Thu ngân yêu cầu mã PIN của Quản lý để thực hiện hủy món."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
+            var isPinValid = await identityService.VerifyManagerPinAsync(request.ManagerPin);
+            if (!isPinValid)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "FORBIDDEN_INVALID_MANAGER_PIN",
+                        message = "Mã PIN Quản lý không chính xác."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
         }
 
         int actingUserId = currentUserService.UserId.Value;
@@ -391,6 +477,30 @@ public class PosOrdersController : ControllerBase
         {
             success = true,
             data = new { message = "Đã dọn bàn thành công." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost("orders/{id}/complete")]
+    public async Task<IActionResult> CompleteOrder(int id)
+    {
+        var success = await _posOrderService.CompleteOrderAsync(id);
+        if (!success)
+        {
+            return NotFound(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new { code = "ORDER_NOT_FOUND", message = "Không tìm thấy đơn hàng để hoàn thành." },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = new { message = "Đơn hàng đã được đánh dấu hoàn thành." },
             error = (object?)null,
             timestamp = DateTime.UtcNow
         });

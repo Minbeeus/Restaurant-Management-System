@@ -1,14 +1,14 @@
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.Routing
 
-<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-inverse-surface text-on-primary font-body-md text-body-md flex flex-col overflow-y-auto custom-scrollbar z-20 shadow-xl border-r border-outline-variant/10">
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-slate-900 text-slate-100 font-body-md text-body-md flex flex-col overflow-y-auto custom-scrollbar z-20 shadow-xl border-r border-slate-800">
     <div class="p-6">
         <!-- Brand Logo Header -->
-        <div class="flex items-center gap-4 mb-8 pb-4 border-b border-white/10">
-            <img src="/logo_icon.png" alt="Logo" class="w-10 h-10 rounded-full bg-mozzarella-white object-contain p-1 shadow-md border border-white/20" onerror="this.src='https://via.placeholder.com/40'" />
+        <div class="flex items-center gap-3.5 mb-8 pb-4 border-b border-slate-800">
+            <img src="/logo_icon.png" alt="Logo" class="w-10 h-10 rounded-full bg-white object-contain p-1 shadow-md border border-slate-700" onerror="this.src='https://via.placeholder.com/40'" />
             <div>
-                <h1 class="font-headline-sm text-headline-sm text-white font-bold m-0 tracking-tight leading-tight">Mozzarella &amp; Basil</h1>
-                <p class="text-primary-fixed-dim text-xs font-semibold tracking-wide">BOH Administration</p>
+                <h1 class="font-headline-sm text-base text-white font-black m-0 tracking-tight leading-tight">Mozzarella &amp; Basil</h1>
+                <p class="text-emerald-400 text-[11px] font-bold tracking-wide mt-0.5">BOH Administration</p>
             </div>
         </div>
         
@@ -16,8 +16,8 @@
             <AuthorizeView Roles="Admin,Manager">
                 <Authorized>
                     <!-- Dashboard link -->
-                    <NavLink class="flex items-center gap-3 py-3 px-4 rounded-xl transition-all text-slate-100 hover:bg-white/10 hover:text-white font-medium" href="/admin/dashboard" Match="NavLinkMatch.All" ActiveClass="bg-primary text-white font-bold shadow-md">
-                        <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="dashboard">dashboard</span>
+                    <NavLink class="flex items-center gap-3 py-2.5 px-3.5 rounded-xl transition-all text-slate-300 hover:bg-slate-800 hover:text-white font-medium" href="/admin/dashboard" Match="NavLinkMatch.All" ActiveClass="bg-emerald-600 text-white font-bold shadow-md">
+                        <span class="material-symbols-outlined text-emerald-400" data-icon="dashboard">dashboard</span>
                         <span>@L["Dashboard_Title"]</span>
                     </NavLink>
                 </Authorized>
@@ -27,20 +27,20 @@
                 <Authorized>
                     <!-- Menu Management Section -->
                     <div class="flex flex-col">
-                        <button type="button" class="flex items-center justify-between py-3 px-4 text-slate-100 hover:bg-white/10 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleMenuGroup">
+                        <button type="button" class="flex items-center justify-between py-2.5 px-3.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleMenuGroup">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="restaurant_menu">restaurant_menu</span>
+                                <span class="material-symbols-outlined text-emerald-400" data-icon="restaurant_menu">restaurant_menu</span>
                                 <span>@L["Sidebar_Menu_Management"]</span>
                             </div>
-                            <span class="material-symbols-outlined text-sm text-white/70 transition-transform duration-200 @(_isMenuOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
+                            <span class="material-symbols-outlined text-sm text-slate-400 transition-transform duration-200 @(_isMenuOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
                         </button>
                         @if (_isMenuOpen)
                         {
-                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-primary-container/40 py-1 transition-all my-1">
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/categories" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Categories"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/menu-items" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_MenuItems"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/menu/combos" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Quản Lý Combo</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/modifiers" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Modifiers"]</NavLink>
+                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-emerald-500/40 py-1 transition-all my-1">
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/categories" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Categories"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/menu-items" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_MenuItems"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/menu/combos" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Quản Lý Combo</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/modifiers" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Modifiers"]</NavLink>
                             </div>
                         }
                     </div>
@@ -51,39 +51,39 @@
                 <Authorized>
                     <!-- Operations Section -->
                     <div class="flex flex-col">
-                        <button type="button" class="flex items-center justify-between py-3 px-4 text-slate-100 hover:bg-white/10 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleOperationsGroup">
+                        <button type="button" class="flex items-center justify-between py-2.5 px-3.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleOperationsGroup">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="room_service">room_service</span>
+                                <span class="material-symbols-outlined text-emerald-400" data-icon="room_service">room_service</span>
                                 <span>Hoạt Động (Operations)</span>
                             </div>
-                            <span class="material-symbols-outlined text-sm text-white/70 transition-transform duration-200 @(_isOperationsOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
+                            <span class="material-symbols-outlined text-sm text-slate-400 transition-transform duration-200 @(_isOperationsOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
                         </button>
                         @if (_isOperationsOpen)
                         {
-                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-primary-container/40 py-1 transition-all my-1">
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/orders" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Lịch Sử Đơn Hàng</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/areas" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Areas"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/tables" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Tables"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/shifts" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Quản Lý Ca Làm Việc</NavLink>
+                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-emerald-500/40 py-1 transition-all my-1">
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/orders" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Lịch Sử Đơn Hàng</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/areas" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Areas"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/tables" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Tables"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/shifts" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Quản Lý Ca Làm Việc</NavLink>
                             </div>
                         }
                     </div>
 
                     <!-- Staff -->
-                    <NavLink class="flex items-center gap-3 py-3 px-4 rounded-xl transition-all text-slate-100 hover:bg-white/10 hover:text-white font-medium" href="/admin/staff" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-md">
-                        <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="groups">groups</span>
+                    <NavLink class="flex items-center gap-3 py-2.5 px-3.5 rounded-xl transition-all text-slate-300 hover:bg-slate-800 hover:text-white font-medium" href="/admin/staff" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-md">
+                        <span class="material-symbols-outlined text-emerald-400" data-icon="groups">groups</span>
                         <span>@L["Sidebar_Staff"]</span>
                     </NavLink>
 
                     <!-- Approval Center -->
-                    <NavLink class="flex items-center gap-3 py-3 px-4 rounded-xl transition-all text-slate-100 hover:bg-white/10 hover:text-white font-medium" href="/admin/approvals" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-md">
+                    <NavLink class="flex items-center gap-3 py-2.5 px-3.5 rounded-xl transition-all text-slate-300 hover:bg-slate-800 hover:text-white font-medium" href="/admin/approvals" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-md">
                         <span class="material-symbols-outlined text-amber-400" data-icon="verified_user">verified_user</span>
                         <span>Trung Tâm Phê Duyệt</span>
                     </NavLink>
 
                     <!-- Reconciliation -->
-                    <NavLink class="flex items-center gap-3 py-3 px-4 rounded-xl transition-all text-slate-100 hover:bg-white/10 hover:text-white font-medium" href="/admin/reconciliation" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-md">
-                        <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="fact_check">fact_check</span>
+                    <NavLink class="flex items-center gap-3 py-2.5 px-3.5 rounded-xl transition-all text-slate-300 hover:bg-slate-800 hover:text-white font-medium" href="/admin/reconciliation" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-md">
+                        <span class="material-symbols-outlined text-emerald-400" data-icon="fact_check">fact_check</span>
                         <span>Đối Soát Thanh Toán</span>
                     </NavLink>
                 </Authorized>
@@ -93,58 +93,58 @@
                 <Authorized>
                     <!-- Inventory Section -->
                     <div class="flex flex-col">
-                        <button type="button" class="flex items-center justify-between py-3 px-4 text-slate-100 hover:bg-white/10 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleInventoryGroup">
+                        <button type="button" class="flex items-center justify-between py-2.5 px-3.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleInventoryGroup">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="inventory_2">inventory_2</span>
+                                <span class="material-symbols-outlined text-emerald-400" data-icon="inventory_2">inventory_2</span>
                                 <span>@L["Sidebar_Inventory"]</span>
                             </div>
-                            <span class="material-symbols-outlined text-sm text-white/70 transition-transform duration-200 @(_isInventoryOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
+                            <span class="material-symbols-outlined text-sm text-slate-400 transition-transform duration-200 @(_isInventoryOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
                         </button>
                         @if (_isInventoryOpen)
                         {
-                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-primary-container/40 py-1 transition-all my-1">
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/materials" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Materials"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/recipes" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Recipes"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/suppliers" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Suppliers"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/goods-receipts" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_GoodsReceipts"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/stocktakes" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Stocktakes"]</NavLink>
+                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-emerald-500/40 py-1 transition-all my-1">
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/materials" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Materials"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/recipes" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Recipes"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/suppliers" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Suppliers"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/goods-receipts" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_GoodsReceipts"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/stocktakes" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Stocktakes"]</NavLink>
                             </div>
                         }
                     </div>
                     
                     <!-- Financial Reports Section -->
                     <div class="flex flex-col">
-                        <button type="button" class="flex items-center justify-between py-3 px-4 text-slate-100 hover:bg-white/10 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleReportGroup">
+                        <button type="button" class="flex items-center justify-between py-2.5 px-3.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleReportGroup">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="payments">payments</span>
+                                <span class="material-symbols-outlined text-emerald-400" data-icon="payments">payments</span>
                                 <span>@L["Sidebar_Reports"]</span>
                             </div>
-                            <span class="material-symbols-outlined text-sm text-white/70 transition-transform duration-200 @(_isReportOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
+                            <span class="material-symbols-outlined text-sm text-slate-400 transition-transform duration-200 @(_isReportOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
                         </button>
                         @if (_isReportOpen)
                         {
-                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-primary-container/40 py-1 transition-all my-1">
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/reports/revenue" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Report_Revenue"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/reports/top-movers" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Report_TopMovers"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/reports/inventory-loss" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Report_InventoryLoss"]</NavLink>
+                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-emerald-500/40 py-1 transition-all my-1">
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/reports/revenue" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Report_Revenue"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/reports/top-movers" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Report_TopMovers"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/reports/inventory-loss" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Report_InventoryLoss"]</NavLink>
                             </div>
                         }
                     </div>
 
                     <!-- Marketing & CRM Section -->
                     <div class="flex flex-col">
-                        <button type="button" class="flex items-center justify-between py-3 px-4 text-slate-100 hover:bg-white/10 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleCrmGroup">
+                        <button type="button" class="flex items-center justify-between py-2.5 px-3.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleCrmGroup">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="loyalty">loyalty</span>
+                                <span class="material-symbols-outlined text-emerald-400" data-icon="loyalty">loyalty</span>
                                 <span>@L["Sidebar_Marketing"]</span>
                             </div>
-                            <span class="material-symbols-outlined text-sm text-white/70 transition-transform duration-200 @(_isCrmOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
+                            <span class="material-symbols-outlined text-sm text-slate-400 transition-transform duration-200 @(_isCrmOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
                         </button>
                         @if (_isCrmOpen)
                         {
-                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-primary-container/40 py-1 transition-all my-1">
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/customers" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Customers"]</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/vouchers" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">@L["Sidebar_Vouchers"]</NavLink>
+                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-emerald-500/40 py-1 transition-all my-1">
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/customers" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Customers"]</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/vouchers" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">@L["Sidebar_Vouchers"]</NavLink>
                             </div>
                         }
                     </div>
@@ -155,23 +155,23 @@
                 <Authorized>
                     <!-- System Section -->
                     <div class="flex flex-col">
-                        <button type="button" class="flex items-center justify-between py-3 px-4 text-slate-100 hover:bg-white/10 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleSystemGroup">
+                        <button type="button" class="flex items-center justify-between py-2.5 px-3.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-all cursor-pointer w-full text-left rounded-xl font-medium" @onclick="ToggleSystemGroup">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="settings">settings</span>
+                                <span class="material-symbols-outlined text-emerald-400" data-icon="settings">settings</span>
                                 <span>Hệ Thống</span>
                             </div>
-                            <span class="material-symbols-outlined text-sm text-white/70 transition-transform duration-200 @(_isSystemOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
+                            <span class="material-symbols-outlined text-sm text-slate-400 transition-transform duration-200 @(_isSystemOpen ? "rotate-180 text-white" : "")" data-icon="expand_more">expand_more</span>
                         </button>
                         @if (_isSystemOpen)
                         {
-                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-primary-container/40 py-1 transition-all my-1">
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/system/users" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Tài Khoản</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/system/roles" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Phân Quyền</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/system/registers" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Máy Tính Tiền</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/system/kitchen-stations" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Khu Vực Bếp</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/system/pos-policy" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Chính Sách POS</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/system/settings" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Cấu Hình Chung</NavLink>
-                                <NavLink class="py-2 px-3 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/15 transition-colors font-medium" href="/admin/system/audit-logs" Match="NavLinkMatch.Prefix" ActiveClass="bg-primary text-white font-bold shadow-xs">Lịch Sử Hệ Thống</NavLink>
+                            <div class="flex flex-col gap-1 pl-4 ml-6 border-l-2 border-emerald-500/40 py-1 transition-all my-1">
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/system/users" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Tài Khoản</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/system/roles" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Phân Quyền</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/system/registers" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Máy Tính Tiền</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/system/kitchen-stations" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Khu Vực Bếp</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/system/pos-policy" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Chính Sách POS</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/system/settings" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Cấu Hình Chung</NavLink>
+                                <NavLink class="py-1.5 px-3 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors font-medium" href="/admin/system/audit-logs" Match="NavLinkMatch.Prefix" ActiveClass="bg-emerald-600 text-white font-bold shadow-xs">Lịch Sử Hệ Thống</NavLink>
                             </div>
                         }
                     </div>
@@ -180,21 +180,17 @@
         </nav>
     </div>
     
-    <div class="mt-auto p-6 border-t border-white/10 bg-black/10">
-        <button class="w-full bg-primary-container hover:bg-primary text-white py-2.5 px-4 rounded-xl font-bold text-sm transition-colors mb-4 shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95" @onclick="ExecuteQuickAction">
-            <span class="material-symbols-outlined text-base" data-icon="flash_on">flash_on</span>
-            <span>@L["Sidebar_Quick_Action"]</span>
-        </button>
+    <div class="mt-auto p-6 border-t border-slate-800 bg-slate-950/40">
         <nav class="flex flex-col gap-1">
-            <NavLink class="flex items-center gap-3 py-2 px-3 text-slate-200 hover:bg-white/10 hover:text-white transition-colors rounded-lg text-sm font-medium" href="/pos">
-                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="point_of_sale">point_of_sale</span>
+            <NavLink class="flex items-center gap-3 py-2 px-3 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors rounded-lg text-sm font-medium" href="/pos">
+                <span class="material-symbols-outlined text-emerald-400" data-icon="point_of_sale">point_of_sale</span>
                 <span>@L["Sidebar_Pos_Screen"]</span>
             </NavLink>
-            <NavLink class="flex items-center gap-3 py-2 px-3 text-slate-200 hover:bg-white/10 hover:text-white transition-colors rounded-lg text-sm font-medium" href="/kds">
-                <span class="material-symbols-outlined text-primary-fixed-dim" data-icon="soup_kitchen">soup_kitchen</span>
+            <NavLink class="flex items-center gap-3 py-2 px-3 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors rounded-lg text-sm font-medium" href="/kds">
+                <span class="material-symbols-outlined text-emerald-400" data-icon="soup_kitchen">soup_kitchen</span>
                 <span>@L["Sidebar_Kds_Screen"]</span>
             </NavLink>
-            <button type="button" class="flex items-center gap-3 py-2 px-3 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors rounded-lg cursor-pointer w-full text-left font-bold text-sm mt-1" @onclick="HandleLogout">
+            <button type="button" class="flex items-center gap-3 py-2 px-3 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors rounded-lg cursor-pointer w-full text-left font-bold text-sm mt-1" @onclick="HandleLogout">
                 <span class="material-symbols-outlined" data-icon="logout">logout</span>
                 <span>@L["Sidebar_Logout"]</span>
             </button>
@@ -230,31 +226,16 @@
     {
         try
         {
-            var path = new Uri(url).AbsolutePath.ToLowerInvariant();
-            if (path.StartsWith("/admin/menu") || path.StartsWith("/admin/categories") || path.StartsWith("/admin/menu-items") || path.StartsWith("/admin/modifiers"))
-            {
-                _isMenuOpen = true;
-            }
-            else if (path.StartsWith("/admin/orders") || path.StartsWith("/admin/areas") || path.StartsWith("/admin/tables") || path.StartsWith("/admin/shifts"))
-            {
-                _isOperationsOpen = true;
-            }
-            else if (path.StartsWith("/admin/materials") || path.StartsWith("/admin/recipes") || path.StartsWith("/admin/suppliers") || path.StartsWith("/admin/goods-receipts") || path.StartsWith("/admin/stocktakes"))
-            {
-                _isInventoryOpen = true;
-            }
-            else if (path.StartsWith("/admin/reports"))
-            {
-                _isReportOpen = true;
-            }
-            else if (path.StartsWith("/admin/customers") || path.StartsWith("/admin/vouchers"))
-            {
-                _isCrmOpen = true;
-            }
-            else if (path.StartsWith("/admin/system"))
-            {
-                _isSystemOpen = true;
-            }
+            var path = Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                ? uri.AbsolutePath.ToLowerInvariant()
+                : url.ToLowerInvariant();
+
+            _isMenuOpen = path.StartsWith("/admin/menu") || path.StartsWith("/admin/categories") || path.StartsWith("/admin/modifiers");
+            _isOperationsOpen = path.StartsWith("/admin/orders") || path.StartsWith("/admin/areas") || path.StartsWith("/admin/tables") || path.StartsWith("/admin/shifts");
+            _isInventoryOpen = path.StartsWith("/admin/materials") || path.StartsWith("/admin/recipes") || path.StartsWith("/admin/suppliers") || path.StartsWith("/admin/goods-receipts") || path.StartsWith("/admin/stocktakes");
+            _isReportOpen = path.StartsWith("/admin/reports");
+            _isCrmOpen = path.StartsWith("/admin/customers") || path.StartsWith("/admin/vouchers");
+            _isSystemOpen = path.StartsWith("/admin/system");
         }
         catch { }
     }
@@ -264,16 +245,23 @@
         Navigation.LocationChanged -= OnLocationChanged;
     }
 
-    private void ToggleMenuGroup() => _isMenuOpen = !_isMenuOpen;
-    private void ToggleOperationsGroup() => _isOperationsOpen = !_isOperationsOpen;
-    private void ToggleInventoryGroup() => _isInventoryOpen = !_isInventoryOpen;
-    private void ToggleReportGroup() => _isReportOpen = !_isReportOpen;
-    private void ToggleCrmGroup() => _isCrmOpen = !_isCrmOpen;
-    private void ToggleSystemGroup() => _isSystemOpen = !_isSystemOpen;
+    private void ToggleMenuGroup() => ToggleGroup(ref _isMenuOpen);
+    private void ToggleOperationsGroup() => ToggleGroup(ref _isOperationsOpen);
+    private void ToggleInventoryGroup() => ToggleGroup(ref _isInventoryOpen);
+    private void ToggleReportGroup() => ToggleGroup(ref _isReportOpen);
+    private void ToggleCrmGroup() => ToggleGroup(ref _isCrmOpen);
+    private void ToggleSystemGroup() => ToggleGroup(ref _isSystemOpen);
 
-    private void ExecuteQuickAction()
+    private void ToggleGroup(ref bool targetGroup)
     {
-        Navigation.NavigateTo("/admin/menu-items");
+        bool nextState = !targetGroup;
+        _isMenuOpen = false;
+        _isOperationsOpen = false;
+        _isInventoryOpen = false;
+        _isReportOpen = false;
+        _isCrmOpen = false;
+        _isSystemOpen = false;
+        targetGroup = nextState;
     }
 
     private void HandleLogout()

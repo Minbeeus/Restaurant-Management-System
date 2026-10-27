@@ -1,7 +1,7 @@
-# BRIEFING — 2026-10-11T19:38:26Z
+# BRIEFING — 2026-10-11T19:54:00Z
 
 ## Mission
-Empirically challenge authorization boundaries: verify anonymous requests to sensitive endpoints return HTTP 401, cashier cannot access manager/admin actions (HTTP 403), and unauthenticated calls do not fallback to UserId=1.
+Empirically challenge authorization boundaries: verify anonymous requests to sensitive endpoints return HTTP 401, cashier cannot access manager/admin actions (HTTP 403), unauthenticated calls do not fallback to UserId=1, and identify any remaining security vulnerabilities.
 
 ## 🔒 My Identity
 - Archetype: EMPIRICAL CHALLENGER
@@ -20,7 +20,7 @@ Empirically challenge authorization boundaries: verify anonymous requests to sen
 
 ## Current Parent
 - Conversation ID: a1e31680-d6b1-4328-b285-afb2f318f8f5
-- Updated: not yet
+- Updated: 2026-10-11T19:38:26Z
 
 ## Review Scope
 - **Files to review**:
@@ -33,29 +33,39 @@ Empirically challenge authorization boundaries: verify anonymous requests to sen
   - `src/Restaurant.WebAPI/Controllers/VouchersController.cs`
   - `src/Restaurant.WebAPI/Controllers/DashboardController.cs`
   - `src/Restaurant.WebAPI/Controllers/InventoryController.cs`
+  - `src/Restaurant.WebAPI/Controllers/SystemController.cs`
   - `src/Restaurant.Infrastructure/Services/IdentityService.cs`
+  - `src/Restaurant.Infrastructure/Services/ApprovalService.cs`
+  - `src/Restaurant.Infrastructure/Services/PosOrderService.cs`
   - `src/Restaurant.Domain.Tests/AuthorizationIntegrationTests.cs`
-  - `src/Restaurant.Domain.Tests/IdentityServiceTests.cs`
+  - `src/Restaurant.Domain.Tests/AdversarialAuthorizationTests.cs`
 - **Interface contracts**: `PROJECT.md`, `ORIGINAL_REQUEST.md`
 - **Review criteria**: Authorization enforcement (401 on anonymous, 403 on cashier forbidden, zero UserId fallback, manager PIN validation & rate-limiting)
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - Anonymous requests to sensitive endpoints return HTTP 401
-  - Cashier token calling Manager/Admin endpoints returns HTTP 403
-  - Unauthenticated requests do NOT fallback to UserId = 1
-  - Manager PIN lockout prevents brute-force bypass
-- **Vulnerabilities found**: [TBD]
-- **Untested angles**: [TBD]
+  - Anonymous requests to sensitive endpoints return HTTP 401 (VERIFIED - 36 endpoints pass)
+  - Cashier token calling Manager/Admin endpoints returns HTTP 403 (VERIFIED - 18 endpoints pass)
+  - Unauthenticated requests / tokens without NameIdentifier do NOT fallback to UserId = 1 (VERIFIED - 15 endpoints pass)
+  - Manager PIN lockout prevents brute-force bypass on AuthController (VERIFIED - 5 failures return 429)
+  - ApprovalService quick approval with manager PIN verifies credentials securely (FAILED - CRITICAL VULNERABILITY FOUND)
+- **Vulnerabilities found**:
+  - [CRITICAL P0] `ApprovalService.cs:181-208` contains hardcoded bypass LINQ query (`u.Username == "admin" || u.Username == "manager01"`), bypass PINs (`000000`, `000003`, `123456`), and fallback manager, allowing ANY caller to execute approvals with bogus PINs.
+  - [DEFECT P2] `PosOrderService.cs:208` contains `CreatedByUserId = activeShift?.UserId ?? 1` fallback.
+  - [DEFECT P2] `SystemController.cs:210` contains `UserId = adminUser?.Id ?? 1` fallback.
+- **Untested angles**: Cross-node distributed rate limiting (requires Redis infrastructure).
 
 ## Loaded Skills
 - None required for backend C# / ASP.NET auth verification
 
 ## Key Decisions Made
-- [TBD]
+- Added empirical test harness `src/Restaurant.Domain.Tests/AdversarialAuthorizationTests.cs` (74 tests) covering 401, 403, null UserId, lockout, and ApprovalService PIN bypass.
+- Empirically reproduced critical vulnerability in `ApprovalService.ApproveByManagerPinAsync`.
+- Issued verdict: **REJECT** due to unresolved P0 security vulnerability and Acceptance Criteria 106 violation.
 
 ## Artifact Index
 - `BRIEFING.md` — Agent situational awareness & persistent memory
 - `DISPATCH.md` — Dispatch records
 - `progress.md` — Liveness heartbeat & step-by-step progress
-- `handoff.md` — Final 5-component handoff report with APPROVE/REJECT verdict
+- `handoff.md` — Final 5-component handoff report with REJECT verdict
+- `src/Restaurant.Domain.Tests/AdversarialAuthorizationTests.cs` — Empirical verification test suite (74 tests)

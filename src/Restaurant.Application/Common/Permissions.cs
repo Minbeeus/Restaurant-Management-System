@@ -56,9 +56,17 @@ public static class Permissions
         SystemRegisterManage,
         SystemPolicyManage,
         ShiftViewAll,
+        ShiftApproveVariance,
+        ShiftReopen,
         SalesViewAll,
         ReconciliationView,
-        ApprovalViewCenter
+        ReconciliationApprove,
+        ApprovalViewCenter,
+        ApprovalProcess,
+        RefundApprove,
+        PaymentVoid,
+        CashAdjust,
+        CashTillOutLimit
     };
 
     private static readonly HashSet<string> CashierPermissions = new(StringComparer.OrdinalIgnoreCase)

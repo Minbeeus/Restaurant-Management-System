@@ -1,6 +1,6 @@
 # Progress Tracking
 
-Last visited: 2026-10-11T19:40:15Z
+Last visited: 2026-10-11T20:00:15Z
 
 ## Current Status
 - [x] Received dispatch instructions and logged in DISPATCH.md
@@ -10,8 +10,9 @@ Last visited: 2026-10-11T19:40:15Z
 - [x] Collected and analyzed survey reports from all 3 agents
 - [x] Synthesized Survey findings into PROJECT.md (Architecture, 32 Features, 7 Milestones, Interface Contracts, Code Layout)
 - [x] Phase 1: Dispatched E2E Testing Track (e2e_test_writer) — COMPLETED (TEST_READY.md published, 158/158 tests passed)
-- [x] Milestone 1: Dispatched worker_m1 for R1 Security & Auth overhaul — COMPLETED (100/100 tests passed, 0 warnings/errors)
-- [ ] Milestone 1 Gate (Reviewers, Challengers, Forensic Auditor) — In progress
+- [x] Milestone 1 Iteration 1: Completed and evaluated at Gate -> Result FAIL (ApprovalService bypass, rate-limit keying)
+- [x] Milestone 1 Iteration 2: Dispatched worker_m1_r2 for remediation (In progress)
+- [ ] Milestone 1 Gate Iteration 2
 - [ ] Milestone 2: POS Cashiering & Payment Flow
 - [ ] Milestone 3: BOH Admin & SystemSettings Migration
 - [ ] Milestone 4: SignalR & KDS Realtime
@@ -20,13 +21,9 @@ Last visited: 2026-10-11T19:40:15Z
 - [ ] Final Milestone (R7: Integration Testing, 100% Pass, Audit Reports)
 
 ## Iteration Status
-Current iteration: 1 / 32
-Spawn count: 10 / 16
+Current iteration: 2 / 32
+Spawn count: 11 / 16
 
 ## Notes & Findings
-- Liveness Heartbeat 4 (19:40:00Z):
-  - reviewer_m1_1 (09b1ab46): executing and analyzing test results.
-  - reviewer_m1_2 (af66f54b): reviewing AuthController and endpoint security.
-  - challenger_m1_1 (2a66b2cf): challenging PIN verification and lockout thresholds.
-  - challenger_m1_2 (c6c6dcbd): challenging authorization boundaries and 401/403 responses.
-  - auditor_m1_1 (c3a91766): performing forensic diffs across controllers to verify authentic implementation.
+- Liveness Heartbeat 6 (20:00:00Z):
+  - worker_m1_r2 (011edad6) actively implementing the 5 remediation points and executing verification builds.

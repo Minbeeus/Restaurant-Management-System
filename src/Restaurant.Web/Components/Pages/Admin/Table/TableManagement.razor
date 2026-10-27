@@ -37,6 +37,18 @@
 
             @if (_viewMode == "Canvas")
             {
+                <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold border transition-colors @(_showFloorplanBackground ? "bg-primary text-on-primary border-primary shadow-xs" : "bg-surface text-on-surface hover:bg-surface-low border-outline-variant")"
+                        @onclick="() => _showFloorplanBackground = !_showFloorplanBackground" title="Bật/Tắt ảnh mặt bằng kiến trúc quán">
+                    <span class="material-symbols-outlined text-[18px]">map</span>
+                    <span>Mặt Bằng</span>
+                </button>
+
+                <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold border border-outline-variant bg-surface text-on-surface hover:bg-surface-low transition-colors"
+                        @onclick="ResetToStandardLayoutAsync" title="Khôi phục toàn bộ bàn về các block kiến trúc chuẩn">
+                    <span class="material-symbols-outlined text-[18px]">restart_alt</span>
+                    <span>Khôi phục sơ đồ chuẩn</span>
+                </button>
+
                 <button class="flex items-center gap-2 px-4 py-2 rounded font-label-bold shadow-sm transition-colors @(_isEditMode ? "bg-surface-variant text-on-surface hover:bg-surface-variant/80" : "bg-primary text-on-primary hover:bg-primary/90")" @onclick="ToggleEditMode">
                     <span class="material-symbols-outlined text-[20px]" data-icon="@(_isEditMode ? "visibility" : "edit_square")">@(_isEditMode ? "visibility" : "edit_square")</span>
                     @(_isEditMode ? L["Table_Mode_View"] : L["Table_Mode_Edit"])
@@ -77,11 +89,11 @@
             @if (_viewMode == "Canvas")
             {
                 <!-- Canvas Area -->
-            <div class="flex-1 bg-surface-container-lowest rounded-xl shadow-inner border border-outline-variant/30 overflow-hidden relative">
+            <div class="flex-1 bg-surface-container-lowest rounded-xl shadow-inner border border-outline-variant/30 overflow-auto relative">
                 
                 @if (_isEditMode)
                 {
-                    <div class="absolute top-4 left-4 bg-surface/80 backdrop-blur px-3 py-1.5 rounded shadow-sm text-xs font-bold text-on-surface z-10 flex items-center gap-2 border border-outline-variant/30">
+                    <div class="sticky top-4 left-4 bg-surface/85 backdrop-blur px-3 py-1.5 rounded shadow-sm text-xs font-bold text-on-surface z-30 flex items-center gap-2 border border-outline-variant/30 w-fit">
                         <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
                         @L["Table_Editing_Hint"]
                         @if (_hasCollision)
@@ -91,12 +103,21 @@
                     </div>
                 }
 
-                <div id="floorplan-canvas" class="w-full h-full relative touch-none @(_isEditMode ? "edit-mode bg-grid-pattern" : "bg-grid-pattern-light")">
+                <div id="floorplan-canvas" class="relative touch-none @(_isEditMode ? "edit-mode bg-grid-pattern" : "bg-grid-pattern-light")" style="min-width: 1260px; min-height: 740px;">
+                    @if (_showFloorplanBackground)
+                    {
+                        <img src="images/restaurant_floorplan.svg" 
+                             alt="Sơ đồ mặt bằng quán" 
+                             class="absolute left-0 top-0 pointer-events-none select-none transition-opacity duration-300"
+                             style="width: 1240px; height: 720px; z-index: 1; opacity: 0.9;" />
+                    }
+
                     @foreach (var table in _currentTables)
                     {
-                        <div class="table-element absolute select-none flex flex-col items-center justify-center cursor-pointer @GetTableShapeClass(table) @GetTableStatusClass(table) @(_isEditMode ? "hover:ring-2 hover:ring-primary shadow-md active:scale-95" : "hover:shadow-lg transition-shadow")"
+                        var (posX, posY, width, height) = GetTableDisplayCoordinates(table);
+                        <div class="table-element absolute select-none flex flex-col items-center justify-center cursor-pointer @GetTableShapeClass(table) @GetTableStatusClass(table) @(_isEditMode ? "hover:ring-2 hover:ring-primary shadow-md active:scale-95 z-20" : "hover:shadow-lg transition-shadow z-10")"
                              data-id="@table.Id"
-                             style="left: 0; top: 0; transform: translate(@(table.PositionX)px, @(table.PositionY)px); width: @(table.Width)px; height: @(table.Height)px;"
+                             style="left: 0; top: 0; transform: translate(@(posX)px, @(posY)px); width: @(width)px; height: @(height)px;"
                              @onclick="() => OnTableClicked(table)">
                             
                             <span class="font-bold text-on-background pointer-events-none @(table.Width < 60 ? "text-xs" : "text-sm")">@table.Name</span>
@@ -288,6 +309,7 @@
     private bool _isLoading = true;
     private bool _isEditMode = false;
     private bool _hasCollision = false;
+    private bool _showFloorplanBackground = true;
     private string _viewMode = "Canvas"; // "Canvas" or "Grid"
     
     // Filter properties for Grid View
@@ -488,6 +510,99 @@
         {
             Console.WriteLine($"Error saving layout: {ex.Message}");
         }
+    }
+
+    private static readonly Dictionary<string, (double X, double Y, double W, double H)> StandardTablePositions = new()
+    {
+        ["A01"] = (380, 135, 75, 55),
+        ["A02"] = (490, 135, 75, 55),
+        ["A03"] = (600, 135, 75, 55),
+        ["A04"] = (710, 135, 75, 55),
+        ["A05"] = (380, 215, 75, 55),
+        ["A06"] = (490, 215, 75, 55),
+        ["A07"] = (600, 215, 75, 55),
+        ["A08"] = (710, 215, 75, 55),
+        ["B01"] = (410, 375, 65, 65),
+        ["B02"] = (495, 375, 65, 65),
+        ["B03"] = (580, 375, 65, 65),
+        ["B04"] = (665, 375, 65, 65),
+        ["B05"] = (410, 445, 65, 65),
+        ["B06"] = (495, 445, 65, 65),
+        ["B07"] = (580, 445, 65, 65),
+        ["B08"] = (665, 445, 65, 65),
+        ["C01"] = (930, 320, 60, 60),
+        ["C02"] = (1040, 320, 60, 60),
+        ["C03"] = (900, 390, 60, 60),
+        ["C04"] = (985, 390, 60, 60),
+        ["C05"] = (1070, 390, 60, 60),
+        ["C06"] = (930, 455, 60, 60),
+        ["C07"] = (1040, 455, 60, 60),
+        ["D08"] = (135, 565, 80, 55),
+        ["D09"] = (225, 565, 80, 55),
+        ["D01"] = (315, 565, 55, 55),
+        ["D02"] = (380, 565, 55, 55),
+        ["D03"] = (445, 565, 55, 55),
+        ["D10"] = (745, 565, 75, 55),
+        ["D11"] = (830, 565, 75, 55),
+        ["D04"] = (915, 565, 50, 55),
+        ["D05"] = (975, 565, 50, 55),
+        ["D06"] = (1035, 565, 50, 55),
+        ["D07"] = (1095, 565, 50, 55),
+    };
+
+    private (int X, int Y, int W, int H) GetTableDisplayCoordinates(TableDto table)
+    {
+        var rawX = table.PositionX;
+        var rawY = table.PositionY;
+        var baseW = table.Width > 0 ? table.Width : 60;
+        var baseH = table.Height > 0 ? table.Height : 60;
+
+        if ((rawY < 70 || rawX < 90) && StandardTablePositions.TryGetValue(table.Name, out var std))
+        {
+            rawX = std.X;
+            rawY = std.Y;
+            baseW = (int)std.W;
+            baseH = (int)std.H;
+        }
+
+        return ((int)Math.Round(rawX), (int)Math.Round(rawY), baseW, baseH);
+    }
+
+    private async Task ResetToStandardLayoutAsync()
+    {
+        foreach (var t in _tables)
+        {
+            if (StandardTablePositions.TryGetValue(t.Name, out var std))
+            {
+                t.PositionX = std.X;
+                t.PositionY = std.Y;
+                t.Width = (int)std.W;
+                t.Height = (int)std.H;
+            }
+        }
+        UpdateCurrentTables();
+        _isJsInitialized = false;
+        
+        try
+        {
+            var layoutRequest = _tables.Select(t => new UpdateTableLayoutRequest
+            {
+                TableId = t.Id,
+                PositionX = t.PositionX,
+                PositionY = t.PositionY,
+                Width = t.Width,
+                Height = t.Height,
+                Shape = t.Shape,
+                Rotation = t.Rotation
+            }).ToList();
+
+            await ApiClient.UpdateBatchLayoutAsync(0, layoutRequest);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error resetting standard layout: {ex.Message}");
+        }
+        StateHasChanged();
     }
 
     // Modal & Add/Edit Logic (Simplified for this file size limit, similar to previous version)

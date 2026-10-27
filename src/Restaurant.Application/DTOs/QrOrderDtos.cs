@@ -100,7 +100,10 @@ public class SubmitQrOrderRequest
 {
     public int TableId { get; set; }
     public string QrToken { get; set; } = string.Empty;
+    public string? CustomerName { get; set; }
+    public string? CustomerPhone { get; set; }
     public string? CustomerNote { get; set; }
+    public string? VoucherCode { get; set; }
     public List<CartItemValidateRequest> Items { get; set; } = new();
 }
 

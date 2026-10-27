@@ -8,7 +8,7 @@
         <p class="text-on-surface-variant text-sm mt-1">@L["Report_Revenue_Sub"]</p>
     </div>
     <div class="flex items-center gap-2">
-        <button class="px-4 py-2 bg-primary text-on-primary rounded font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center text-sm" @onclick="ExportReport">
+        <button class="px-4 py-2 bg-primary text-on-primary rounded-xl font-label-bold shadow-sm hover:bg-primary/90 transition-colors flex items-center text-sm" @onclick="ExportReport">
             <span class="material-symbols-outlined text-sm mr-1" data-icon="download">download</span> @L["Report_Revenue_Export"]
         </button>
     </div>
@@ -18,22 +18,22 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-5">
         <div class="text-xs font-bold text-on-surface-variant uppercase">@L["Report_Revenue_Total"]</div>
-        <div class="font-headline-sm text-2xl font-bold text-primary mt-2">128,450,000đ</div>
+        <div class="font-headline-sm text-2xl font-bold text-primary font-mono tabular-nums mt-2">128,450,000 đ</div>
         <div class="text-xs text-success-green font-bold mt-1">@L["Report_Revenue_Growth"]</div>
     </div>
     <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-5">
         <div class="text-xs font-bold text-on-surface-variant uppercase">@L["Report_Revenue_TotalOrders"]</div>
-        <div class="font-headline-sm text-2xl font-bold text-on-background mt-2">482 đơn</div>
+        <div class="font-headline-sm text-2xl font-bold text-on-background font-mono tabular-nums mt-2">482 đơn</div>
         <div class="text-xs text-on-surface-variant mt-1">@L["Report_Revenue_PaidSub"]</div>
     </div>
     <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-5">
         <div class="text-xs font-bold text-on-surface-variant uppercase">@L["Report_Revenue_VietQR"]</div>
-        <div class="font-headline-sm text-2xl font-bold text-secondary mt-2">84,300,000đ</div>
+        <div class="font-headline-sm text-2xl font-bold text-secondary font-mono tabular-nums mt-2">84,300,000 đ</div>
         <div class="text-xs text-on-surface-variant mt-1">@L["Report_Revenue_VietQRSub"]</div>
     </div>
     <div class="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-5">
         <div class="text-xs font-bold text-on-surface-variant uppercase">@L["Report_Revenue_Cash"]</div>
-        <div class="font-headline-sm text-2xl font-bold text-on-background mt-2">44,150,000đ</div>
+        <div class="font-headline-sm text-2xl font-bold text-on-background font-mono tabular-nums mt-2">44,150,000 đ</div>
         <div class="text-xs text-on-surface-variant mt-1">@L["Report_Revenue_CashSub"]</div>
     </div>
 </div>
@@ -56,26 +56,26 @@
             </tr>
         </thead>
         <tbody>
-            <tr class="border-b border-outline-variant/20 hover:bg-surface-low font-mono">
+            <tr class="border-b border-outline-variant/20 hover:bg-surface-low font-mono tabular-nums">
                 <td class="p-4 font-bold font-sans text-on-surface">18/09/2026 (@L["Dashboard_Today"])</td>
                 <td class="p-4 text-right font-bold">34</td>
-                <td class="p-4 text-right">3,200,000đ</td>
-                <td class="p-4 text-right text-secondary font-bold">6,850,000đ</td>
-                <td class="p-4 text-right font-bold text-primary text-base">10,050,000đ</td>
+                <td class="p-4 text-right">3,200,000 đ</td>
+                <td class="p-4 text-right text-secondary font-bold">6,850,000 đ</td>
+                <td class="p-4 text-right font-bold text-primary text-base">10,050,000 đ</td>
             </tr>
-            <tr class="border-b border-outline-variant/20 hover:bg-surface-low font-mono">
+            <tr class="border-b border-outline-variant/20 hover:bg-surface-low font-mono tabular-nums">
                 <td class="p-4 font-bold font-sans text-on-surface">17/09/2026</td>
                 <td class="p-4 text-right font-bold">42</td>
-                <td class="p-4 text-right">4,500,000đ</td>
-                <td class="p-4 text-right text-secondary font-bold">8,200,000đ</td>
-                <td class="p-4 text-right font-bold text-primary text-base">12,700,000đ</td>
+                <td class="p-4 text-right">4,500,000 đ</td>
+                <td class="p-4 text-right text-secondary font-bold">8,200,000 đ</td>
+                <td class="p-4 text-right font-bold text-primary text-base">12,700,000 đ</td>
             </tr>
-            <tr class="border-b border-outline-variant/20 hover:bg-surface-low font-mono">
+            <tr class="border-b border-outline-variant/20 hover:bg-surface-low font-mono tabular-nums">
                 <td class="p-4 font-bold font-sans text-on-surface">16/09/2026</td>
                 <td class="p-4 text-right font-bold">29</td>
-                <td class="p-4 text-right">2,800,000đ</td>
-                <td class="p-4 text-right text-secondary font-bold">5,400,000đ</td>
-                <td class="p-4 text-right font-bold text-primary text-base">8,200,000đ</td>
+                <td class="p-4 text-right">2,800,000 đ</td>
+                <td class="p-4 text-right text-secondary font-bold">5,400,000 đ</td>
+                <td class="p-4 text-right font-bold text-primary text-base">8,200,000 đ</td>
             </tr>
         </tbody>
     </table>

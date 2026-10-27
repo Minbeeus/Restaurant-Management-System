@@ -1,9 +1,11 @@
 @code {
     [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string? SubLabel { get; set; }
     [Parameter] public bool Value { get; set; }
     [Parameter] public EventCallback<bool> ValueChanged { get; set; }
     [Parameter] public bool IsDisabled { get; set; }
     [Parameter] public string ErrorMessage { get; set; } = "";
+    [Parameter] public string? Class { get; set; }
 
     private async Task OnChange(ChangeEventArgs e)
     {
@@ -14,18 +16,26 @@
     }
 }
 
-<div class="form-check mb-3">
-    <input class="form-check-input @(!string.IsNullOrEmpty(ErrorMessage) ? "is-invalid" : "")" 
-           type="checkbox" 
-           checked="@Value" 
-           @onchange="OnChange" 
-           disabled="@IsDisabled" 
-           style="border-color: var(--color-border-main);" />
-    <label class="form-check-label" style="font-family: var(--font-body); color: var(--color-text-main);">
-        @Label
+<div class="flex flex-col mb-3 select-none @Class">
+    <label class="inline-flex items-center gap-3 cursor-pointer @(IsDisabled ? "opacity-50 cursor-not-allowed" : "")">
+        <input type="checkbox" 
+               class="w-4 h-4 rounded text-primary focus:ring-primary/40 focus:ring-2 border-outline-variant transition-colors cursor-pointer @(!string.IsNullOrEmpty(ErrorMessage) ? "border-red-500" : "")" 
+               checked="@Value" 
+               @onchange="OnChange" 
+               disabled="@IsDisabled" />
+        <div class="flex flex-col">
+            <span class="text-sm font-semibold text-on-surface font-body">@Label</span>
+            @if (!string.IsNullOrEmpty(SubLabel))
+            {
+                <span class="text-xs text-on-surface-variant font-body">@SubLabel</span>
+            }
+        </div>
     </label>
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
-        <div class="invalid-feedback">@ErrorMessage</div>
+        <div class="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1 font-body">
+            <span class="material-symbols-outlined text-[14px]">error</span>
+            <span>@ErrorMessage</span>
+        </div>
     }
 </div>

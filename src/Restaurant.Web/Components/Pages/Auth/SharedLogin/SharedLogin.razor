@@ -3,52 +3,73 @@
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<div class="shared-login-container" @onkeydown="HandleKeyDown" tabindex="0" @ref="containerRef">
-    <div class="shared-login-card @(IsError ? "shake-animation" : "")">
-        <div class="header-section">
-            <h2 class="brand-title">🍕 RESTAURANT MANAGEMENT POS & KDS</h2>
-            <p class="subtitle">Nhập mã PIN nhân viên để đăng nhập</p>
+<div class="min-h-screen w-full flex items-center justify-center bg-background p-4 outline-none font-body select-none" 
+     @onkeydown="HandleKeyDown" tabindex="0" @ref="containerRef">
+    <div class="w-full max-w-md bg-surface rounded-3xl shadow-xl border border-outline-variant/40 p-8 md:p-10 flex flex-col items-center @(IsError ? "animate-shake" : "")">
+        <!-- Brand Header -->
+        <div class="flex flex-col items-center text-center mb-6">
+            <img src="/logo_icon.png" alt="Mozzarella & Basil Logo" class="w-14 h-14 rounded-2xl bg-mozzarella-white object-contain p-2 shadow-sm border border-outline-variant/30 mb-3" onerror="this.style.display='none'" />
+            <h1 class="font-heading font-extrabold text-xl md:text-2xl text-secondary m-0 tracking-tight">Mozzarella &amp; Basil</h1>
+            <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mt-1">Đăng nhập ca làm việc (PIN Access)</p>
         </div>
         
-        <!-- Display dots for PIN length -->
-        <div class="flex items-center justify-center gap-3 my-6">
+        <!-- PIN Dots Display -->
+        <div class="flex items-center justify-center gap-3.5 my-4">
             @for (int i = 0; i < 6; i++)
             {
                 var isFilled = i < pinCode.Length;
-                <div class="w-4 h-4 rounded-full border transition-all duration-200 @(isFilled ? "bg-primary-container border-primary-container scale-110 shadow-sm" : "bg-white border-gray-300") @(IsError ? "!bg-red-600 !border-red-600" : "")"></div>
+                <div class="w-4 h-4 rounded-full border-2 transition-all duration-150 @(isFilled ? "bg-primary border-primary scale-110 shadow-xs" : "bg-surface-low border-outline-variant/60") @(IsError ? "!bg-error !border-error animate-pulse" : "")"></div>
             }
         </div>
         
-        @if (!string.IsNullOrEmpty(ErrorMessage))
-        {
-            <div class="error-text">@ErrorMessage</div>
-        }
-        else
-        {
-            <div class="error-placeholder"></div>
-        }
+        <!-- Error & Helper Text Slot -->
+        <div class="h-6 mb-4 flex items-center justify-center text-center">
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="text-xs font-bold text-error flex items-center gap-1 animate-in fade-in">
+                    <span class="material-symbols-outlined text-[16px]">error</span>
+                    <span>@ErrorMessage</span>
+                </div>
+            }
+            else
+            {
+                <span class="text-xs text-on-surface-variant/70 font-medium">Nhập mã PIN 6 số của bạn</span>
+            }
+        </div>
         
         <!-- Numpad Grid -->
-        <div class="numpad-grid">
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(1)">1</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(2)">2</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(3)">3</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(4)">4</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(5)">5</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(6)">6</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(7)">7</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(8)">8</button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(9)">9</button>
+        <div class="grid grid-cols-3 gap-3.5 w-full place-items-center">
+            @for (int num = 1; num <= 9; num++)
+            {
+                var digit = num;
+                <button type="button" 
+                        class="w-[78px] h-[78px] rounded-2xl bg-surface-low hover:bg-surface-high active:scale-95 text-on-surface font-heading text-2xl font-bold transition-all shadow-2xs border border-outline-variant/30 flex items-center justify-center cursor-pointer select-none"
+                        @onclick="() => AppendDigit(digit)">
+                    @digit
+                </button>
+            }
             
-            <!-- Bottom Row: CLEAR, 0, CONFIRM -->
-            <button type="button" class="numpad-key clear-key" @onclick="ClearLast">
-                <span class="material-symbols-outlined">backspace</span>
+            <!-- Bottom Row: Backspace, 0, Confirm -->
+            <button type="button" 
+                    class="w-[78px] h-[78px] rounded-2xl bg-red-50 hover:bg-red-100 active:scale-95 text-error font-heading text-2xl font-bold transition-all shadow-2xs border border-red-200/60 flex items-center justify-center cursor-pointer select-none"
+                    title="Xóa số vừa nhập"
+                    @onclick="ClearLast">
+                <span class="material-symbols-outlined text-2xl">backspace</span>
             </button>
-            <button type="button" class="numpad-key" @onclick="() => AppendDigit(0)">0</button>
-            <button type="button" class="numpad-key confirm-key" @onclick="ConfirmPin" disabled="@(pinCode.Length < 6 || IsLoading)">
+            
+            <button type="button" 
+                    class="w-[78px] h-[78px] rounded-2xl bg-surface-low hover:bg-surface-high active:scale-95 text-on-surface font-heading text-2xl font-bold transition-all shadow-2xs border border-outline-variant/30 flex items-center justify-center cursor-pointer select-none"
+                    @onclick="() => AppendDigit(0)">
+                0
+            </button>
+            
+            <button type="button" 
+                    class="w-[78px] h-[78px] rounded-2xl bg-primary hover:bg-[#3d5600] active:scale-95 text-on-primary font-body text-sm font-bold transition-all shadow-xs flex items-center justify-center cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+                    @onclick="ConfirmPin" 
+                    disabled="@(pinCode.Length < 6 || IsLoading)">
                 @if (IsLoading)
                 {
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" role="status" aria-hidden="true"></span>
                 }
                 else
                 {
@@ -56,26 +77,40 @@
                 }
             </button>
         </div>
+
+        <!-- Link to Admin Login -->
+        <div class="mt-8 pt-4 border-t border-outline-variant/30 w-full text-center">
+            <a href="/admin/login" class="text-xs font-semibold text-secondary hover:text-primary transition-colors flex items-center justify-center gap-1">
+                <span class="material-symbols-outlined text-sm">shield_person</span>
+                <span>Đăng nhập Quản trị viên (BOH)</span>
+            </a>
+        </div>
     </div>
 </div>
 
 <!-- Area Selector Modal (Shown when User has BOTH POS & KDS access) -->
 @if (ShowAreaSelector)
 {
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-100 flex flex-col items-center">
-            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                <span class="material-symbols-outlined text-2xl">apps</span>
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div class="bg-surface rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-outline-variant flex flex-col items-center animate-in zoom-in-95">
+            <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 border border-primary/20 shadow-2xs">
+                <span class="material-symbols-outlined text-3xl">apps</span>
             </div>
-            <h3 class="text-xl font-bold text-gray-900 mb-1">CHỌN KHU VỰC LÀM VIỆC</h3>
-            <p class="text-sm text-gray-500 mb-6 text-center">Xin chào <strong>@AuthenticatedUserFullName</strong> (@AuthenticatedRoleName)! Vui lòng chọn khu vực bạn muốn truy cập.</p>
+            <h2 class="text-xl font-heading font-black text-on-surface mb-1">CHỌN KHU VỰC LÀM VIỆC</h2>
+            <p class="text-xs text-on-surface-variant mb-6 text-center leading-relaxed">
+                Xin chào <strong>@AuthenticatedUserFullName</strong> (@AuthenticatedRoleName)! Vui lòng chọn phân hệ bạn muốn làm việc trong ca hôm nay:
+            </p>
 
-            <div class="grid grid-cols-1 gap-3 w-full">
-                <button type="button" class="w-full py-4 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-3 transition-colors shadow-sm" @onclick='() => SelectArea("/pos")'>
+            <div class="grid grid-cols-1 gap-3.5 w-full">
+                <button type="button" 
+                        class="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-[#3d5600] text-on-primary font-bold text-sm flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-95" 
+                        @onclick='() => SelectArea("/pos")'>
                     <span class="material-symbols-outlined text-2xl">point_of_sale</span>
-                    <span>Hệ Thống Thu Ngân POS</span>
+                    <span>Màn Hình Thu Ngân POS</span>
                 </button>
-                <button type="button" class="w-full py-4 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center justify-center gap-3 transition-colors shadow-sm" @onclick='() => SelectArea("/kds")'>
+                <button type="button" 
+                        class="w-full py-4 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer active:scale-95 border border-slate-700" 
+                        @onclick='() => SelectArea("/kds")'>
                     <span class="material-symbols-outlined text-2xl">soup_kitchen</span>
                     <span>Màn Hình Bếp KDS</span>
                 </button>
@@ -85,131 +120,12 @@
 }
 
 <style>
-    @@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
-
-    .shared-login-container {
-        min-height: 100vh;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: #F9F9FF;
-        outline: none;
-    }
-
-    .shared-login-card {
-        width: 100%;
-        max-width: 440px;
-        background-color: #FFFFFF;
-        border-radius: 16px;
-        box-shadow: 0px 10px 25px rgba(68, 99, 113, 0.1);
-        border: 1px solid #E5E7EB;
-        padding: 40px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .header-section {
-        margin-bottom: 24px;
-        text-align: center;
-    }
-
-    .brand-title {
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 700;
-        font-size: 20px;
-        color: #446371;
-        margin: 0;
-    }
-
-    .subtitle {
-        font-family: 'Montserrat', sans-serif;
-        font-size: 13px;
-        font-weight: 600;
-        color: #6B7280;
-        margin-top: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .error-text {
-        color: #AD2B19;
-        font-size: 13px;
-        font-weight: 600;
-        margin-bottom: 20px;
-        height: 20px;
-        text-align: center;
-    }
-
-    .error-placeholder {
-        height: 20px;
-        margin-bottom: 20px;
-    }
-
-    .numpad-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        width: 100%;
-        place-items: center;
-    }
-
-    .numpad-key {
-        width: 76px;
-        height: 76px;
-        border-radius: 12px;
-        background-color: #EFF3FF;
-        color: #121C2A;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 28px;
-        font-weight: 600;
-        border: none;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        user-select: none;
-    }
-
-    .numpad-key:hover, .numpad-key:active {
-        background-color: #DEE9FD;
-        transform: scale(0.96);
-    }
-
-    .clear-key {
-        background-color: #FFDAD6;
-        color: #AD2B19;
-    }
-
-    .clear-key:hover, .clear-key:active {
-        background-color: #FFB4AB;
-    }
-
-    .confirm-key {
-        background-color: #486500;
-        color: #FFFFFF;
-        font-size: 16px;
-    }
-
-    .confirm-key:hover:not(:disabled), .confirm-key:active:not(:disabled) {
-        background-color: #3d5600;
-    }
-
-    .confirm-key:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-
     @@keyframes shake {
         0%, 100% { transform: translateX(0); }
         20%, 60% { transform: translateX(-6px); }
         40%, 80% { transform: translateX(6px); }
     }
-
-    .shake-animation {
+    .animate-shake {
         animation: shake 0.4s ease-in-out;
     }
 </style>

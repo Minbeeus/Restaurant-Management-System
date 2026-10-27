@@ -549,9 +549,12 @@ public class Tier1_FeatureCoverageTests
         var cancelled = await ctx.CancelOrderService.CancelOrderAsync(ctx.ManagerUser.Id, orderRes.OrderId, "Khách về gấp");
         Assert.True(cancelled);
 
-        var tx = await ctx.Db.InventoryTransactions.FirstOrDefaultAsync(t => t.ReferenceId == item.Id);
+        var tx = await ctx.Db.InventoryTransactions.FirstOrDefaultAsync(t => t.ReferenceId == item.Id && t.TransactionType == (int)InventoryTransactionType.SaleDeduction);
         Assert.NotNull(tx);
-        Assert.Equal((int)InventoryTransactionType.CancellationWaste, tx.TransactionType);
+
+        var wasteTx = await ctx.Db.InventoryTransactions.FirstOrDefaultAsync(t => t.ReferenceId == orderRes.OrderId && t.TransactionType == (int)InventoryTransactionType.CancellationWaste);
+        Assert.NotNull(wasteTx);
+        Assert.Equal((int)InventoryTransactionType.CancellationWaste, wasteTx.TransactionType);
     }
 
     [Fact]
@@ -572,6 +575,9 @@ public class Tier1_FeatureCoverageTests
         var order = await ctx.Db.Orders.Include(o => o.OrderItems).FirstAsync(o => o.Id == orderRes.OrderId);
         var cokeItem = order.OrderItems.First(oi => oi.MenuItemId == ctx.MenuCocaCola.Id);
 
+        // Cook the coke item to generate SaleDeduction
+        await ctx.KitchenService.UpdateItemStatusAsync(cokeItem.Id, (int)KitchenStatus.Done);
+
         // Void Coke item
         var voided = await ctx.PosOrderService.VoidOrderItemAsync(order.Id, cokeItem.Id, "Khách đổi nước suối", ctx.CashierUser.Id);
         Assert.True(voided);
@@ -579,6 +585,10 @@ public class Tier1_FeatureCoverageTests
         var updatedOrder = await ctx.Db.Orders.FindAsync(order.Id);
         Assert.NotNull(updatedOrder);
         Assert.Equal(180000m, updatedOrder.SubTotal); // only Pizza Beef remaining
+
+        // Verify CancellationWaste entry is recorded for the voided item
+        var wasteTx = await ctx.Db.InventoryTransactions.FirstOrDefaultAsync(t => t.ReferenceId == cokeItem.Id && t.TransactionType == (int)InventoryTransactionType.CancellationWaste);
+        Assert.NotNull(wasteTx);
     }
 
     [Fact]

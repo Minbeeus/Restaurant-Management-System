@@ -26,8 +26,9 @@ public class RedeemPointsRequest
 public class GenerateVietQrRequest
 {
     public int OrderId { get; set; }
-    public string BankAccountNo { get; set; } = "000204039999";
-    public string BankName { get; set; } = "MBBank";
+    public string BankAccountNo { get; set; } = "11102042003";
+    public string BankName { get; set; } = "TPBank";
+    public string AccountHolder { get; set; } = "VAN CONG MINH";
 }
 
 public class VietQrResponse
@@ -37,6 +38,10 @@ public class VietQrResponse
     public decimal Amount { get; set; }
     public string SepayContent { get; set; } = string.Empty;
     public string QrImageUrl { get; set; } = string.Empty;
+    public string SepayQrUrl { get; set; } = string.Empty;
+    public string BankAccountNo { get; set; } = "11102042003";
+    public string BankName { get; set; } = "TPBank";
+    public string AccountHolder { get; set; } = "VAN CONG MINH";
 }
 
 public class SepayWebhookPayload
@@ -60,6 +65,7 @@ public class CancelOrderRequest
 {
     public int OrderId { get; set; }
     public string Reason { get; set; } = string.Empty;
+    public string? ManagerPin { get; set; }
 }
 
 public class ProcessCashPaymentRequest

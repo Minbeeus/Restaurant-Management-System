@@ -4,8 +4,12 @@
     [Parameter] public string Value { get; set; } = "";
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public string ErrorMessage { get; set; } = "";
+    [Parameter] public string? HelperText { get; set; }
     [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public bool Required { get; set; }
     [Parameter] public string Type { get; set; } = "text";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Class { get; set; }
 
     private async Task OnInput(ChangeEventArgs e)
     {
@@ -14,27 +18,38 @@
     }
 }
 
-<div class="mb-3">
+<div class="mb-4 @Class">
     @if (!string.IsNullOrEmpty(Label))
     {
-        <label class="form-label label-bold" style="font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.05em;">@Label</label>
+        <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5 font-body">
+            @Label
+            @if (Required)
+            {
+                <span class="text-red-500 ml-0.5">*</span>
+            }
+        </label>
     }
-    <input type="@Type" 
-           class="form-control @(!string.IsNullOrEmpty(ErrorMessage) ? "is-invalid" : "")" 
-           style="border-radius: 4px; border-color: var(--color-border-light); background-color: var(--color-surface);"
-           placeholder="@Placeholder"
-           value="@Value" 
-           @oninput="OnInput"
-           disabled="@IsDisabled" />
+    <div class="relative flex items-center">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <span class="material-symbols-outlined text-lg absolute left-3.5 text-on-surface-variant pointer-events-none">@Icon</span>
+        }
+        <input type="@Type" 
+               class="w-full @(!string.IsNullOrEmpty(Icon) ? "pl-10" : "px-3.5") pr-3.5 py-2.5 rounded-xl border bg-surface text-on-surface placeholder:text-on-surface-variant/50 text-sm font-body font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary disabled:opacity-50 disabled:bg-surface-low @(!string.IsNullOrEmpty(ErrorMessage) ? "border-red-500 focus:ring-red-300 focus:border-red-500" : "border-outline-variant/50 hover:border-outline")" 
+               placeholder="@Placeholder"
+               value="@Value" 
+               @oninput="OnInput"
+               disabled="@IsDisabled" />
+    </div>
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
-        <div class="invalid-feedback">@ErrorMessage</div>
+        <div class="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1 font-body">
+            <span class="material-symbols-outlined text-[14px]">error</span>
+            <span>@ErrorMessage</span>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="text-xs text-on-surface-variant/70 mt-1 font-body">@HelperText</div>
     }
 </div>
-
-<style>
-    .form-control:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 2px var(--color-primary-container);
-    }
-</style>

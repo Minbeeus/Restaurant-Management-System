@@ -27,11 +27,12 @@ public interface IInventoryService
     Task<List<MaterialDto>> GetMaterialsBySupplierIdAsync(int supplierId);
 
     // Supplier Management
-    Task<List<SupplierDto>> GetAllSuppliersAsync();
+    Task<List<SupplierDto>> GetAllSuppliersAsync(bool includeInactive = false);
     Task<SupplierDto?> GetSupplierByIdAsync(int id);
     Task<SupplierDto> CreateSupplierAsync(CreateSupplierRequest request);
     Task<SupplierDto?> UpdateSupplierAsync(int id, CreateSupplierRequest request);
     Task<bool> DeleteSupplierAsync(int id);
+    Task<bool> ToggleSupplierStatusAsync(int id);
 
     // Unit Conversion Management
     Task<List<UnitConversionDto>> GetAllUnitConversionsAsync();

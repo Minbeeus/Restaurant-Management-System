@@ -1,4 +1,5 @@
 @page "/admin/approvals"
+@rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.AdminLayout
 @using System.Net.Http.Json
 @using Restaurant.Application.DTOs
@@ -84,9 +85,9 @@
 
                         <!-- Amount & Info -->
                         <div class="mt-3 space-y-1.5 text-xs">
-                            <div class="flex justify-between">
+                            <div class="flex justify-between items-center">
                                 <span class="text-on-surface-variant font-medium">Số tiền:</span>
-                                <span class="font-black text-base text-emerald-600">@req.Amount.ToString("N0") đ</span>
+                                <span class="font-mono tabular-nums font-black text-base text-primary">@req.Amount.ToString("N0") đ</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-on-surface-variant font-medium">Người yêu cầu:</span>
@@ -107,11 +108,11 @@
                     @if (req.Status == 0) // Pending
                     {
                         <div class="flex gap-2 pt-3 border-t border-outline-variant">
-                            <button class="flex-1 py-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white text-rose-700 font-bold text-xs rounded-xl border border-rose-500/30 transition-all cursor-pointer"
+                            <button class="flex-1 py-2 bg-error/10 hover:bg-error text-error hover:text-on-error font-bold text-xs rounded-xl border border-error/30 transition-all cursor-pointer"
                                     @onclick="() => RejectAsync(req.Id)">
                                 Từ Chối
                             </button>
-                            <button class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1"
+                            <button class="flex-1 py-2 bg-primary hover:bg-[#3d5600] text-on-primary font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95"
                                     @onclick="() => ApproveAsync(req.Id)">
                                 <span class="material-symbols-outlined text-sm">check</span>
                                 Phê Duyệt

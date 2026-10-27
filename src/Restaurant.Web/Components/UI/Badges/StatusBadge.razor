@@ -1,21 +1,37 @@
 @code {
-    [Parameter] public string Type { get; set; } = "Info"; // Success, Alert, Danger, Warning, Pending, Info
+    [Parameter] public string Type { get; set; } = "Info"; // Success, Alert, Danger, Warning, Pending, Info, Neutral
     [Parameter] public string Text { get; set; } = "";
     [Parameter] public string? Icon { get; set; }
+    [Parameter] public bool ShowDot { get; set; }
+    [Parameter] public string? Class { get; set; }
 
     private string TailwindClass => Type.ToLower() switch
     {
-        "success" => "bg-success-bg text-success-green",
-        "alert" or "danger" => "bg-error-container text-error",
-        "warning" or "pending" => "bg-warning-bg text-warning-amber",
-        _ => "bg-surface-container text-on-surface"
+        "success" => "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+        "alert" or "danger" => "bg-red-50 text-red-800 border-red-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800",
+        "warning" or "pending" => "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+        "info" => "bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800",
+        _ => "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
+    };
+
+    private string DotColorClass => Type.ToLower() switch
+    {
+        "success" => "bg-emerald-600 dark:bg-emerald-400",
+        "alert" or "danger" => "bg-red-600 dark:bg-rose-400",
+        "warning" or "pending" => "bg-amber-600 dark:bg-amber-400",
+        "info" => "bg-sky-600 dark:bg-sky-400",
+        _ => "bg-slate-500"
     };
 }
 
-<span class="inline-flex items-center px-3 py-1 rounded-full text-label-bold font-label-bold @TailwindClass">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-body border shadow-2xs select-none @TailwindClass @Class">
+    @if (ShowDot)
+    {
+        <span class="w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 @DotColorClass"></span>
+    }
     @if (!string.IsNullOrEmpty(Icon))
     {
-        <span class="material-symbols-outlined text-[14px] mr-1" data-icon="@Icon">@Icon</span>
+        <span class="material-symbols-outlined text-[14px] mr-1 shrink-0" data-icon="@Icon">@Icon</span>
     }
-    @Text
+    <span>@Text</span>
 </span>

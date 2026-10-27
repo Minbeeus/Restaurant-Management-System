@@ -56,9 +56,23 @@ public class PaymentService : IPaymentService
         }
 
         var sepayContent = $"POS{order.Id}";
-        var qrText = $"STK:{request.BankAccountNo}|NH:{request.BankName}|ND:{sepayContent}|ST:{order.TotalAmount:F0}";
+        var bankAccount = !string.IsNullOrWhiteSpace(request.BankAccountNo)
+            ? request.BankAccountNo
+            : (_configuration["SePay:AccountNumber"] ?? "11102042003");
+        var bankName = !string.IsNullOrWhiteSpace(request.BankName)
+            ? request.BankName
+            : (_configuration["SePay:Bank"] ?? "TPBank");
+        var accountHolder = !string.IsNullOrWhiteSpace(request.AccountHolder)
+            ? request.AccountHolder
+            : (_configuration["SePay:AccountHolder"] ?? "VAN CONG MINH");
 
-        var qrBytes = _qrCodeService.GenerateQrCodeImage(qrText);
+        var amountStr = order.TotalAmount.ToString("0");
+
+        // Official SePay dynamic QR image URL with TPBank, account number, amount, and content
+        var sepayQrUrl = $"https://qr.sepay.vn/img?acc={bankAccount}&bank={bankName}&amount={amountStr}&des={sepayContent}&template=compact";
+
+        // Generate base64 fallback QR image using the direct SePay transfer URL
+        var qrBytes = _qrCodeService.GenerateQrCodeImage(sepayQrUrl);
         var qrBase64 = Convert.ToBase64String(qrBytes);
         var qrImageUrl = $"data:image/png;base64,{qrBase64}";
 
@@ -68,7 +82,11 @@ public class PaymentService : IPaymentService
             OrderCode = order.OrderCode,
             Amount = order.TotalAmount,
             SepayContent = sepayContent,
-            QrImageUrl = qrImageUrl
+            QrImageUrl = qrImageUrl,
+            SepayQrUrl = sepayQrUrl,
+            BankAccountNo = bankAccount,
+            BankName = bankName,
+            AccountHolder = accountHolder
         };
     }
 
@@ -196,7 +214,10 @@ public class PaymentService : IPaymentService
             _context.Payments.Add(payment);
 
             order.PaymentStatus = (int)PaymentStatus.Paid;
-            order.Status = (int)OrderStatus.Completed;
+            if (order.TableId != null)
+            {
+                order.Status = (int)OrderStatus.Completed;
+            }
             if (order.Table != null)
             {
                 order.Table.Status = (int)TableStatus.Paid;
@@ -317,7 +338,10 @@ public class PaymentService : IPaymentService
             _context.Payments.Add(payment);
 
             order.PaymentStatus = (int)PaymentStatus.Paid;
-            order.Status = (int)OrderStatus.Completed;
+            if (order.TableId != null)
+            {
+                order.Status = (int)OrderStatus.Completed;
+            }
             if (order.Table != null)
             {
                 order.Table.Status = (int)TableStatus.Paid;
@@ -373,6 +397,13 @@ public class PaymentService : IPaymentService
     {
         if (string.IsNullOrWhiteSpace(signatureHeader)) return true;
 
+        var headerVal = signatureHeader.Trim();
+        if (headerVal.StartsWith("Apikey ", StringComparison.OrdinalIgnoreCase))
+        {
+            var token = headerVal.Substring(7).Trim();
+            return string.Equals(token, apiKey, StringComparison.Ordinal);
+        }
+
         try
         {
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(apiKey));
@@ -380,7 +411,7 @@ public class PaymentService : IPaymentService
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawData));
             var expectedSignature = Convert.ToHexString(hash).ToLower();
 
-            return signatureHeader.Trim().ToLower().Equals(expectedSignature, StringComparison.OrdinalIgnoreCase);
+            return headerVal.ToLower().Equals(expectedSignature, StringComparison.OrdinalIgnoreCase);
         }
         catch
         {

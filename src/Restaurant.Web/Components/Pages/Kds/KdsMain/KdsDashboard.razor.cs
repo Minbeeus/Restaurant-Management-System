@@ -18,6 +18,13 @@ public partial class KdsDashboard : IAsyncDisposable
     protected bool ShowCompletedOnly { get; set; } = false;
     protected bool NewTicketNotification { get; set; } = false;
     protected string SelectedStationId { get; set; } = string.Empty;
+    protected List<KitchenStationDto> Stations { get; set; } = new();
+
+    private class StationApiResponse
+    {
+        public bool Success { get; set; }
+        public List<KitchenStationDto>? Data { get; set; }
+    }
 
     private HubConnection? _hubConnection;
 
@@ -46,6 +53,19 @@ public partial class KdsDashboard : IAsyncDisposable
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<StationApiResponse>("api/v1/system/kitchen-stations");
+            if (res?.Data != null && res.Data.Any())
+            {
+                Stations = res.Data.Where(s => s.IsActive).OrderBy(s => s.SortOrder).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading kitchen stations: {ex.Message}");
+        }
+
         await LoadActiveTicketsAsync();
 
         // Hub Connection setup for Chefs with stationId query if present

@@ -198,7 +198,7 @@ public class BillViewerService : IBillViewerService
             CustomerPhone = o.CustomerPhone ?? o.Customer?.PhoneNumber ?? string.Empty,
             SubTotal = o.SubTotal,
             DiscountAmount = o.DiscountAmount,
-            TaxAmount = 0m,
+            TaxAmount = Math.Round(o.TotalAmount - (o.TotalAmount / 1.08m), 0),
             TotalAmount = o.TotalAmount,
             PaymentMethodName = payMethodName,
             OrderStatusName = statusName,
@@ -215,7 +215,13 @@ public class BillViewerService : IBillViewerService
                 DiscountAmount = i.DiscountAmount,
                 ParentItemId = i.ParentItemId,
                 Note = i.Note,
-                Modifiers = i.OrderItemModifiers.Select(m => m.ModifierOption?.Name ?? m.ModifierOptionName ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList()
+                Modifiers = i.OrderItemModifiers.Select(m => m.ModifierOption?.Name ?? m.ModifierOptionName ?? string.Empty)
+                    .Where(s => !string.IsNullOrEmpty(s) &&
+                                !s.Contains("Sốt", StringComparison.OrdinalIgnoreCase) &&
+                                !s.Contains("Sauce", StringComparison.OrdinalIgnoreCase) &&
+                                !s.Contains("Cay", StringComparison.OrdinalIgnoreCase) &&
+                                !s.Contains("Spice", StringComparison.OrdinalIgnoreCase))
+                    .ToList()
             }).ToList()
         };
     }

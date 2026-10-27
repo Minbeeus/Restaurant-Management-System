@@ -73,7 +73,7 @@ else
                 }
                 @foreach (var order in FilteredOrders)
                 {
-                    <tr class="border-b border-outline-variant/20 last:border-0 hover:bg-surface-low/50 transition-colors">
+                    <tr class="border-b border-outline-variant/30 last:border-0 hover:bg-surface-high/30 transition-colors">
                         <td class="p-4 font-mono font-bold text-primary">@order.OrderCode</td>
                         <td class="p-4">
                             <div class="font-bold text-on-surface">@order.TableName</div>
@@ -86,31 +86,31 @@ else
                         <td class="p-4 text-center">
                             @if (IsStatusEqual(order, "Paid", "Đã thanh toán"))
                             {
-                                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">Đã thanh toán</span>
+                                <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-200">Đã thanh toán</span>
                             }
                             else if (IsStatusEqual(order, "Completed", "Hoàn thành"))
                             {
-                                <span class="px-2.5 py-1 bg-secondary-container/40 text-secondary rounded-full text-xs font-bold border border-secondary/20">Hoàn thành</span>
+                                <span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold border border-slate-200">Hoàn thành</span>
                             }
                             else if (IsStatusEqual(order, "Ready", "Sẵn sàng"))
                             {
-                                <span class="px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-full text-xs font-bold border border-blue-500/20">Sẵn sàng</span>
+                                <span class="px-3 py-1 bg-cyan-50 text-cyan-700 rounded-full text-xs font-bold border border-cyan-200">Sẵn sàng</span>
                             }
                             else if (IsStatusEqual(order, "InPreparation", "Đang chuẩn bị"))
                             {
-                                <span class="px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-full text-xs font-bold border border-amber-500/20">Đang chuẩn bị</span>
+                                <span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-200">Đang chuẩn bị</span>
                             }
                             else if (IsStatusEqual(order, "Cancelled", "Đã hủy"))
                             {
-                                <span class="px-2.5 py-1 bg-error-container text-error rounded-full text-xs font-bold border border-error/20">Đã hủy</span>
+                                <span class="px-3 py-1 bg-rose-50 text-rose-700 rounded-full text-xs font-bold border border-rose-200">Đã hủy</span>
                             }
                             else
                             {
-                                <span class="px-2.5 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-bold">@order.DisplayStatus</span>
+                                <span class="px-3 py-1 bg-surface-high text-on-surface rounded-full text-xs font-bold border border-outline-variant">@order.DisplayStatus</span>
                             }
                         </td>
                         <td class="p-4 text-center">
-                            <button class="px-3 py-1.5 bg-primary-container text-on-primary-container rounded-lg text-xs font-bold hover:bg-primary/20 transition-colors cursor-pointer" @onclick="() => ViewOrderDetails(order)">
+                            <button class="px-3.5 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs border border-primary/20" @onclick="() => ViewOrderDetails(order)">
                                 @L["Order_Details_Btn"]
                             </button>
                         </td>

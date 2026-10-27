@@ -457,10 +457,10 @@ public class CashierToolsAndApprovalWorkflowTests
         var adminPerms = await permService.GetUserPermissionsAsync(adminUser.Id);
         var managerPerms = await permService.GetUserPermissionsAsync(managerUser.Id);
 
-        // Admin has User/System management, Manager has POS Approval management
+        // Admin has User/System management and POS Approval management
         Assert.Contains(Permissions.SystemUserManage, adminPerms);
         Assert.Contains(Permissions.ApprovalProcess, managerPerms);
-        Assert.DoesNotContain(Permissions.ApprovalProcess, adminPerms); // Strict Separation
+        Assert.Contains(Permissions.ApprovalProcess, adminPerms);
     }
 
     [Fact]

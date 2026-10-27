@@ -245,13 +245,20 @@ public class IdentityService : IIdentityService
         if (string.IsNullOrWhiteSpace(pinCode)) return false;
         var trimmedPin = pinCode.Trim();
 
-        var clientKey = "MGR_PIN_LOCKOUT_" + trimmedPin;
-        if (_managerPinAttempts.TryGetValue(clientKey, out var attemptInfo))
+        const string lockoutKey = "GLOBAL_MGR_PIN_LOCKOUT";
+        if (_managerPinAttempts.TryGetValue(lockoutKey, out var attemptInfo))
         {
             if (attemptInfo.LockoutUntil > DateTime.UtcNow)
             {
                 var remaining = (int)Math.Ceiling((attemptInfo.LockoutUntil - DateTime.UtcNow).TotalMinutes);
+                if (remaining <= 0) remaining = 1;
                 throw new InvalidOperationException($"Mã PIN Quản lý bị khóa do nhập sai 5 lần. Vui lòng thử lại sau {remaining} phút.");
+            }
+            else if (attemptInfo.LockoutUntil > DateTime.MinValue)
+            {
+                // Previous lockout expired; reset attempts
+                _managerPinAttempts.TryRemove(lockoutKey, out _);
+                attemptInfo = (0, DateTime.MinValue);
             }
         }
 
@@ -275,18 +282,18 @@ public class IdentityService : IIdentityService
             var currentCount = attemptInfo.FailedCount + 1;
             if (currentCount >= 5)
             {
-                _managerPinAttempts[clientKey] = (currentCount, DateTime.UtcNow.AddMinutes(15));
+                _managerPinAttempts[lockoutKey] = (currentCount, DateTime.UtcNow.AddMinutes(15));
                 throw new InvalidOperationException("Mã PIN Quản lý bị khóa do nhập sai 5 lần. Vui lòng thử lại sau 15 phút.");
             }
             else
             {
-                _managerPinAttempts[clientKey] = (currentCount, DateTime.MinValue);
+                _managerPinAttempts[lockoutKey] = (currentCount, DateTime.MinValue);
             }
             return false;
         }
 
         // Reset rate limiter on success
-        _managerPinAttempts.TryRemove(clientKey, out _);
+        _managerPinAttempts.TryRemove(lockoutKey, out _);
         return true;
     }
 

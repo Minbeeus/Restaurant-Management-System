@@ -41,8 +41,8 @@ public partial class OrderCart
     
     private decimal Subtotal => Items.Sum(i => i.Price * i.Quantity);
     private decimal Discount => AppliedDiscount;
-    private decimal Tax => Math.Round(Math.Max(0, Subtotal - Discount) * 0.08m, 0); // 8% VAT
-    private decimal Total => Math.Max(0, Subtotal - Discount + Tax);
+    private decimal Total => Math.Max(0, Subtotal - Discount);
+    private decimal Tax => Math.Round(Total - (Total / 1.08m), 0); // 8% VAT bóc tách từ tổng tiền đã bao gồm thuế
 
     private int UnsentItemsCount => Items.Count(i => !i.IsSentToKitchen);
     

@@ -59,7 +59,7 @@
                 </div>
                 <div class="flex justify-between items-baseline pt-2 border-t border-outline-variant/50">
                     <span class="text-sm font-bold text-on-surface-variant">Tổng Tiền Tạm Tính</span>
-                    <span class="text-2xl font-bold text-primary">@_orderStatusData.TotalAmount.ToString("N0")đ</span>
+                    <span class="text-2xl font-bold text-primary font-mono tabular-nums">@_orderStatusData.TotalAmount.ToString("N0") đ</span>
                 </div>
             </div>
 
@@ -91,7 +91,7 @@
                             }
 
                             <div class="text-xs text-on-surface-variant font-medium pt-1">
-                                Đơn giá: @item.UnitPrice.ToString("N0")đ
+                                Đơn giá: <span class="font-mono tabular-nums font-bold">@item.UnitPrice.ToString("N0") đ</span>
                             </div>
                         </div>
 

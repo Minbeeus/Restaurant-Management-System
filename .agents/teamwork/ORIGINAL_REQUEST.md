@@ -120,3 +120,126 @@ Integrity mode: development
 - [ ] dotnet build src/Restaurant.sln thành công 100% với 0 Error, 0 Warning.
 - [ ] dotnet test src/Restaurant.Domain.Tests/Restaurant.Domain.Tests.csproj vượt qua 100% (gồm 80 tests cũ + các tests mới).
 - [ ] Báo cáo docs/audit/IMPLEMENTATION_COMPLETION_REPORT.md được tạo mới với đầy đủ bằng chứng kiểm thử và kết quả xác minh.
+
+
+## 2026-10-12T18:42:02Z
+
+This is a single self-contained fix; keep it small and focused.
+Requested team: Small, focused team.
+
+Tối ưu hóa toàn diện giao diện và nghiệp vụ POS Order: cố định sốt pizza theo công thức (không chọn sốt và không hiện tên sốt trong tên món), bỏ nhóm tùy chọn Mức độ cay (nhân viên tự ghi chú vào note), thêm ô ghi chú tự do cho CSR trên tất cả các món, loại bỏ nút "Tất cả nhóm", cập nhật thẻ món trong giỏ hàng (hiển thị số lượng ở đầu, đơn giá 1 phần ở góc phải), chuyển giao diện chọn món Combo sang dạng thẻ text không ảnh đồng bộ với POS, áp dụng giá món niêm yết đã bao gồm VAT, và bỏ nút "Sơ đồ bàn" đồng thời đổi nút "Xác Nhận & Gửi Bếp" thành "Hoàn Thành" với popup xác nhận hủy order khi giỏ hàng trống.
+
+Working directory: D:\My Project
+Integrity mode: development
+
+## Requirements
+
+### R1. Chuẩn hóa Sốt Pizza và Loại bỏ Mức Độ Cay
+- Mỗi loại bánh pizza được gán một loại sốt nền cố định theo công thức chuẩn. Khi nhân viên chọn bánh, không hiển thị nhóm tùy chọn "Chọn Sốt Nền Pizza" và không hiển thị tên sốt trong tên món hay danh sách thành phần tùy chọn.
+- Loại bỏ hoàn toàn nhóm tùy chọn "Mức Độ Cay" trên giao diện cấu hình món. Độ cay mặc định đi theo sốt của bánh; nhân viên tự trao đổi với khách và ghi chú vào ô ghi chú tự do của món nếu khách có yêu cầu riêng.
+
+### R2. Bổ sung Ghi chú Tự do (CSR Custom Note) cho Tất cả Món ăn
+- Bổ sung trường nhập ghi chú dạng text tự do trên giao diện cấu hình tùy chọn của mọi món ăn (áp dụng cho toàn bộ menu: Pizza, món lẻ, đồ uống, combo).
+- Nội dung ghi chú được gắn trực tiếp vào món khi thêm vào giỏ hàng, hiển thị rõ ràng trên thẻ món trong giỏ hàng và đồng bộ khi gửi xuống bếp (KDS) và in bill.
+
+### R3. Loại bỏ Nút "Tất Cả Nhóm" trong Bộ lọc Tùy chọn
+- Loại bỏ nút "TẤT CẢ NHÓM" trên thanh tab phân loại nhóm tùy chọn tại modal/giao diện tùy chọn món (PosOptionBuilder) và giao diện chọn combo (PosComboBuilder).
+- Giao diện tự động kích hoạt mặc định nhóm tùy chọn đầu tiên thay vì hiển thị tất cả nhóm.
+
+### R4. Chuẩn hóa Hiển thị Thẻ Món trong Giỏ Hàng (Order Cart)
+- Tại thẻ món trong giỏ hàng:
+  - Ở phần đầu của tên món: hiển thị rõ số lượng của món đó (ví dụ: 1x Pizza Margherita hoặc huy hiệu số lượng ở đầu dòng).
+  - Ở góc trên bên phải của thẻ món: hiển thị đơn giá của một phần (giá 1 suất ăn đã kèm tùy chọn phụ thu, thay vì tổng tiền dòng hoặc nhân số lượng).
+
+### R5. Đồng bộ Giao diện Chọn Món Combo theo Chuẩn POS (Bỏ ảnh)
+- Cải tiến khu vực chọn món thành phần trong Combo (PosComboBuilder) đồng bộ theo định dạng thẻ món POS (MenuItemCard): loại bỏ hoàn toàn ảnh minh họa lớn, sử dụng thiết kế thẻ gọn gàng hiển thị tên món, giá phụ thu (hoặc miễn phí) và các nút điều khiển trực quan.
+
+### R6. Cơ chế Tính Giá và Thuế VAT (Giá Đã Bao Gồm VAT)
+- Tất cả giá món hiển thị và niêm yết trên hệ thống là giá ĐÃ BAO GỒM VAT.
+- Tổng số tiền cần thu của đơn hàng bằng tổng giá trị các món ăn (đã có VAT) trừ đi giảm giá (nếu có).
+- Thuế VAT được bóc tách từ tổng tiền theo tỷ lệ thuế suất (ví dụ: VAT 8% được tính theo công thức VAT = Subtotal - Subtotal / (1 + 0.08)), tuyệt đối không cộng thêm VAT lên trên giá món.
+
+### R7. Bỏ Nút "Sơ Đồ Bàn" & Cải tiến Luồng Thoát/Hủy Đơn Rỗng
+- Loại bỏ nút quay lại "<- Sơ đồ bàn" ở góc trên bên trái header của giao diện POS Order.
+- Đổi tên nút "Xác Nhận & Gửi Bếp" trên thanh công cụ thành "Hoàn Thành".
+- Xử lý tương tác khi bấm "Hoàn Thành":
+  - Nếu đơn hàng KHÔNG có món nào (giỏ hàng rỗng): hiển thị popup modal hỏi xác nhận hủy lượt order này. Khi xác nhận, hệ thống thực hiện hủy lượt order, giải phóng trạng thái bàn về "Trống" (Available) và điều hướng về màn hình sơ đồ bàn (/pos/tables).
+  - Nếu đơn hàng ĐÃ CÓ món: thực hiện lưu/gửi bếp bình thường và điều hướng về sơ đồ bàn.
+
+## Acceptance Criteria
+
+### Pizza & Modifier Options
+- [ ] Mở tùy chọn bất kỳ loại pizza nào không còn xuất hiện nhóm "Chọn Sốt Nền Pizza" và nhóm "Mức Độ Cay".
+- [ ] Tên món pizza và danh sách tùy chọn trên giỏ hàng không chứa tên sốt nền.
+- [ ] Giao diện tùy chọn của mọi món đều có trường nhập ghi chú text tự do cho CSR, và nội dung nhập được lưu vào đơn hàng, hiển thị trên giỏ hàng và KDS.
+- [ ] Thanh tab nhóm tùy chọn không còn nút "TẤT CẢ NHÓM"; nhóm đầu tiên được chọn mặc định khi mở màn hình.
+
+### Giỏ Hàng (Cart) & Combo Interface
+- [ ] Thẻ món trong giỏ hàng hiển thị số lượng ở đầu tên món và đơn giá của một phần ở góc trên bên phải.
+- [ ] Giao diện chọn món Combo không còn thẻ hình ảnh lớn, chuyển sang dạng thẻ text gọn gàng tương thích với thẻ món POS.
+
+### VAT Calculation & Order Exit Flow
+- [ ] Tổng tiền cần thu bằng đúng tổng giá niêm yết các món (đã bao gồm VAT) trừ giảm giá; tiền thuế VAT hiển thị là phần bóc tách từ doanh thu, không làm tăng tổng tiền phải trả.
+- [ ] Header không còn nút "<- Sơ đồ bàn"; nút gửi bếp được hiển thị với nhãn "Hoàn Thành".
+- [ ] Khi giỏ hàng trống và bấm "Hoàn Thành", xuất hiện modal xác nhận hủy lượt order. Khi xác nhận, bàn được trả về trạng thái Available và chuyển về sơ đồ bàn.
+- [ ] Toàn bộ mã nguồn biên dịch thành công (dotnet build src/Restaurant.sln) không phát sinh lỗi.
+
+
+## 2026-10-14T17:16:42Z
+
+Toàn diện audit workspace nhà hàng POS/KDS tại d:\My Project, tập trung đánh giá tính đúng đắn và mức độ hoàn thiện của hệ thống BOM (Recipe), Quản lý kho, Sổ cái biến động tồn kho (StockLedger), Tích hợp trừ kho tự động POS/KDS, Giá vốn và Báo cáo, nhằm phát hiện sai lệch, race conditions, rủi ro hao hụt thất thoát và các khoảng trống nghiệp vụ.
+
+Working directory: d:\My Project
+Integrity mode: development
+
+Requested team structure:
+- Lead Agent (Architect & Synthesizer): Đối chiếu kết quả, giải quyết các phát hiện trùng lặp và tổng hợp báo cáo.
+- Agent 1: BOM, định mức và quy đổi đơn vị.
+- Agent 2: Nhập kho, xuất kho, kiểm kê và StockLedger.
+- Agent 3: Luồng POS/KDS, trừ kho, hủy món và gọi thêm.
+- Agent 4: Giá vốn, báo cáo, transaction và test.
+
+# MASTER AUDIT PROMPT — BOM, INVENTORY, STOCK MOVEMENT & RECIPE COSTING
+
+## 1. VAI TRÒ VÀ MỤC TIÊU
+Bạn là Senior Software Architect, Inventory Management Specialist và QA Engineer, có kinh nghiệm xây dựng hệ thống quản lý nhà hàng POS/KDS, BOM/Recipe, Inventory, Stock Ledger và Costing.
+
+Hãy audit toàn bộ workspace hiện tại để đánh giá chính xác mức độ hoàn thiện và tính đúng đắn của các nghiệp vụ:
+1. Quản lý nguyên liệu và hàng hóa.
+2. Quản lý đơn vị tính và quy đổi đơn vị.
+3. Quản lý BOM/Recipe — định mức nguyên liệu cho từng món ăn.
+4. Nhập kho, xuất kho, điều chỉnh kho và kiểm kê.
+5. Trừ kho tự động khi chế biến món ăn.
+6. Xử lý món gọi thêm, hủy món, hủy đơn, hoàn tiền và hoàn kho.
+7. Tính giá vốn món ăn và giá vốn bán hàng.
+8. Theo dõi lịch sử biến động kho, đối soát tồn kho và cảnh báo tồn thấp.
+9. Tích hợp giữa POS, KDS, đơn hàng, thanh toán và hệ thống kho.
+10. Các chức năng quản trị, API, database, phân quyền và báo cáo liên quan.
+
+Mục tiêu: xác định chức năng nào đã hoàn thiện thực sự, chức năng nào mới có giao diện, chức năng nào chưa có backend, chức năng nào hoạt động sai nghiệp vụ và chức năng nào chưa đủ bằng chứng để kết luận.
+Không được chỉ kiểm tra tên file, giao diện hoặc sự tồn tại của API rồi kết luận chức năng đã hoàn thành. Phải lần theo luồng dữ liệu từ UI đến API, Application/Domain, database, transaction và các sự kiện realtime.
+
+## 2. BỐI CẢNH KỸ THUẬT
+- Workspace: d:\My Project (src/Restaurant.sln, ASP.NET Core 9, Blazor Server, EF Core 9, SQL Server, SignalR).
+- Đọc cấu trúc solution, tài liệu kiến trúc, các báo cáo audit trước đây (docs/audit/FULL_WORKSPACE_AUDIT.md) và quy tắc nghiệp vụ.
+- Tìm toàn bộ entity, DbContext, service, controller/API, Razor component, domain event, SignalR handler và test liên quan đến kho/BOM.
+- TUYỆT ĐỐI KHÔNG SỬA CODE, KHÔNG TẠO MIGRATION, KHÔNG RESET HOẶC SỬA DATABASE TRONG LẦN CHẠY NÀY.
+
+## 3. PHẠM VI AUDIT CHI TIẾT
+- Phân công Agent 1: BOM, định mức và quy đổi đơn vị (Đơn vị mua/kho/BOM, hệ số quy đổi thập phân, định mức món đơn, combo, topping/modifier, bán thành phẩm).
+- Phân công Agent 2: Vòng đời phiếu nhập kho, xuất kho, kiểm kê, điều chỉnh, tính bất biến, chống cộng/trừ trùng kho (Idempotency), cấu trúc và độ tin cậy của StockLedger, chính sách tồn âm.
+- Phân công Agent 3: Luồng POS/KDS, xác định chính xác thời điểm khấu trừ kho thực tế, rủi ro trừ trùng khi retry/reconnect, ma trận hủy món trước/trong/sau nấu (hoàn kho vs hao hụt waste) và gọi thêm món.
+- Phân công Agent 4: Phương pháp tính giá vốn (FIFO, bình quân gia quyền), tính nhất quán doanh thu - giá vốn - tiêu hao, phân tích transaction boundaries, lock concurrency, và đánh giá độ bao phủ test suite hiện có.
+- Lead Agent: Tổng hợp, đối chiếu chéo, khử trùng lặp và biên soạn 3 báo cáo bắt buộc.
+
+## 4. QUY TẮC PHÂN LOẠI
+Mỗi chức năng phải được phân loại theo:
+DONE_VERIFIED, DONE_UNVERIFIED, PARTIAL, UI_ONLY, BACKEND_ONLY, BROKEN, NOT_STARTED, NEEDS_BUSINESS_DECISION, OUT_OF_SCOPE.
+Mức độ ưu tiên: P0 - Critical, P1 - High, P2 - Medium, P3 - Low.
+Mỗi phát hiện phải có đường dẫn file cụ thể, tên class/method/API và bằng chứng code.
+
+## 5. ĐẦU RA BẮT BUỘC
+Tạo đủ 3 tài liệu tại:
+1. `docs/audit/INVENTORY_BOM_AUDIT.md` (Gồm 11 phần: Executive Summary, Feature Matrix, Architecture & Data Flow, BOM & Unit Conversion, Inventory Transactions & StockLedger, POS/KDS Integration & Hủy món, Costing & Reports, Bugs & Evidence thực chứng, Missing Tests).
+2. `docs/audit/INVENTORY_BOM_BUSINESS_DECISIONS.md` (Các câu hỏi nghiệp vụ cần chủ nhà hàng/Product Owner ra quyết định).
+3. `docs/audit/INVENTORY_BOM_REMEDIATION_PLAN.md` (Kế hoạch khắc phục theo lộ trình P0 -> P3 kèm rủi ro và tiêu chí nghiệm thu).

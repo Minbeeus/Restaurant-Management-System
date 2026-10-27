@@ -56,6 +56,10 @@ public class RestaurantNotificationService : IRestaurantNotificationService
         await _hubContext.Clients.Group(RestaurantHub.ChefsGroup)
             .ReceiveKitchenTicket(ticket);
 
+        // Also broadcast to Cashiers group so POS is notified in real time
+        await _hubContext.Clients.Group(RestaurantHub.CashiersGroup)
+            .ReceiveKitchenTicket(ticket);
+
         // Also route sub-tickets or tickets to specific station groups if items specify KitchenStationId
         var stationIds = ticket.Items
             .Where(i => i.KitchenStationId.HasValue)

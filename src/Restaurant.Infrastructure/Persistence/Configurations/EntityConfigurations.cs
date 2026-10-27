@@ -158,6 +158,8 @@ public class ConfigurationConfigurations :
     public void Configure(EntityTypeBuilder<Material> builder)
     {
         builder.Property(m => m.RowVersion).IsRowVersion();
+        builder.Property(m => m.CurrentStock).HasPrecision(18, 4);
+        builder.Property(m => m.MinStockLevel).HasPrecision(18, 4);
     }
 
     public void Configure(EntityTypeBuilder<SepayWebhookLog> builder)
@@ -209,6 +211,7 @@ public class UnitConversionConfiguration : IEntityTypeConfiguration<UnitConversi
 {
     public void Configure(EntityTypeBuilder<UnitConversion> builder)
     {
+        builder.Property(uc => uc.ConversionFactor).HasPrecision(18, 4);
         builder.HasOne(uc => uc.ToUnit)
             .WithMany()
             .HasForeignKey(uc => uc.ToUnitId)
@@ -220,6 +223,7 @@ public class RecipeItemConfiguration : IEntityTypeConfiguration<RecipeItem>
 {
     public void Configure(EntityTypeBuilder<RecipeItem> builder)
     {
+        builder.Property(ri => ri.Quantity).HasPrecision(18, 4);
         builder.HasOne(ri => ri.UnitOfMeasure)
             .WithMany()
             .HasForeignKey(ri => ri.UnitOfMeasureId)
@@ -231,6 +235,7 @@ public class ModifierRecipeItemConfiguration : IEntityTypeConfiguration<Modifier
 {
     public void Configure(EntityTypeBuilder<ModifierRecipeItem> builder)
     {
+        builder.Property(mri => mri.Quantity).HasPrecision(18, 4);
         builder.HasOne(mri => mri.UnitOfMeasure)
             .WithMany()
             .HasForeignKey(mri => mri.UnitOfMeasureId)

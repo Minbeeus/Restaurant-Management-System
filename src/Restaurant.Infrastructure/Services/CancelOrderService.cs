@@ -40,39 +40,35 @@ public class CancelOrderService : ICancelOrderService
 
             if (order == null || order.Status == (int)OrderStatus.Cancelled) return false;
 
-            var isSentToKitchen = order.OrderItems.Any(oi => oi.KitchenStatus >= (int)KitchenStatus.Processing);
-            if (isSentToKitchen && order.PaymentStatus == (int)PaymentStatus.Unpaid)
-            {
-                // Check if user has manager authorization to cancel an order already in preparation
-                var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
-                if (user == null || (user.Role.Name != "Manager" && user.Role.Name != "Admin"))
-                {
-                    // Create ApprovalRequest for Manager approval
-                    var appReq = new ApprovalRequest
-                    {
-                        Type = (int)ApprovalType.CancelOrder,
-                        ReferenceId = order.Id,
-                        Amount = order.TotalAmount,
-                        Reason = reason,
-                        Note = $"Yêu cầu hủy đơn hàng {order.OrderCode} đã gửi bếp",
-                        RequestedByUserId = userId,
-                        RequestedAt = DateTime.UtcNow,
-                        Status = (int)ApprovalStatus.PendingApproval
-                    };
-                    _context.ApprovalRequests.Add(appReq);
-                    await _context.SaveChangesAsync();
-                    await dbTransaction.CommitAsync();
+            // Check if user has manager authorization to cancel an order
+            var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
+            var isManagerOrAdmin = user != null && (user.Role.Name == "Manager" || user.Role.Name == "Admin");
 
-                    return false; // Approval request created, awaiting manager approval
-                }
+            if (!isManagerOrAdmin)
+            {
+                // Create ApprovalRequest for Manager approval in Approval Center
+                var isPaidOrder = order.PaymentStatus == (int)PaymentStatus.Paid || order.Status == (int)OrderStatus.Completed;
+                var appReq = new ApprovalRequest
+                {
+                    Type = isPaidOrder ? (int)ApprovalType.Refund : (int)ApprovalType.CancelOrder,
+                    ReferenceId = order.Id,
+                    Amount = order.TotalAmount,
+                    Reason = reason,
+                    Note = $"Yêu cầu {(isPaidOrder ? "hoàn tiền" : "hủy")} đơn hàng {order.OrderCode}",
+                    RequestedByUserId = userId,
+                    RequestedAt = DateTime.UtcNow,
+                    Status = (int)ApprovalStatus.PendingApproval
+                };
+                _context.ApprovalRequests.Add(appReq);
+                await _context.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
+
+                return false; // Approval request created, awaiting manager approval in Approval Center
             }
 
             var wasPaid = order.PaymentStatus == (int)PaymentStatus.Paid || order.Status == (int)OrderStatus.Completed;
             
-            if (!wasPaid)
-            {
-                order.Status = (int)OrderStatus.Cancelled;
-            }
+            order.Status = (int)OrderStatus.Cancelled;
             
             var cancelText = string.Format(_localizer["CANCEL_ORDER_NOTE"] ?? "[CANCELLED]: {0}", reason);
             order.Note = string.IsNullOrEmpty(order.Note) ? cancelText : $"{order.Note} | {cancelText}";
@@ -82,7 +78,7 @@ public class CancelOrderService : ICancelOrderService
                 order.Table.Status = (int)TableStatus.Available;
             }
 
-            // 1. Rollback Inventory (find any BOM deducted via OrderItems for this Order)
+            // 1. Record Cancellation Waste in InventoryTransactions (preserve original SaleDeduction for audit immutability)
             var orderItemIds = order.OrderItems.Select(oi => oi.Id).ToList();
             var saleDeductions = await _context.InventoryTransactions
                 .Where(t => t.ReferenceType == SystemConstants.ReferenceTypes.OrderItem && t.ReferenceId.HasValue && orderItemIds.Contains(t.ReferenceId.Value) && t.TransactionType == (int)InventoryTransactionType.SaleDeduction)
@@ -90,9 +86,20 @@ public class CancelOrderService : ICancelOrderService
 
             foreach (var deduction in saleDeductions)
             {
-                deduction.TransactionType = (int)InventoryTransactionType.CancellationWaste;
+                // Create a distinct CancellationWaste entry preserving the immutable ledger
                 var wasteText = string.Format(_localizer["CANCELLATION_WASTE_NOTE"] ?? "[WASTE] Cancelled Order {0} | Origin: {1}", order.OrderCode, deduction.Note);
-                deduction.Note = wasteText;
+                _context.InventoryTransactions.Add(new InventoryTransaction
+                {
+                    MaterialId = deduction.MaterialId,
+                    TransactionType = (int)InventoryTransactionType.CancellationWaste,
+                    Quantity = 0, // CurrentStock was already deducted when cooked; cancellation does not return waste to physical stock
+                    BalanceAfter = deduction.BalanceAfter,
+                    ReferenceType = SystemConstants.ReferenceTypes.Order,
+                    ReferenceId = order.Id,
+                    Note = wasteText,
+                    CreatedByUserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                });
             }
 
             // 2. Rollback Loyalty Points & Record Refund Transaction if order was paid

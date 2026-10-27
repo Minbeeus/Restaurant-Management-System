@@ -55,14 +55,10 @@
         <!-- Main Modify Area -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Group Tabs Filter Bar (if multiple groups) -->
-            @if (ModifierGroups != null && ModifierGroups.Count > 1)
+            @if (CleanModifierGroups != null && CleanModifierGroups.Count > 1)
             {
                 <div class="px-4 py-2.5 bg-surface border-b border-outline-variant flex items-center gap-1.5 overflow-x-auto shrink-0 select-none">
-                    <button class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 @(ActiveGroupId == 0 ? "bg-primary text-on-primary shadow-xs" : "bg-surface-high hover:bg-surface-variant text-on-surface border border-outline-variant/60")"
-                            @onclick="() => ActiveGroupId = 0">
-                        TẤT CẢ NHÓM (@ModifierGroups.Count)
-                    </button>
-                    @foreach (var group in ModifierGroups.OrderBy(g => g.SortOrder))
+                    @foreach (var group in CleanModifierGroups.OrderBy(g => g.SortOrder))
                     {
                         var selectedInGroup = GetSelectedOptionsInGroup(group);
                         var isGroupSatisfied = (!group.IsRequired && selectedInGroup.Count == 0) ||
@@ -160,6 +156,30 @@
                         </div>
                     </div>
                 }
+
+                <!-- CSR Custom Note Section -->
+                <div class="bg-surface rounded-2xl border border-outline-variant/80 p-4 shadow-2xs">
+                    <div class="flex items-center gap-2 pb-2 mb-2 border-b border-outline-variant/60">
+                        <span class="material-symbols-outlined text-primary text-base">edit_note</span>
+                        <h3 class="text-sm font-black text-on-surface">Ghi chú cho bếp (CSR Custom Note)</h3>
+                        <span class="px-2 py-0.5 rounded-md bg-surface-high text-on-surface-variant text-[10px] font-bold uppercase">Tùy chọn</span>
+                    </div>
+                    <p class="text-[11px] text-on-surface-variant mb-2.5">
+                        Nhập ghi chú yêu cầu riêng của khách (ví dụ: Không hành, ít cay, nhiều đá, chia 2 đĩa...)
+                    </p>
+                    <div class="relative">
+                        <input type="text"
+                               @bind="_customNote"
+                               @bind:event="oninput"
+                               placeholder="Nhập ghi chú tự do cho món này..."
+                               class="w-full px-3.5 py-2.5 text-xs md:text-sm font-medium bg-surface-high border border-outline-variant rounded-xl text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-2xs" />
+                        @if (!string.IsNullOrEmpty(_customNote))
+                        {
+                            <button class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface text-xs font-bold cursor-pointer"
+                                    @onclick="() => _customNote = string.Empty">✕</button>
+                        }
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -226,26 +246,47 @@
     [Parameter] public MenuItemDetailDto? Item { get; set; }
     [Parameter] public List<ModifierGroupDto>? ModifierGroups { get; set; }
     [Parameter] public List<int>? InitialSelectedModifiers { get; set; }
-    [Parameter] public EventCallback<List<int>> OnSave { get; set; }
+    [Parameter] public string? InitialNote { get; set; }
+    [Parameter] public EventCallback<(List<int> SelectedModifiers, string? Note)> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
     private bool IsProcessing { get; set; }
-    private int ActiveGroupId { get; set; } = 0; // 0 = All
+    private int ActiveGroupId { get; set; } = 0;
+    private string _customNote = string.Empty;
 
     private HashSet<int> _selectedOptionIds = new();
 
-    private IEnumerable<ModifierGroupDto> DisplayedGroups =>
-        (ActiveGroupId == 0 || ModifierGroups == null)
-            ? (ModifierGroups?.OrderBy(g => g.SortOrder) ?? Enumerable.Empty<ModifierGroupDto>())
-            : (ModifierGroups?.Where(g => g.Id == ActiveGroupId) ?? Enumerable.Empty<ModifierGroupDto>());
+    public List<ModifierGroupDto> CleanModifierGroups =>
+        (ModifierGroups ?? new List<ModifierGroupDto>())
+            .Where(g => !g.Name.Contains("Sốt Nền", StringComparison.OrdinalIgnoreCase) &&
+                        !g.Name.Contains("Chọn Sốt Nền Pizza", StringComparison.OrdinalIgnoreCase) &&
+                        !g.Name.Contains("Sốt Pizza", StringComparison.OrdinalIgnoreCase) &&
+                        !g.Name.Contains("Mức Độ Cay", StringComparison.OrdinalIgnoreCase) &&
+                        !g.Name.Contains("Cay", StringComparison.OrdinalIgnoreCase) &&
+                        (g.NameEn == null || (!g.NameEn.Contains("Select Pizza Sauce", StringComparison.OrdinalIgnoreCase) &&
+                                              !g.NameEn.Contains("Pizza Sauce", StringComparison.OrdinalIgnoreCase) &&
+                                              !g.NameEn.Contains("Spice Level", StringComparison.OrdinalIgnoreCase))))
+            .ToList();
+
+    private IEnumerable<ModifierGroupDto> DisplayedGroups
+    {
+        get
+        {
+            var groups = CleanModifierGroups;
+            if (!groups.Any()) return Enumerable.Empty<ModifierGroupDto>();
+            var target = groups.FirstOrDefault(g => g.Id == ActiveGroupId) ?? groups.OrderBy(g => g.SortOrder).First();
+            return new[] { target };
+        }
+    }
 
     private bool IsValid
     {
         get
         {
-            if (ModifierGroups == null || !ModifierGroups.Any()) return true;
+            var groups = CleanModifierGroups;
+            if (!groups.Any()) return true;
 
-            foreach (var group in ModifierGroups)
+            foreach (var group in groups)
             {
                 var count = GetSelectedOptionsInGroup(group).Count;
                 if (group.IsRequired)
@@ -267,9 +308,10 @@
     {
         get
         {
-            if (ModifierGroups == null) return 0m;
+            var groups = CleanModifierGroups;
+            if (!groups.Any()) return 0m;
             decimal total = 0m;
-            foreach (var group in ModifierGroups)
+            foreach (var group in groups)
             {
                 foreach (var opt in group.ModifierOptions)
                 {
@@ -291,6 +333,13 @@
 
     protected override void OnParametersSet()
     {
+        _customNote = InitialNote ?? string.Empty;
+        var groups = CleanModifierGroups;
+        if (groups.Any() && (ActiveGroupId == 0 || !groups.Any(g => g.Id == ActiveGroupId)))
+        {
+            ActiveGroupId = groups.OrderBy(g => g.SortOrder).First().Id;
+        }
+
         if (Item != null)
         {
             _selectedOptionIds.Clear();
@@ -305,23 +354,20 @@
             else
             {
                 // Auto-select defaults
-                if (ModifierGroups != null)
+                foreach (var group in groups)
                 {
-                    foreach (var group in ModifierGroups)
+                    var defaultOpts = group.ModifierOptions.Where(o => o.IsActive && o.IsDefault).ToList();
+                    if (defaultOpts.Any())
                     {
-                        var defaultOpts = group.ModifierOptions.Where(o => o.IsActive && o.IsDefault).ToList();
-                        if (defaultOpts.Any())
+                        foreach (var def in defaultOpts.Take(group.MaxSelections))
                         {
-                            foreach (var def in defaultOpts.Take(group.MaxSelections))
-                            {
-                                _selectedOptionIds.Add(def.Id);
-                            }
+                            _selectedOptionIds.Add(def.Id);
                         }
-                        else if (group.IsRequired && group.MinSelections > 0 && group.ModifierOptions.Any(o => o.IsActive))
-                        {
-                            var first = group.ModifierOptions.First(o => o.IsActive);
-                            _selectedOptionIds.Add(first.Id);
-                        }
+                    }
+                    else if (group.IsRequired && group.MinSelections > 0 && group.ModifierOptions.Any(o => o.IsActive))
+                    {
+                        var first = group.ModifierOptions.First(o => o.IsActive);
+                        _selectedOptionIds.Add(first.Id);
                     }
                 }
             }
@@ -391,7 +437,7 @@
         {
             if (OnSave.HasDelegate)
             {
-                await OnSave.InvokeAsync(_selectedOptionIds.ToList());
+                await OnSave.InvokeAsync((_selectedOptionIds.ToList(), _customNote));
             }
         }
         finally

@@ -1,54 +1,62 @@
 @using System.Net.Http.Json
 @using Restaurant.Application.DTOs
+@using Microsoft.AspNetCore.SignalR.Client
 @inject HttpClient Http
 
 @if (IsOpen && Order != null)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden border border-outline-variant flex flex-col">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full h-full max-w-[98vw] max-h-[96vh] overflow-hidden border border-outline-variant flex flex-col">
             
             <!-- Header -->
-            <div class="px-6 py-4 bg-primary text-on-primary flex justify-between items-center shrink-0">
+            <div class="px-6 py-3.5 bg-primary text-on-primary flex justify-between items-center shrink-0">
                 <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-3xl">payments</span>
+                    <span class="material-symbols-outlined text-3xl">takeout_dining</span>
                     <div>
-                        <h2 class="font-extrabold text-xl m-0 tracking-wide">THANH TOÁN ĐƠN MANG VỀ @Order.OrderCode</h2>
-                        <span class="text-xs opacity-90">Khách hàng: @Order.CustomerName (@(string.IsNullOrEmpty(Order.CustomerPhone) ? "Khách lẻ" : Order.CustomerPhone)) | Kênh: @Order.OrderChannel</span>
+                        <h2 class="font-extrabold text-lg sm:text-xl m-0 tracking-wide uppercase">THANH TOÁN ĐƠN MANG VỀ @Order.OrderCode</h2>
+                        <span class="text-xs opacity-90">
+                            Khách hàng: <strong class="text-white">@Order.CustomerName</strong> (@(string.IsNullOrEmpty(Order.CustomerPhone) ? "Khách lẻ" : Order.CustomerPhone)) | Kênh: @Order.OrderChannel
+                        </span>
                     </div>
                 </div>
-                <button class="hover:bg-white/20 p-2 rounded-full transition-colors cursor-pointer" @onclick="CloseAsync">
-                    <span class="material-symbols-outlined">close</span>
+                <button class="hover:bg-white/20 p-2 rounded-full transition-colors cursor-pointer text-white" @onclick="CloseAsync" title="Đóng">
+                    <span class="material-symbols-outlined text-2xl">close</span>
                 </button>
             </div>
 
-            <!-- Body: 3 Horizontal Sections -->
-            <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden bg-surface-low p-4 gap-4">
+            <!-- Body: 3-Column Grid without Page/Card Scrollbars -->
+            <div class="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden bg-surface-low min-h-0">
                 
-                <!-- Section 10.1 (Left): Cart & Order Items Breakdown (~35% width / col-span-4) -->
-                <div class="lg:col-span-4 bg-surface rounded-xl border border-outline-variant p-4 flex flex-col justify-between overflow-hidden shadow-xs">
-                    <div>
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant pb-2 border-b border-outline-variant flex items-center gap-1">
-                            <span class="material-symbols-outlined text-base">shopping_cart</span>
-                            Danh Sách Món Đặt (@Order.Items.Sum(i => i.Quantity))
+                <!-- Section 10.1 (Left, 4 cols): Cart & Order Items Breakdown -->
+                <div class="col-span-12 lg:col-span-4 bg-surface rounded-xl border border-outline-variant p-3.5 flex flex-col justify-between overflow-hidden shadow-xs min-h-0">
+                    <div class="flex flex-col flex-1 min-h-0">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant pb-2 border-b border-outline-variant flex items-center justify-between shrink-0">
+                            <span class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-base">shopping_cart</span>
+                                Danh Sách Món Đặt (@Order.Items.Sum(i => i.Quantity))
+                            </span>
+                            <span class="text-[11px] text-primary font-bold">@Order.Items.Count món</span>
                         </h3>
 
-                        <div class="overflow-y-auto max-h-[calc(90vh-280px)] pr-1 space-y-2 mt-3">
+                        <!-- Scrollable items list: the ONLY scrollbar allowed -->
+                        <div class="flex-1 overflow-y-auto space-y-2 my-2 pr-1 min-h-0">
                             @foreach (var item in Order.Items)
                             {
-                                <div class="p-3 bg-surface-high/50 rounded-xl border border-outline-variant/60 flex justify-between items-center">
-                                    <div class="flex-1 pr-2">
-                                        <div class="font-bold text-sm text-on-surface">@item.MenuItemName</div>
-                                        <div class="text-xs text-on-surface-variant font-medium mt-0.5">
+                                <div class="p-2.5 bg-surface-high/50 rounded-xl border border-outline-variant/60 flex justify-between items-center text-xs">
+                                    <div class="flex-1 pr-2 min-w-0">
+                                        <div class="font-bold text-on-surface truncate">@item.MenuItemName</div>
+                                        <div class="text-[11px] text-on-surface-variant font-medium mt-0.5">
                                             @item.UnitPrice.ToString("N0")đ × <span class="font-extrabold text-primary">@item.Quantity</span>
                                         </div>
-                                        @if (item.Modifiers != null && item.Modifiers.Any())
+                                        @if (item.Modifiers != null && item.Modifiers.Any(m => !m.Contains("Sốt", StringComparison.OrdinalIgnoreCase) && !m.Contains("Sauce", StringComparison.OrdinalIgnoreCase) && !m.Contains("Cay", StringComparison.OrdinalIgnoreCase) && !m.Contains("Spice", StringComparison.OrdinalIgnoreCase)))
                                         {
-                                            <div class="text-[11px] text-on-surface-variant opacity-80 mt-1">
-                                                + @string.Join(", ", item.Modifiers)
+                                            var cleanModifiers = item.Modifiers.Where(m => !m.Contains("Sốt", StringComparison.OrdinalIgnoreCase) && !m.Contains("Sauce", StringComparison.OrdinalIgnoreCase) && !m.Contains("Cay", StringComparison.OrdinalIgnoreCase) && !m.Contains("Spice", StringComparison.OrdinalIgnoreCase));
+                                            <div class="text-[10px] text-on-surface-variant opacity-80 truncate">
+                                                + @string.Join(", ", cleanModifiers)
                                             </div>
                                         }
                                     </div>
-                                    <div class="font-extrabold text-sm text-primary text-right">
+                                    <div class="font-extrabold text-primary text-right shrink-0">
                                         @item.TotalPrice.ToString("N0")đ
                                     </div>
                                 </div>
@@ -56,40 +64,44 @@
                         </div>
                     </div>
 
-                    <!-- Summary Bottom -->
-                    <div class="pt-3 border-t border-outline-variant space-y-1.5 shrink-0 bg-surface">
-                        <div class="flex justify-between text-xs text-on-surface-variant">
+                    <!-- Summary Bottom (Sticky) -->
+                    <div class="pt-2.5 border-t border-outline-variant space-y-1 shrink-0 bg-surface text-xs">
+                        <div class="flex justify-between text-on-surface-variant">
                             <span>Tạm tính món:</span>
                             <span class="font-bold">@Order.SubTotal.ToString("N0") đ</span>
                         </div>
                         @if (Order.DiscountAmount > 0)
                         {
-                            <div class="flex justify-between text-xs text-primary font-bold">
+                            <div class="flex justify-between text-primary font-bold">
                                 <span>Giảm giá:</span>
                                 <span>-@Order.DiscountAmount.ToString("N0") đ</span>
                             </div>
                         }
-                        <div class="flex justify-between text-base font-extrabold text-on-surface pt-1 border-t border-outline-variant/60">
+                        <div class="flex justify-between text-on-surface-variant">
+                            <span>Thuế (VAT 8% bóc tách):</span>
+                            <span class="font-bold text-on-surface">@Math.Round(Order.TotalAmount - (Order.TotalAmount / 1.08m), 0).ToString("N0") đ</span>
+                        </div>
+                        <div class="flex justify-between text-base font-extrabold text-on-surface pt-1.5 border-t border-outline-variant/60">
                             <span>TỔNG CẦN THU:</span>
                             <span class="text-primary text-xl font-black">@Order.TotalAmount.ToString("N0") đ</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Section 10.2 (Middle): Payment Methods (~30% width / col-span-3) -->
-                <div class="lg:col-span-3 bg-surface rounded-xl border border-outline-variant p-4 flex flex-col justify-between overflow-hidden shadow-xs">
-                    <div>
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant pb-2 border-b border-outline-variant flex items-center gap-1">
+                <!-- Section 10.2 (Middle, 3 cols): Payment Methods -->
+                <div class="col-span-12 lg:col-span-3 bg-surface rounded-xl border border-outline-variant p-3.5 flex flex-col justify-between overflow-hidden shadow-xs min-h-0">
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant pb-2 border-b border-outline-variant flex items-center gap-1.5 shrink-0">
                             <span class="material-symbols-outlined text-base">credit_card</span>
                             Phương Thức Thanh Toán
                         </h3>
 
-                        <div class="space-y-3 mt-4">
+                        <div class="grid grid-cols-1 gap-2">
                             <!-- Method 1: Cash -->
-                            <button class="w-full p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 text-left @(ActivePaymentMethod == "Cash" ? "border-primary bg-primary/10 text-primary shadow-xs" : "border-outline-variant hover:bg-surface-high")"
-                                    @onclick='() => ActivePaymentMethod = "Cash"'>
-                                <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-2xl">local_atm</span>
+                            <button class="w-full p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 text-left @(ActivePaymentMethod == "Cash" ? "border-primary bg-primary/10 text-primary shadow-xs" : "border-outline-variant hover:bg-surface-high")"
+                                    @onclick='() => SetPaymentMethod("Cash")'>
+                                <div class="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-xl">local_atm</span>
                                 </div>
                                 <div>
                                     <div class="font-extrabold text-sm">Tiền Mặt</div>
@@ -98,10 +110,10 @@
                             </button>
 
                             <!-- Method 2: VietQR Transfer -->
-                            <button class="w-full p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 text-left @(ActivePaymentMethod == "VietQR" ? "border-primary bg-primary/10 text-primary shadow-xs" : "border-outline-variant hover:bg-surface-high")"
-                                    @onclick='() => ActivePaymentMethod = "VietQR"'>
-                                <div class="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-2xl">qr_code_2</span>
+                            <button class="w-full p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 text-left @(ActivePaymentMethod == "VietQR" ? "border-primary bg-primary/10 text-primary shadow-xs" : "border-outline-variant hover:bg-surface-high")"
+                                    @onclick='() => SetPaymentMethod("VietQR")'>
+                                <div class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-xl">qr_code_2</span>
                                 </div>
                                 <div>
                                     <div class="font-extrabold text-sm">Chuyển Khoản VietQR</div>
@@ -111,99 +123,178 @@
                         </div>
                     </div>
 
-                    @if (ActivePaymentMethod == "VietQR")
-                    {
-                        <div class="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-xs text-blue-800 dark:text-blue-200 mt-2">
-                            💡 Mã VietQR sẽ được tự động đồng bộ khi chuyển khoản thành công.
-                        </div>
-                    }
+                    <!-- Bottom Notice -->
+                    <div class="p-2.5 bg-surface-high rounded-xl border border-outline-variant text-[11px] text-on-surface-variant shrink-0 mt-2">
+                        @if (ActivePaymentMethod == "VietQR")
+                        {
+                            <span class="text-blue-700 dark:text-blue-300 font-medium">💡 Mã VietQR sẽ được tự động đồng bộ khi chuyển khoản thành công qua SePay.</span>
+                        }
+                        else
+                        {
+                            <span>💡 Thu tiền mặt tại quầy, sử dụng bàn phím số bên phải để tính tiền thừa trả khách.</span>
+                        }
+                    </div>
                 </div>
 
-                <!-- Section 10.3 (Right): Numpad & Quick Presets & Confirm (~35% width / col-span-5) -->
-                <div class="lg:col-span-5 bg-surface rounded-xl border border-outline-variant p-4 flex flex-col justify-between overflow-y-auto shadow-xs">
-                    <div>
-                        <!-- Cash Input Header & Result Display -->
-                        <div class="bg-surface-high p-4 rounded-xl border border-outline-variant mb-4">
-                            <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Tiền Khách Trả (VNĐ)</label>
-                            <div class="text-3xl font-black text-primary tracking-tight">
-                                @CashReceived.ToString("N0") đ
+                <!-- Section 10.3 (Right, 5 cols): Numpad & Quick Presets OR VietQR (Strictly No Vertical Scrollbar) -->
+                <div class="col-span-12 lg:col-span-5 bg-surface rounded-xl border border-outline-variant p-3.5 flex flex-col justify-between overflow-hidden shadow-xs min-h-0">
+                    @if (ActivePaymentMethod == "Cash")
+                    {
+                        <div class="flex flex-col justify-between h-full min-h-0">
+                            <!-- Cash Input Header & Result Display -->
+                            <div class="bg-surface-high p-3 rounded-xl border border-outline-variant shrink-0">
+                                <div class="flex items-center justify-between mb-0.5">
+                                    <label class="block text-[11px] font-bold text-on-surface-variant uppercase m-0">Tiền Khách Trả (VNĐ)</label>
+                                    <button class="px-2.5 py-1 text-xs font-black bg-rose-500/15 hover:bg-rose-500 hover:text-white text-rose-600 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs border border-rose-500/30"
+                                            @onclick="ClearCashReceived" title="Đặt lại tiền khách trả về 0đ">
+                                        <span class="material-symbols-outlined text-sm">restart_alt</span>
+                                        XÓA (0đ)
+                                    </button>
+                                </div>
+                                <div class="text-2xl sm:text-3xl font-black text-primary tracking-tight">
+                                    @CashReceived.ToString("N0") đ
+                                </div>
+
+                                <!-- Change / Remaining Calculation -->
+                                <div class="mt-2 pt-2 border-t border-outline-variant flex justify-between items-center text-xs">
+                                    @if (CashReceived >= Order.TotalAmount)
+                                    {
+                                        <span class="font-bold text-on-surface-variant">Tiền thừa trả khách:</span>
+                                        <span class="font-black text-lg text-emerald-600">@ChangeAmount.ToString("N0") đ</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="font-bold text-on-surface-variant">Còn thiếu:</span>
+                                        <span class="font-black text-lg text-rose-600">@MissingAmount.ToString("N0") đ</span>
+                                    }
+                                </div>
                             </div>
 
-                            <!-- Section 12: Change / Remaining Calculation -->
-                            <div class="mt-3 pt-2 border-t border-outline-variant flex justify-between items-center text-sm">
-                                @if (CashReceived >= Order.TotalAmount)
+                            <!-- Digital Numpad (Compact, Responsive) -->
+                            <div class="grid grid-cols-3 gap-1.5 my-2">
+                                @foreach (var digit in new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9" })
                                 {
-                                    <span class="font-bold text-on-surface-variant">Tiền thừa trả khách:</span>
-                                    <span class="font-black text-xl text-emerald-600">@ChangeAmount.ToString("N0") đ</span>
-                                }
-                                else
-                                {
-                                    <span class="font-bold text-on-surface-variant">Còn thiếu:</span>
-                                    <span class="font-black text-xl text-rose-600">@MissingAmount.ToString("N0") đ</span>
-                                }
-                            </div>
-                        </div>
-
-                        <!-- Digital Numpad (10.3) -->
-                        <div class="grid grid-cols-3 gap-2 mb-3">
-                            @foreach (var digit in new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "000" })
-                            {
-                                <button class="py-3 bg-surface-high hover:bg-primary/20 text-on-surface font-extrabold text-lg rounded-xl border border-outline-variant transition-all active:scale-95 cursor-pointer"
-                                        @onclick="() => AppendDigit(digit)">
-                                    @digit
-                                </button>
-                            }
-                            <button class="py-3 bg-error-container/20 hover:bg-error/30 text-error font-extrabold text-lg rounded-xl border border-error/30 transition-all active:scale-95 cursor-pointer flex items-center justify-center"
-                                    @onclick="BackspaceDigit">
-                                <span class="material-symbols-outlined">backspace</span>
-                            </button>
-                        </div>
-
-                        <!-- Section 11: Quick Denomination Presets -->
-                        <div class="mb-3">
-                            <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Mệnh giá nhanh (+Cộng dồn):</span>
-                            <div class="grid grid-cols-3 gap-2">
-                                @foreach (var denom in new[] { 10000, 20000, 50000, 100000, 200000, 500000 })
-                                {
-                                    <button class="py-2.5 bg-surface-high hover:bg-primary/10 text-on-surface font-bold text-xs rounded-xl border border-outline-variant transition-all cursor-pointer"
-                                            @onclick="() => AddDenomination(denom)">
-                                        +@denom.ToString("N0")đ
+                                    <button class="py-2.5 bg-surface-high hover:bg-primary/20 text-on-surface font-extrabold text-base rounded-xl border border-outline-variant transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                            @onclick="() => AppendDigit(digit)">
+                                        @digit
                                     </button>
                                 }
+                                <button class="py-2.5 bg-rose-500/15 hover:bg-rose-500 hover:text-white text-rose-600 font-black text-xs sm:text-sm rounded-xl border border-rose-500/30 transition-all active:scale-95 cursor-pointer shadow-2xs flex items-center justify-center gap-1"
+                                        @onclick="ClearCashReceived" title="Xóa và đặt lại tiền khách trả về 0">
+                                    <span class="material-symbols-outlined text-base">restart_alt</span>
+                                    <span>XÓA (0đ)</span>
+                                </button>
+                                <button class="py-2.5 bg-surface-high hover:bg-primary/20 text-on-surface font-extrabold text-base rounded-xl border border-outline-variant transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                        @onclick='() => AppendDigit("0")'>
+                                    0
+                                </button>
+                                <button class="py-2.5 bg-error-container/20 hover:bg-error/30 text-error font-extrabold text-base rounded-xl border border-error/30 transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow-2xs"
+                                        @onclick="BackspaceDigit" title="Lùi 1 số">
+                                    <span class="material-symbols-outlined text-lg">backspace</span>
+                                </button>
                             </div>
-                        </div>
 
-                        <!-- Section 13: KHỚP Button -->
-                        <button class="w-full py-2.5 bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-xl font-black text-sm transition-all cursor-pointer flex items-center justify-center gap-2 mb-2"
-                                @onclick="SetExactAmount">
-                            <span class="material-symbols-outlined text-lg">fact_check</span>
-                            KHỚP VỪA ĐỦ SỐ TIỀN (@Order.TotalAmount.ToString("N0")đ)
-                        </button>
-                    </div>
+                            <!-- Quick Denomination Presets -->
+                            <div class="mb-2 shrink-0">
+                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Mệnh giá nhanh (+Cộng dồn):</span>
+                                <div class="grid grid-cols-3 gap-1.5">
+                                    @foreach (var denom in new[] { 10000, 20000, 50000, 100000, 200000, 500000 })
+                                    {
+                                        <button class="py-2 bg-surface-high hover:bg-primary/10 text-on-surface font-bold text-xs rounded-xl border border-outline-variant transition-all cursor-pointer shadow-2xs"
+                                                @onclick="() => AddDenomination(denom)">
+                                            +@denom.ToString("N0")đ
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- KHỚP Button -->
+                            <button class="w-full py-2 bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-2xs"
+                                    @onclick="SetExactAmount">
+                                <span class="material-symbols-outlined text-base">fact_check</span>
+                                KHỚP VỪA ĐỦ SỐ TIỀN (@Order.TotalAmount.ToString("N0")đ)
+                            </button>
+                        </div>
+                    }
+                    else if (ActivePaymentMethod == "VietQR")
+                    {
+                        <div class="flex flex-col items-center justify-between h-full py-1 text-center min-h-0">
+                            @if (_isLoadingQr)
+                            {
+                                <div class="flex flex-col items-center justify-center h-full gap-3">
+                                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                                    <span class="text-xs text-on-surface-variant font-medium">Đang tạo mã VietQR...</span>
+                                </div>
+                            }
+                            else if (_isPaymentSuccess)
+                            {
+                                <div class="flex flex-col items-center justify-center h-full bg-emerald-500/10 p-6 rounded-2xl border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 animate-fade-in w-full">
+                                    <span class="material-symbols-outlined text-6xl text-emerald-600 mb-2">check_circle</span>
+                                    <span class="font-black text-lg">Thanh toán thành công!</span>
+                                    <span class="text-xs opacity-90 mt-1">Đơn hàng mang về đã được thanh toán qua SePay.</span>
+                                </div>
+                            }
+                            else if (_qrData != null)
+                            {
+                                var displayQrUrl = !string.IsNullOrEmpty(_qrData.SepayQrUrl) ? _qrData.SepayQrUrl : _qrData.QrImageUrl;
+                                <div class="bg-white p-2.5 rounded-2xl border-2 border-primary/20 shadow-md flex items-center justify-center shrink-0">
+                                    <img src="@displayQrUrl" alt="VietQR TPBank" class="w-48 h-48 sm:w-52 sm:h-52 object-contain rounded-lg" />
+                                </div>
+
+                                <div class="space-y-1 my-1 w-full max-w-sm">
+                                    <div class="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-0.5 rounded-full text-xs font-black">
+                                        <span class="material-symbols-outlined text-sm">account_balance</span>
+                                        <span>TPBank • STK: @_qrData.BankAccountNo</span>
+                                    </div>
+                                    <div class="font-extrabold text-xs text-on-surface">Chủ TK: <span class="uppercase text-primary font-black">@_qrData.AccountHolder</span></div>
+                                    <div class="font-bold text-xs text-on-surface">Số tiền: <span class="text-primary text-base font-black">@_qrData.Amount.ToString("N0") đ</span></div>
+                                    <div class="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant">
+                                        <span>Nội dung CK:</span>
+                                        <span class="font-mono bg-surface-high px-2 py-0.5 rounded-md text-primary font-black text-xs border border-primary/30 select-all">@_qrData.SepayContent</span>
+                                    </div>
+                                </div>
+
+                                <div class="text-[11px] text-emerald-600 font-bold flex items-center justify-center gap-1 shrink-0">
+                                    <span class="material-symbols-outlined text-sm animate-spin">autorenew</span>
+                                    Hệ thống đang lắng nghe giao dịch SePay tự động...
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex flex-col items-center justify-center h-full gap-3">
+                                    <button class="px-6 py-3 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 cursor-pointer shadow-md text-sm"
+                                            @onclick="GenerateQrCodeAsync">
+                                        <span class="material-symbols-outlined">qr_code_2</span>
+                                        Tạo Mã VietQR
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
 
                     @if (!string.IsNullOrEmpty(ErrorMessage))
                     {
-                        <div class="p-2.5 bg-error-container text-error rounded-xl text-xs font-bold mb-2">
+                        <div class="p-2 bg-error-container text-error rounded-xl text-xs font-bold mt-2 shrink-0">
                             @ErrorMessage
                         </div>
                     }
                 </div>
             </div>
 
-            <!-- Footer Section 15: HUỶ (Red) & XÁC NHẬN (Green) -->
-            <div class="px-6 py-4 bg-surface border-t border-outline-variant flex justify-between items-center shrink-0">
+            <!-- Footer: HUỶ (Red) & XÁC NHẬN (Green) -->
+            <div class="px-6 py-3.5 bg-surface border-t border-outline-variant flex justify-between items-center shrink-0">
                 <!-- Nút HUỶ (Đỏ) -->
-                <button class="px-6 py-3 bg-error text-on-error hover:bg-error/90 rounded-xl font-extrabold text-sm transition-all cursor-pointer shadow-sm flex items-center gap-2"
+                <button class="px-5 py-2.5 bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-extrabold text-xs sm:text-sm transition-all cursor-pointer shadow-sm flex items-center gap-2"
                         @onclick="CloseAsync">
-                    <span class="material-symbols-outlined text-xl">cancel</span>
+                    <span class="material-symbols-outlined text-lg">cancel</span>
                     HUỶ THANH TOÁN
                 </button>
 
                 <!-- Nút XÁC NHẬN (Xanh lá - Active when CashReceived >= TotalAmount) -->
-                <button class="px-8 py-3 bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed rounded-xl font-extrabold text-base transition-all cursor-pointer shadow-md flex items-center gap-2"
-                        disabled="@(CashReceived < Order.TotalAmount || IsProcessing)"
+                <button class="px-8 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed rounded-xl font-extrabold text-xs sm:text-base transition-all cursor-pointer shadow-md flex items-center gap-2"
+                        disabled="@((ActivePaymentMethod == "Cash" && CashReceived < Order.TotalAmount) || IsProcessing)"
                         @onclick="ConfirmPaymentAsync">
-                    <span class="material-symbols-outlined text-2xl">check_circle</span>
+                    <span class="material-symbols-outlined text-xl">check_circle</span>
                     XÁC NHẬN THANH TOÁN
                 </button>
             </div>
@@ -222,15 +313,67 @@
     protected bool IsProcessing { get; set; } = false;
     protected string ErrorMessage { get; set; } = string.Empty;
 
+    private VietQrResponse? _qrData;
+    private bool _isLoadingQr;
+    private bool _isPaymentSuccess;
+    private HubConnection? _hubConnection;
+
     protected decimal ChangeAmount => Math.Max(0, CashReceived - (Order?.TotalAmount ?? 0));
     protected decimal MissingAmount => Math.Max(0, (Order?.TotalAmount ?? 0) - CashReceived);
 
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<int>("OrderPaid", async (orderId) =>
+        {
+            if (Order != null && orderId == Order.OrderId)
+            {
+                _isPaymentSuccess = true;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(1500);
+                await CloseAsync();
+                await OnPaymentSuccess.InvokeAsync(true);
+            }
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR error in PosTakeawayPaymentModal: {ex.Message}");
+        }
+    }
+
     protected override void OnParametersSet()
     {
-        if (IsOpen && Order != null && CashReceived == 0)
+        if (!IsOpen)
         {
-            CashReceived = Order.TotalAmount; // Default to exact amount
+            CashReceived = 0;
+            _qrData = null;
+            _isPaymentSuccess = false;
+            ErrorMessage = string.Empty;
         }
+    }
+
+    private async Task SetPaymentMethod(string method)
+    {
+        ActivePaymentMethod = method;
+        ErrorMessage = string.Empty;
+        if (method == "VietQR" && _qrData == null)
+        {
+            await GenerateQrCodeAsync();
+        }
+    }
+
+    private void ClearCashReceived()
+    {
+        CashReceived = 0;
     }
 
     private void AppendDigit(string digit)
@@ -274,9 +417,43 @@
         }
     }
 
+    private async Task GenerateQrCodeAsync()
+    {
+        if (Order == null) return;
+        _isLoadingQr = true;
+        ErrorMessage = string.Empty;
+        try
+        {
+            var req = new GenerateVietQrRequest
+            {
+                OrderId = Order.OrderId,
+                BankName = "TPBank",
+                BankAccountNo = "11102042003"
+            };
+            var response = await Http.PostAsJsonAsync("api/v1/payments/vietqr", req);
+            if (response.IsSuccessStatusCode)
+            {
+                _qrData = await response.Content.ReadFromJsonAsync<VietQrResponse>();
+            }
+            else
+            {
+                ErrorMessage = "Không thể tạo mã VietQR SePay.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingQr = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task ConfirmPaymentAsync()
     {
-        if (Order == null || CashReceived < Order.TotalAmount || IsProcessing) return;
+        if (Order == null || (ActivePaymentMethod == "Cash" && CashReceived < Order.TotalAmount) || IsProcessing) return;
 
         IsProcessing = true;
         ErrorMessage = string.Empty;
@@ -286,7 +463,7 @@
             var request = new ProcessCashPaymentRequest
             {
                 OrderId = Order.OrderId,
-                CashReceived = CashReceived,
+                CashReceived = ActivePaymentMethod == "Cash" ? CashReceived : Order.TotalAmount,
                 CustomerId = null,
                 VoucherCode = null
             };
@@ -317,6 +494,17 @@
     {
         IsOpen = false;
         CashReceived = 0;
+        _qrData = null;
+        _isPaymentSuccess = false;
+        ErrorMessage = string.Empty;
         await IsOpenChanged.InvokeAsync(false);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
     }
 }

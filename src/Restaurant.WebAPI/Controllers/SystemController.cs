@@ -205,18 +205,21 @@ public class SystemController : ControllerBase
         if (!logs.Any())
         {
             var adminUser = await _context.Users.FirstOrDefaultAsync();
-            var initialLog = new AuditLogEntry
+            if (adminUser != null)
             {
-                UserId = adminUser?.Id ?? 1,
-                Action = "System.Init",
-                EntityName = "System",
-                EntityId = "1",
-                Details = "Khởi tạo hệ thống và cấu hình mặc định BOH",
-                IpAddress = "127.0.0.1"
-            };
-            _context.AuditLogEntries.Add(initialLog);
-            await _context.SaveChangesAsync();
-            logs = new List<AuditLogEntry> { initialLog };
+                var initialLog = new AuditLogEntry
+                {
+                    UserId = adminUser.Id,
+                    Action = "System.Init",
+                    EntityName = "System",
+                    EntityId = "1",
+                    Details = "Khởi tạo hệ thống và cấu hình mặc định BOH",
+                    IpAddress = "127.0.0.1"
+                };
+                _context.AuditLogEntries.Add(initialLog);
+                await _context.SaveChangesAsync();
+                logs = new List<AuditLogEntry> { initialLog };
+            }
         }
 
         var dtos = logs.Select(l => new AuditLogDto

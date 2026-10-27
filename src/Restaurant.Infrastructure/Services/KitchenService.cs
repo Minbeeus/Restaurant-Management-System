@@ -118,8 +118,8 @@ public class KitchenService : IKitchenService
             .Include(oi => oi.OrderItemModifiers)
             .FirstOrDefaultAsync(oi => oi.Id == orderItemId);
 
-        // 2. Reject if item missing, voided, or order cancelled
-        if (item == null || item.Status == (int)OrderItemStatus.Voided || (item.Order != null && item.Order.Status == (int)OrderStatus.Cancelled))
+        // 2. Reject if item missing, order missing, voided, or order cancelled
+        if (item == null || item.Order == null || item.Status == (int)OrderItemStatus.Voided || item.Order.Status == (int)OrderStatus.Cancelled)
         {
             return null;
         }
@@ -211,7 +211,7 @@ public class KitchenService : IKitchenService
                     action: "Kitchen.ItemStatusUpdate",
                     entityName: "OrderItem",
                     entityId: item.Id.ToString(),
-                    details: $"Updated KitchenStatus from {oldStatus} to {newStatus} for {item.MenuItemName} (Order {item.Order.OrderCode})"
+                    details: $"Updated KitchenStatus from {oldStatus} to {newStatus} for {item.MenuItemName} (Order {item.Order?.OrderCode})"
                 );
             }
         }
@@ -233,7 +233,7 @@ public class KitchenService : IKitchenService
             .ToListAsync();
 
         var isAllDone = allItemsInOrder.All(oi => oi.KitchenStatus == (int)KitchenStatus.Done);
-        if (isAllDone && item.Order.Status != (int)OrderStatus.Completed && item.Order.Status != (int)OrderStatus.Cancelled)
+        if (isAllDone && item.Order != null && item.Order.Status != (int)OrderStatus.Completed && item.Order.Status != (int)OrderStatus.Cancelled)
         {
             // Bếp hoàn thành toàn bộ -> Order.Status = Ready (Sẵn sàng phục vụ), KHÔNG tự động chuyển Completed trước thanh toán
             item.Order.Status = (int)OrderStatus.Ready;
@@ -255,7 +255,7 @@ public class KitchenService : IKitchenService
                 .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
         }
 
-        if (item.Order.TableId.HasValue)
+        if (item.Order?.TableId.HasValue == true)
         {
             await _hubContext.Clients.Group(SystemConstants.SignalRGroups.TableGroup(item.Order.TableId.Value))
                 .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);

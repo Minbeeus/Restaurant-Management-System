@@ -2,6 +2,9 @@
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string MaxWidthClass { get; set; } = "max-w-lg"; // max-w-sm, max-w-md, max-w-lg, max-w-2xl, max-w-4xl
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? FooterButtons { get; set; }
 
@@ -13,24 +16,43 @@
 
 @if (IsOpen)
 {
-    <div class="modal-backdrop fade show" style="background-color: rgba(0,0,0,0.5);"></div>
-    <div class="modal fade show d-block" tabindex="-1" role="dialog" @onclick="Close">
-        <div class="modal-dialog modal-dialog-centered" role="document" @onclick:stopPropagation="true">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 8px; background-color: var(--color-surface);">
-                <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
-                    <h5 class="modal-title fw-bold" style="font-family: var(--font-heading); color: var(--color-secondary);">@Title</h5>
-                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
-                </div>
-                <div class="modal-body px-4 py-3">
-                    @ChildContent
-                </div>
-                @if (FooterButtons != null)
-                {
-                    <div class="modal-footer border-top-0 pt-0 pb-4 px-4">
-                        @FooterButtons
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+         @onclick="Close" role="dialog" aria-modal="true">
+        <div class="bg-surface rounded-2xl shadow-2xl border border-outline-variant @MaxWidthClass w-full overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
+             @onclick:stopPropagation="true">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-outline-variant/30 flex items-center justify-between bg-surface-container/30 shrink-0">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    @if (!string.IsNullOrEmpty(Icon))
+                    {
+                        <span class="material-symbols-outlined text-primary text-2xl shrink-0">@Icon</span>
+                    }
+                    <div class="min-w-0">
+                        <h3 class="font-heading font-bold text-base md:text-lg text-on-surface m-0 truncate">@Title</h3>
+                        @if (!string.IsNullOrEmpty(Subtitle))
+                        {
+                            <p class="text-xs text-on-surface-variant m-0 mt-0.5 truncate">@Subtitle</p>
+                        }
                     </div>
-                }
+                </div>
+                <button type="button" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-high transition-colors cursor-pointer shrink-0"
+                        aria-label="Đóng" @onclick="Close">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
             </div>
+
+            <!-- Modal Body -->
+            <div class="px-6 py-5 overflow-y-auto flex-1 font-body text-sm text-on-surface space-y-4">
+                @ChildContent
+            </div>
+
+            <!-- Modal Footer -->
+            @if (FooterButtons != null)
+            {
+                <div class="px-6 py-3.5 border-t border-outline-variant/30 bg-surface-container/15 flex items-center justify-end gap-3 shrink-0">
+                    @FooterButtons
+                </div>
+            }
         </div>
     </div>
 }

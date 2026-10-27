@@ -5,6 +5,7 @@ using Restaurant.Application.Interfaces;
 using Restaurant.Application.Resources;
 using Restaurant.Domain.Entities;
 using Restaurant.Domain.Enums;
+using Restaurant.Domain.Common;
 using Restaurant.Infrastructure.Persistence;
 
 namespace Restaurant.Infrastructure.Services;
@@ -14,15 +15,18 @@ public class PosOrderService : IPosOrderService
     private readonly ApplicationDbContext _context;
     private readonly IRestaurantNotificationService _notificationService;
     private readonly IStringLocalizer<SharedResources> _localizer;
+    private readonly ICurrentUserService? _currentUserService;
 
     public PosOrderService(
         ApplicationDbContext context,
         IRestaurantNotificationService notificationService,
-        IStringLocalizer<SharedResources> localizer)
+        IStringLocalizer<SharedResources> localizer,
+        ICurrentUserService? currentUserService = null)
     {
         _context = context;
         _notificationService = notificationService;
         _localizer = localizer;
+        _currentUserService = currentUserService;
     }
 
     public async Task<List<TableStatusOverviewDto>> GetTablesStatusAsync()
@@ -197,15 +201,22 @@ public class PosOrderService : IPosOrderService
             {
                 // Create target order if target table was empty
                 var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open)
-                                 ?? await _context.Shifts.FirstOrDefaultAsync();
+                                 ?? await _context.Shifts.OrderByDescending(s => s.OpenedAt).FirstOrDefaultAsync();
+
+                if (activeShift == null)
+                {
+                    throw new InvalidOperationException("Không tìm thấy ca làm việc hợp lệ để gộp bàn.");
+                }
+
+                int createdByUserId = _currentUserService?.UserId ?? activeShift.UserId;
 
                 targetOrder = new Order
                 {
                     OrderCode = $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{request.TargetTableId}",
                     OrderType = 0,
                     TableId = request.TargetTableId,
-                    ShiftId = activeShift?.Id ?? 1,
-                    CreatedByUserId = activeShift?.UserId ?? 1,
+                    ShiftId = activeShift.Id,
+                    CreatedByUserId = createdByUserId,
                     Status = (int)OrderStatus.InPreparation,
                     SubTotal = 0,
                     DiscountAmount = 0,
@@ -755,9 +766,43 @@ public class PosOrderService : IPosOrderService
         if (table == null) return false;
 
         table.Status = (int)TableStatus.Available;
+
+        var emptyOrders = await _context.Orders
+            .Include(o => o.OrderItems)
+            .Where(o => o.TableId == tableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
+            .ToListAsync();
+
+        foreach (var ord in emptyOrders)
+        {
+            if (!ord.OrderItems.Any() || ord.OrderItems.All(i => i.Status == (int)OrderItemStatus.Voided))
+            {
+                ord.Status = (int)OrderStatus.Cancelled;
+                ord.Note = string.IsNullOrEmpty(ord.Note) ? "[HỦY ĐƠN RỖNG]" : $"{ord.Note} | [HỦY ĐƠN RỖNG]";
+            }
+        }
+
         await _context.SaveChangesAsync();
 
         await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Available");
+        return true;
+    }
+
+    public async Task<bool> CompleteOrderAsync(int orderId)
+    {
+        var order = await _context.Orders.Include(o => o.Table).FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order == null) return false;
+
+        order.Status = (int)OrderStatus.Completed;
+        if (order.Table != null && order.PaymentStatus == (int)PaymentStatus.Paid)
+        {
+            order.Table.Status = (int)TableStatus.Available;
+        }
+
+        await _context.SaveChangesAsync();
+        if (order.TableId.HasValue)
+        {
+            await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, "Available");
+        }
         return true;
     }
 
@@ -855,7 +900,14 @@ public class PosOrderService : IPosOrderService
                 ParentItemId = oi.ParentItemId,
                 ComboGroupId = oi.ComboGroupId,
                 Status = oi.Status,
-                Modifiers = oi.OrderItemModifiers.Select(m => m.ModifierOptionName).ToList(),
+                Modifiers = oi.OrderItemModifiers
+                    .Select(m => m.ModifierOptionName)
+                    .Where(s => !string.IsNullOrEmpty(s) &&
+                                !s.Contains("Sốt", StringComparison.OrdinalIgnoreCase) &&
+                                !s.Contains("Sauce", StringComparison.OrdinalIgnoreCase) &&
+                                !s.Contains("Cay", StringComparison.OrdinalIgnoreCase) &&
+                                !s.Contains("Spice", StringComparison.OrdinalIgnoreCase))
+                    .ToList(),
                 ModifierIds = oi.OrderItemModifiers.Select(m => m.ModifierOptionId).ToList()
             }).ToList()
         };
@@ -868,7 +920,7 @@ public class PosOrderService : IPosOrderService
             .Include(o => o.Table)
             .FirstOrDefaultAsync(o => o.Id == orderId);
 
-        if (order == null || order.Status == (int)OrderStatus.Completed || order.Status == (int)OrderStatus.Cancelled)
+        if (order == null || order.Status == (int)OrderStatus.Completed || order.Status == (int)OrderStatus.Cancelled || order.PaymentStatus == (int)PaymentStatus.Paid)
         {
             return false;
         }
@@ -928,7 +980,30 @@ public class PosOrderService : IPosOrderService
                     }
                 }
 
-                // 3. Recalculate Order SubTotal and TotalAmount
+                // 3. Record Cancellation Waste in InventoryTransactions for items that were already cooked (KitchenStatus.Done)
+                var voidedItemIds = voidedItems.Select(v => v.Id).ToList();
+                var saleDeductions = await _context.InventoryTransactions
+                    .Where(t => t.ReferenceType == SystemConstants.ReferenceTypes.OrderItem && t.ReferenceId.HasValue && voidedItemIds.Contains(t.ReferenceId.Value) && t.TransactionType == (int)InventoryTransactionType.SaleDeduction)
+                    .ToListAsync();
+
+                foreach (var deduction in saleDeductions)
+                {
+                    var item = voidedItems.FirstOrDefault(v => v.Id == deduction.ReferenceId);
+                    _context.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        MaterialId = deduction.MaterialId,
+                        TransactionType = (int)InventoryTransactionType.CancellationWaste,
+                        Quantity = 0,
+                        BalanceAfter = deduction.BalanceAfter,
+                        ReferenceType = SystemConstants.ReferenceTypes.OrderItem,
+                        ReferenceId = deduction.ReferenceId,
+                        Note = $"[WASTE] Voided Item #{item?.Id} ({item?.MenuItemName}) | Reason: {voidReason}",
+                        CreatedByUserId = userId,
+                        CreatedAt = utcNow
+                    });
+                }
+
+                // 4. Recalculate Order SubTotal and TotalAmount
                 order.SubTotal = order.OrderItems
                     .Where(oi => oi.Status != (int)OrderItemStatus.Voided)
                     .Sum(oi => oi.UnitPrice * oi.Quantity);

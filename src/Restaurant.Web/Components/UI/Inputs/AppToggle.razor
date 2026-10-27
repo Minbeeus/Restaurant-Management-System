@@ -1,33 +1,33 @@
 @code {
     [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string? SubLabel { get; set; }
     [Parameter] public bool Value { get; set; }
     [Parameter] public EventCallback<bool> ValueChanged { get; set; }
     [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public string? Class { get; set; }
 
-    private async Task OnChange(ChangeEventArgs e)
+    private async Task Toggle()
     {
-        if (e.Value is bool boolVal)
-        {
-            await ValueChanged.InvokeAsync(boolVal);
-        }
+        if (IsDisabled) return;
+        await ValueChanged.InvokeAsync(!Value);
     }
 }
 
-<div class="form-check form-switch mb-3">
-    <input class="form-check-input" 
-           type="checkbox" 
-           role="switch" 
-           checked="@Value" 
-           @onchange="OnChange" 
-           disabled="@IsDisabled" />
-    <label class="form-check-label" style="font-family: var(--font-body);">
-        @Label
-    </label>
+<div class="flex items-center justify-between gap-4 py-2 select-none @(IsDisabled ? "opacity-50" : "") @Class">
+    <div class="flex flex-col">
+        <span class="text-sm font-semibold text-on-surface font-body">@Label</span>
+        @if (!string.IsNullOrEmpty(SubLabel))
+        {
+            <span class="text-xs text-on-surface-variant font-body">@SubLabel</span>
+        }
+    </div>
+    
+    <button type="button" 
+            role="switch" 
+            aria-checked="@Value" 
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/40 @(Value ? "bg-primary" : "bg-outline-variant")"
+            disabled="@IsDisabled"
+            @onclick="Toggle">
+        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out @(Value ? "translate-x-5" : "translate-x-0")"></span>
+    </button>
 </div>
-
-<style>
-    .form-switch .form-check-input:checked {
-        background-color: var(--color-primary);
-        border-color: var(--color-primary-container);
-    }
-</style>

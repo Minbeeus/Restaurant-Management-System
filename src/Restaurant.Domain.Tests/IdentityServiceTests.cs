@@ -198,20 +198,57 @@ public class IdentityServiceTests
     public async Task VerifyManagerPinAsync_FiveFailedAttempts_ThrowsLockoutException()
     {
         IdentityService.ResetManagerPinAttempts();
-        var testPin = "654321";
+        var testPins = new[] { "654321", "654322", "654323", "654324" };
 
-        for (int i = 0; i < 4; i++)
+        foreach (var pin in testPins)
         {
-            var res = await _identityService.VerifyManagerPinAsync(testPin);
+            var res = await _identityService.VerifyManagerPinAsync(pin);
             Assert.False(res);
         }
 
+        // 5th attempt with another different PIN triggers lockout
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _identityService.VerifyManagerPinAsync(testPin));
+            _identityService.VerifyManagerPinAsync("654325"));
 
         Assert.Contains("bị khóa", ex.Message);
 
+        // Subsequent attempt with yet another different PIN is blocked by lockout
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _identityService.VerifyManagerPinAsync(testPin));
+            _identityService.VerifyManagerPinAsync("654326"));
+    }
+
+    [Fact]
+    public async Task VerifyManagerPinAsync_ValidPin_ResetsConsecutiveFailedAttempts()
+    {
+        IdentityService.ResetManagerPinAttempts();
+        var managerRole = new Role { Id = 14, Name = "Manager" };
+        var validPin = "888999";
+        var manager = new User
+        {
+            Id = 14,
+            Username = "mgr_reset_" + Guid.NewGuid().ToString("N")[..6],
+            FullName = "Manager Reset",
+            RoleId = 14,
+            Role = managerRole,
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword(validPin),
+            IsActive = true
+        };
+
+        _context.Roles.Add(managerRole);
+        _context.Users.Add(manager);
+        await _context.SaveChangesAsync();
+
+        // 3 failed attempts with different PINs
+        Assert.False(await _identityService.VerifyManagerPinAsync("100001"));
+        Assert.False(await _identityService.VerifyManagerPinAsync("100002"));
+        Assert.False(await _identityService.VerifyManagerPinAsync("100003"));
+
+        // 1 valid attempt -> should succeed and reset failed counter
+        Assert.True(await _identityService.VerifyManagerPinAsync(validPin));
+
+        // 3 more failed attempts -> should not be locked out because counter was reset
+        Assert.False(await _identityService.VerifyManagerPinAsync("200001"));
+        Assert.False(await _identityService.VerifyManagerPinAsync("200002"));
+        Assert.False(await _identityService.VerifyManagerPinAsync("200003"));
     }
 }

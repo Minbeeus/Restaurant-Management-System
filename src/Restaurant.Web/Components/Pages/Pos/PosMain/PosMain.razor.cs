@@ -117,12 +117,65 @@ public partial class PosMain : IAsyncDisposable
 
     protected bool ShowDiscountModal { get; set; } = false;
     protected bool ShowCancelOrderModal { get; set; } = false;
+    protected bool ShowEmptyOrderCancelModal { get; set; } = false;
     
     protected bool ShowVoidItemModal { get; set; } = false;
     protected OrderCartItemLocal? VoidingItem { get; set; }
 
     protected bool ShowTableActionModal { get; set; } = false;
     protected string TableActionType { get; set; } = "Move";
+
+    private static bool IsPizzaSauceGroup(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        return name.Contains("Sốt Nền", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("Chọn Sốt Nền Pizza", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("Sốt Pizza", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("Select Pizza Sauce", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("Pizza Sauce", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSpiceGroup(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        return name.Contains("Mức Độ Cay", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("Cay", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("Spice Level", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ModifierOptionDto? GetStandardSauceForPizza(MenuItemDto item, ModifierGroupDto sauceGroup)
+    {
+        if (sauceGroup.ModifierOptions == null || !sauceGroup.ModifierOptions.Any()) return null;
+
+        var text = (item.Name + " " + item.Description).ToLowerInvariant();
+
+        if (text.Contains("pesto"))
+        {
+            var opt = sauceGroup.ModifierOptions.FirstOrDefault(o => o.IsActive && o.Name.Contains("Pesto", StringComparison.OrdinalIgnoreCase));
+            if (opt != null) return opt;
+        }
+
+        if (text.Contains("bbq"))
+        {
+            var opt = sauceGroup.ModifierOptions.FirstOrDefault(o => o.IsActive && o.Name.Contains("BBQ", StringComparison.OrdinalIgnoreCase));
+            if (opt != null) return opt;
+        }
+
+        if (text.Contains("bơ tỏi") || text.Contains("garlic butter"))
+        {
+            var opt = sauceGroup.ModifierOptions.FirstOrDefault(o => o.IsActive && o.Name.Contains("Bơ Tỏi", StringComparison.OrdinalIgnoreCase));
+            if (opt != null) return opt;
+        }
+
+        if (text.Contains("tiêu đen") || text.Contains("black pepper"))
+        {
+            var opt = sauceGroup.ModifierOptions.FirstOrDefault(o => o.IsActive && o.Name.Contains("Tiêu Đen", StringComparison.OrdinalIgnoreCase));
+            if (opt != null) return opt;
+        }
+
+        return sauceGroup.ModifierOptions.FirstOrDefault(o => o.IsActive && o.IsDefault)
+               ?? sauceGroup.ModifierOptions.FirstOrDefault(o => o.IsActive);
+    }
 
     protected bool IsProcessing { get; set; } = false;
 
@@ -466,15 +519,34 @@ public partial class PosMain : IAsyncDisposable
                     continue; // Handled by config
                 }
 
+                // Remove spice completely
+                if (IsSpiceGroup(group.Name))
+                {
+                    continue;
+                }
+
                 if (group.IsRequired)
                 {
-                    var def = group.ModifierOptions.FirstOrDefault(o => o.IsActive && o.IsDefault)
+                    ModifierOptionDto? def = null;
+                    if (IsPizzaSauceGroup(group.Name))
+                    {
+                        def = GetStandardSauceForPizza(item, group);
+                    }
+                    else
+                    {
+                        def = group.ModifierOptions.FirstOrDefault(o => o.IsActive && o.IsDefault)
                               ?? group.ModifierOptions.FirstOrDefault(o => o.IsActive);
+                    }
+
                     if (def != null)
                     {
                         selectedModIds.Add(def.Id);
-                        modNames.Add(def.Name + (def.ExtraPrice > 0 ? $" (+{def.ExtraPrice:N0}đ)" : ""));
-                        extraPriceTotal += def.ExtraPrice;
+                        // Standardize Pizza sauce: never show sauce name in item modifiers list, and do not charge extra
+                        if (!IsPizzaSauceGroup(group.Name))
+                        {
+                            modNames.Add(def.Name + (def.ExtraPrice > 0 ? $" (+{def.ExtraPrice:N0}đ)" : ""));
+                            extraPriceTotal += def.ExtraPrice;
+                        }
                     }
                 }
             }
@@ -487,12 +559,13 @@ public partial class PosMain : IAsyncDisposable
             !i.IsSentToKitchen &&
             i.MenuItemId == item.Id &&
             !i.NeedsConfiguration &&
+            string.IsNullOrEmpty(i.Note) &&
             AreModifiersIdentical(i.SelectedModifiers, selectedModIds));
 
         if (existing != null)
         {
             existing.Quantity++;
-            _ = ShowToastAsync($"Đã tăng số lượng {item.Name} ({existing.Quantity})");
+            // No toast notification on item quantity increase
         }
         else
         {
@@ -508,7 +581,7 @@ public partial class PosMain : IAsyncDisposable
                 IsSentToKitchen = false
             };
             CartItems.Add(newItem);
-            _ = ShowToastAsync($"Đã thêm {item.Name} ({config.Label}) vào đơn hàng");
+            // No toast notification on item addition
         }
     }
 
@@ -523,6 +596,18 @@ public partial class PosMain : IAsyncDisposable
         {
             foreach (var group in item.ModifierGroups)
             {
+                if (IsSpiceGroup(group.Name)) continue;
+
+                if (IsPizzaSauceGroup(group.Name))
+                {
+                    var stdSauce = GetStandardSauceForPizza(item, group);
+                    if (stdSauce != null)
+                    {
+                        selectedModIds.Add(stdSauce.Id);
+                    }
+                    continue;
+                }
+
                 var defaultOpts = group.ModifierOptions.Where(o => o.IsActive && o.IsDefault).ToList();
                 if (defaultOpts.Any())
                 {
@@ -540,7 +625,10 @@ public partial class PosMain : IAsyncDisposable
                     if (firstOpt != null && group.MinSelections > 0)
                     {
                         selectedModIds.Add(firstOpt.Id);
-                        modNames.Add(firstOpt.Name + (firstOpt.ExtraPrice > 0 ? $" (+{firstOpt.ExtraPrice:N0}đ)" : ""));
+                        if (!IsPizzaSauceGroup(group.Name))
+                        {
+                            modNames.Add(firstOpt.Name + (firstOpt.ExtraPrice > 0 ? $" (+{firstOpt.ExtraPrice:N0}đ)" : ""));
+                        }
                         extraPriceTotal += firstOpt.ExtraPrice;
                     }
                     else
@@ -559,12 +647,13 @@ public partial class PosMain : IAsyncDisposable
             i.MenuItemId == item.Id &&
             !i.NeedsConfiguration &&
             !needsConfig &&
+            string.IsNullOrEmpty(i.Note) &&
             AreModifiersIdentical(i.SelectedModifiers, selectedModIds));
 
         if (existing != null)
         {
             existing.Quantity++;
-            _ = ShowToastAsync($"Đã tăng số lượng {item.Name} ({existing.Quantity})");
+            // No toast notification on item quantity increase
         }
         else
         {
@@ -580,7 +669,7 @@ public partial class PosMain : IAsyncDisposable
                 IsSentToKitchen = false
             };
             CartItems.Add(newItem);
-            _ = ShowToastAsync(needsConfig ? $"Đã thêm {item.Name} (Cần cấu hình tùy chọn)" : $"Đã thêm {item.Name} vào đơn hàng");
+            // No toast notification on item addition
         }
     }
 
@@ -593,12 +682,15 @@ public partial class PosMain : IAsyncDisposable
         }
 
         var menuItem = AllMenuItems.FirstOrDefault(m => m.Id == item.MenuItemId);
-        if (menuItem == null || menuItem.ModifierGroups == null || !menuItem.ModifierGroups.Any())
+        if (menuItem == null)
         {
-            // Item has no modifiers, nothing to modify
-            _ = ShowToastAsync($"{item.Name} không có tùy chọn bổ sung.");
             return;
         }
+
+        // Clean modifier groups: filter out pizza sauce and spice level groups
+        var groups = menuItem.ModifierGroups?
+            .Where(g => !IsPizzaSauceGroup(g.Name) && !IsSpiceGroup(g.Name))
+            .ToList() ?? new List<ModifierGroupDto>();
 
         SelectedItemDetail = new MenuItemDetailDto
         {
@@ -610,14 +702,14 @@ public partial class PosMain : IAsyncDisposable
             Description = menuItem.Description,
             ImageUrl = menuItem.ImageUrl,
             IsCombo = menuItem.IsCombo,
-            ModifierGroups = menuItem.ModifierGroups
+            ModifierGroups = groups
         };
-        SelectedModifierGroups = menuItem.ModifierGroups;
+        SelectedModifierGroups = groups;
         EditingCartItemId = item.Id;
         IsOptionBuilderActive = true;
     }
 
-    protected void HandleSaveModifyItem(List<int> newSelectedModIds)
+    protected void HandleSaveModifyItem((List<int> newSelectedModIds, string? note) result)
     {
         if (string.IsNullOrEmpty(EditingCartItemId)) return;
 
@@ -630,11 +722,51 @@ public partial class PosMain : IAsyncDisposable
         var modNames = new List<string>();
         decimal extraPriceTotal = 0m;
 
-        if (newSelectedModIds != null && newSelectedModIds.Any() && SelectedModifierGroups != null)
+        // Preserve any hidden required sauce option that was in targetItem.SelectedModifiers or standard recipe
+        var preservedSauceIds = new List<int>();
+        if (menuItem?.ModifierGroups != null)
+        {
+            foreach (var group in menuItem.ModifierGroups.Where(g => IsPizzaSauceGroup(g.Name)))
+            {
+                if (targetItem.SelectedModifiers != null)
+                {
+                    var optInGroup = group.ModifierOptions.FirstOrDefault(o => targetItem.SelectedModifiers.Contains(o.Id));
+                    if (optInGroup != null)
+                    {
+                        preservedSauceIds.Add(optInGroup.Id);
+                    }
+                }
+
+                if (!preservedSauceIds.Any())
+                {
+                    var std = GetStandardSauceForPizza(menuItem, group);
+                    if (std != null)
+                    {
+                        preservedSauceIds.Add(std.Id);
+                    }
+                }
+            }
+        }
+
+        var finalModIds = new List<int>(result.newSelectedModIds ?? new List<int>());
+        foreach (var sauceId in preservedSauceIds)
+        {
+            if (!finalModIds.Contains(sauceId))
+            {
+                finalModIds.Add(sauceId);
+            }
+        }
+
+        if (finalModIds.Any() && SelectedModifierGroups != null)
         {
             foreach (var group in SelectedModifierGroups)
             {
-                foreach (var opt in group.ModifierOptions.Where(o => newSelectedModIds.Contains(o.Id)))
+                if (IsPizzaSauceGroup(group.Name) || IsSpiceGroup(group.Name))
+                {
+                    continue;
+                }
+
+                foreach (var opt in group.ModifierOptions.Where(o => finalModIds.Contains(o.Id)))
                 {
                     modNames.Add(opt.Name + (opt.ExtraPrice > 0 ? $" (+{opt.ExtraPrice:N0}đ)" : ""));
                     extraPriceTotal += opt.ExtraPrice;
@@ -643,8 +775,9 @@ public partial class PosMain : IAsyncDisposable
         }
 
         // Apply changes to the EXACT row being edited
-        targetItem.SelectedModifiers = newSelectedModIds ?? new List<int>();
+        targetItem.SelectedModifiers = finalModIds;
         targetItem.ModifierNames = modNames;
+        targetItem.Note = string.IsNullOrWhiteSpace(result.note) ? null : result.note.Trim();
         targetItem.Price = basePrice + extraPriceTotal;
         targetItem.NeedsConfiguration = false;
 
@@ -672,7 +805,7 @@ public partial class PosMain : IAsyncDisposable
         return s1.SequenceEqual(s2);
     }
 
-    protected void HandleConfirmCombo((ComboDetailDto combo, int qty, List<CartComboItemRequest> selectedItems) result)
+    protected void HandleConfirmCombo((ComboDetailDto combo, int qty, List<CartComboItemRequest> selectedItems, string? note) result)
     {
         var comboNames = new List<string>();
         decimal additionalTotal = 0m;
@@ -712,11 +845,13 @@ public partial class PosMain : IAsyncDisposable
         }
 
         decimal comboUnitPrice = result.combo.Price + (result.qty > 0 ? (additionalTotal / result.qty) : 0m);
+        string? cleanNote = string.IsNullOrWhiteSpace(result.note) ? null : result.note.Trim();
 
         // Check if identical combo already exists in Cart (not yet sent to kitchen)
         var existingCombo = CartItems.FirstOrDefault(i =>
             !i.IsSentToKitchen &&
             i.MenuItemId == result.combo.Id &&
+            string.Equals(i.Note, cleanNote, StringComparison.Ordinal) &&
             AreComboSelectionsIdentical(i.SelectedComboItems, result.selectedItems));
 
         if (existingCombo != null)
@@ -742,6 +877,7 @@ public partial class PosMain : IAsyncDisposable
                 Name = result.combo.Name,
                 Price = comboUnitPrice,
                 Quantity = result.qty,
+                Note = cleanNote,
                 IsSentToKitchen = false,
                 SelectedModifiers = new List<int>(),
                 SelectedComboItems = result.selectedItems,
@@ -751,7 +887,7 @@ public partial class PosMain : IAsyncDisposable
 
         IsComboBuilderActive = false;
         SelectedComboDetail = null;
-        _ = ShowToastAsync($"Đã thêm Combo {result.combo.Name} vào đơn hàng");
+        // No toast notification on combo addition
     }
 
     protected void HandleCancelComboBuilder()
@@ -791,15 +927,21 @@ public partial class PosMain : IAsyncDisposable
         ShowVoidItemModal = true;
     }
 
-    protected async Task HandleVoidCompleted(bool success)
+    protected async Task HandleVoidCompleted((bool Success, string Reason, string ManagerPin) voidArgs)
     {
-        if (success && VoidingItem != null)
+        if (voidArgs.Success && VoidingItem != null)
         {
             if (VoidingItem.IsSentToKitchen && VoidingItem.OrderItemId.HasValue && ActiveOrderId > 0)
             {
                 try
                 {
-                    var response = await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/items/{VoidingItem.OrderItemId.Value}/void", new { Reason = "Yêu cầu hủy từ POS" });
+                    var request = new VoidOrderItemRequest 
+                    { 
+                        Reason = string.IsNullOrWhiteSpace(voidArgs.Reason) ? "Yêu cầu hủy từ POS" : voidArgs.Reason,
+                        ManagerPin = voidArgs.ManagerPin
+                    };
+
+                    var response = await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/items/{VoidingItem.OrderItemId.Value}/void", request);
                     if (response.IsSuccessStatusCode)
                     {
                         _ = ShowToastAsync($"Đã hủy món {VoidingItem.Name} trên hệ thống thành công!");
@@ -815,7 +957,8 @@ public partial class PosMain : IAsyncDisposable
                     }
                     else
                     {
-                        _ = ShowToastAsync($"Không thể hủy món {VoidingItem.Name} trên server.");
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        _ = ShowToastAsync($"Không thể hủy món {VoidingItem.Name} trên server: {response.StatusCode}");
                     }
                 }
                 catch (Exception ex)
@@ -942,16 +1085,14 @@ public partial class PosMain : IAsyncDisposable
                 return;
             }
 
-            var billResponse = await Http.GetFromJsonAsync<ApiResponseWrapper<K80ReceiptDto>>($"api/v1/bills/{ActiveOrderId}/k80");
-            if (billResponse?.Data != null)
+            // 7. Hoàn thành và gửi bếp + In hóa đơn -> Quay về màn hình Sơ đồ bàn kèm mã đơn
+            if (IsTakeaway)
             {
-                ReceiptData = billResponse.Data;
-                ShowK80Modal = true;
-                _ = ShowToastAsync("Đã gửi bếp và in phiếu tạm tính thành công! Bàn chuyển sang Chờ thanh toán.");
+                Navigation.NavigateTo("/pos/takeaway");
             }
             else
             {
-                _ = ShowToastAsync("Đã gửi bếp, nhưng không tải được dữ liệu phiếu in!");
+                Navigation.NavigateTo($"/pos/tables?printOrderId={ActiveOrderId}");
             }
         }
         catch (Exception ex)
@@ -966,14 +1107,34 @@ public partial class PosMain : IAsyncDisposable
     }
 
     // 4. Action Toolbar: Cancel Order Confirmation
-    protected async Task HandleOrderCancelledAsync(string reason)
+    protected async Task HandleOrderCancelledAsync((string Reason, string ManagerPin) cancelArgs)
     {
         try
         {
             if (ActiveOrderId > 0)
             {
-                var request = new CancelOrderRequest { OrderId = ActiveOrderId, Reason = reason };
-                await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/cancel", request);
+                var request = new CancelOrderRequest 
+                { 
+                    OrderId = ActiveOrderId, 
+                    Reason = cancelArgs.Reason,
+                    ManagerPin = cancelArgs.ManagerPin
+                };
+
+                var response = await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/cancel", request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorMsg = await response.Content.ReadAsStringAsync();
+                    _ = ShowToastAsync($"Không thể hủy đơn trên server: {response.StatusCode}");
+                    return; // DO NOT clear cart or navigate back on failure!
+                }
+
+                if (string.IsNullOrWhiteSpace(cancelArgs.ManagerPin))
+                {
+                    _ = ShowToastAsync("Đã gửi yêu cầu hủy đơn tới Trung tâm phê duyệt!");
+                    await Task.Delay(1000);
+                    HandleHeaderBackNav();
+                    return;
+                }
             }
             CartItems.Clear();
             _ = ShowToastAsync("Đã hủy đơn hàng thành công!");
@@ -990,15 +1151,35 @@ public partial class PosMain : IAsyncDisposable
     protected async Task HandleDoneAsync()
     {
         if (IsProcessing) return;
-        IsProcessing = true;
 
+        // If cart is completely empty, show confirmation modal to cancel order and release table
+        if (CartItems == null || !CartItems.Any())
+        {
+            ShowEmptyOrderCancelModal = true;
+            return;
+        }
+
+        // Check if any items need configuration
+        var unconfigured = CartItems.FirstOrDefault(i => i.NeedsConfiguration);
+        if (unconfigured != null)
+        {
+            _ = ShowToastAsync($"Món '{unconfigured.Name}' chưa hoàn tất cấu hình tùy chọn bắt buộc. Vui lòng bấm vào món để chỉnh sửa trước khi hoàn thành!");
+            return;
+        }
+
+        IsProcessing = true;
         try
         {
             if (CartItems.Any(i => !i.IsSentToKitchen))
             {
                 await HandleSendToKitchenAsync();
             }
-            HandleHeaderBackNav();
+
+            // Only navigate away if all items were sent successfully
+            if (!CartItems.Any(i => !i.IsSentToKitchen))
+            {
+                HandleHeaderBackNav();
+            }
         }
         catch (Exception ex)
         {
@@ -1007,6 +1188,52 @@ public partial class PosMain : IAsyncDisposable
         finally
         {
             IsProcessing = false;
+        }
+    }
+
+    protected async Task ConfirmCancelEmptyOrderAsync()
+    {
+        if (IsProcessing) return;
+        IsProcessing = true;
+        try
+        {
+            if (ActiveOrderId > 0)
+            {
+                try
+                {
+                    var request = new CancelOrderRequest { OrderId = ActiveOrderId, Reason = "Hủy lượt gọi món khi giỏ hàng trống" };
+                    await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/cancel", request);
+                }
+                catch
+                {
+                    // Ignore if manager role required or handled by clear
+                }
+            }
+
+            if (!IsTakeaway && !string.IsNullOrEmpty(TableId) && int.TryParse(TableId, out int tId))
+            {
+                try
+                {
+                    await Http.PostAsync($"api/v1/pos/tables/{tId}/clear", null);
+                }
+                catch
+                {
+                    // Ignore if already cleared
+                }
+            }
+
+            CartItems.Clear();
+            ShowEmptyOrderCancelModal = false;
+            HandleHeaderBackNav();
+        }
+        catch (Exception ex)
+        {
+            _ = ShowToastAsync("Lỗi khi hủy đơn hàng: " + ex.Message);
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
         }
     }
 
@@ -1169,7 +1396,11 @@ public partial class PosMain : IAsyncDisposable
                 Quantity = item.Quantity,
                 Note = item.Note,
                 IsSentToKitchen = true,
-                SelectedModifiers = item.ModifierIds ?? new List<int>()
+                SelectedModifiers = item.ModifierIds ?? new List<int>(),
+                ModifierNames = item.Modifiers?.Where(m => !m.Contains("Sốt", StringComparison.OrdinalIgnoreCase) &&
+                                                           !m.Contains("Sauce", StringComparison.OrdinalIgnoreCase) &&
+                                                           !m.Contains("Cay", StringComparison.OrdinalIgnoreCase) &&
+                                                           !m.Contains("Spice", StringComparison.OrdinalIgnoreCase)).ToList() ?? new List<string>()
             };
 
             // If this item has children, it's a Combo header
@@ -1206,7 +1437,11 @@ public partial class PosMain : IAsyncDisposable
                 Quantity = orphan.Quantity,
                 Note = orphan.Note,
                 IsSentToKitchen = true,
-                SelectedModifiers = orphan.ModifierIds ?? new List<int>()
+                SelectedModifiers = orphan.ModifierIds ?? new List<int>(),
+                ModifierNames = orphan.Modifiers?.Where(m => !m.Contains("Sốt", StringComparison.OrdinalIgnoreCase) &&
+                                                             !m.Contains("Sauce", StringComparison.OrdinalIgnoreCase) &&
+                                                             !m.Contains("Cay", StringComparison.OrdinalIgnoreCase) &&
+                                                             !m.Contains("Spice", StringComparison.OrdinalIgnoreCase)).ToList() ?? new List<string>()
             });
         }
 

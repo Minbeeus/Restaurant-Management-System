@@ -1,4 +1,5 @@
 @page "/qr"
+@page "/order"
 @rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.EmptyLayout
 @using Restaurant.Web.Components.Pages.Qr.Components
@@ -8,12 +9,13 @@
 @inject NavigationManager Navigation
 
 <div class="h-screen bg-surface-low overflow-hidden flex flex-col relative font-body-md text-on-background">
+
     <!-- Header -->
     <header class="bg-surface shadow-sm sticky top-0 z-10 px-4 py-3 border-b border-outline-variant">
         <div class="flex justify-between items-center">
             <div>
                 <h1 class="font-bold text-lg text-primary leading-tight">@TableName</h1>
-                <p class="text-xs text-on-surface-variant">@AreaName - Xin chào quý khách!</p>
+                <p class="text-xs text-on-surface-variant">@AreaName — Xin chào quý khách!</p>
             </div>
             <button class="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold flex items-center gap-1"
                     @onclick="GoToOrderStatus">
@@ -21,11 +23,12 @@
                 Đơn của tôi
             </button>
         </div>
-        
+
         <!-- Search bar -->
         <div class="mt-3 relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
-            <input type="text" placeholder="Tìm kiếm món ăn..." class="w-full bg-surface-low border border-outline-variant rounded-full py-2 pl-10 pr-4 focus:outline-none focus:border-primary text-sm"
+            <input type="text" placeholder="Tìm kiếm món ăn..."
+                   class="w-full bg-surface-low border border-outline-variant rounded-full py-2 pl-10 pr-4 focus:outline-none focus:border-primary text-sm"
                    @bind="SearchText" @bind:event="oninput" />
         </div>
     </header>
@@ -47,7 +50,7 @@
     }
     else
     {
-        <!-- Categories Tabs -->
+        <!-- Category Tabs -->
         <div class="bg-surface border-b border-outline-variant sticky top-[108px] z-10 px-4 py-2 flex overflow-x-auto gap-2 hide-scrollbar">
             <button class="whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all @(ActiveCategoryId == 0 ? "bg-primary text-on-primary shadow-xs" : "bg-surface-low text-on-surface-variant")"
                     @onclick="() => ActiveCategoryId = 0">
@@ -62,21 +65,20 @@
             }
         </div>
 
-        <!-- Menu List -->
+        <!-- Menu Items -->
         <main class="flex-1 overflow-y-auto p-4 pb-28">
             <div class="flex flex-col gap-3">
                 @foreach (var item in DisplayedMenuItems)
                 {
-                    <div class="bg-surface rounded-2xl p-3 flex gap-3 shadow-xs border border-outline-variant/50 active:scale-[0.98] transition-transform cursor-pointer"
+                    <div class="bg-surface rounded-2xl p-4 flex gap-3 shadow-xs border border-outline-variant/50 active:scale-[0.98] transition-transform cursor-pointer"
                          @onclick="() => OpenItemDetail(item)">
-                        <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "/placeholder.png" : item.ImageUrl)" class="w-24 h-24 rounded-xl object-cover bg-surface-low shrink-0" />
                         <div class="flex-1 flex flex-col justify-between py-0.5">
                             <div>
                                 <h3 class="font-bold text-on-surface text-base leading-tight">@item.DisplayName</h3>
                                 <p class="text-xs text-on-surface-variant mt-1 line-clamp-2">@item.DisplayDescription</p>
                             </div>
                             <div class="flex justify-between items-end mt-2">
-                                <span class="font-bold text-primary text-base">@item.Price.ToString("N0")đ</span>
+                                <span class="font-bold text-primary text-base font-mono tabular-nums">@item.Price.ToString("N0") đ</span>
                                 <button class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-xs active:scale-90 transition-transform"
                                         @onclick:stopPropagation="true"
                                         @onclick="() => OpenItemDetail(item)">
@@ -88,45 +90,59 @@
                 }
             </div>
         </main>
-
-        <!-- Sticky Bottom Cart -->
-        @if (CartItems.Any())
-        {
-            <div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 pb-safe shadow-2xl z-20">
-                <div class="flex items-center justify-between gap-4">
-                    <div class="flex flex-col">
-                        <span class="text-xs font-bold text-on-surface-variant">Tổng cộng (@CartItems.Sum(x => x.Quantity) món)</span>
-                        <span class="text-xl font-bold text-primary">@CartItems.Sum(x => x.Price * x.Quantity).ToString("N0")đ</span>
-                    </div>
-                    <button class="bg-primary text-on-primary px-6 py-3 rounded-full font-bold shadow-md flex items-center gap-2 active:scale-95 transition-transform"
-                            disabled="@IsSubmitting"
-                            @onclick="SubmitOrder">
-                        @if (IsSubmitting)
-                        {
-                            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        }
-                        else
-                        {
-                            <span class="material-symbols-outlined">send</span>
-                            <span>Gửi Đơn</span>
-                        }
-                    </button>
-                </div>
-            </div>
-        }
     }
 
-    <QrBottomDrawer 
-        @bind-IsOpen="IsDrawerOpen" 
-        Item="SelectedItem" 
+    <!-- Floating Cart Button (FAB) — bottom-right, visible when cart has items -->
+    @if (CartItems.Any())
+    {
+        <button class="fixed bottom-6 right-5 z-30 bg-primary text-on-primary rounded-full shadow-2xl flex items-center gap-2.5 px-5 py-3.5 font-bold text-sm active:scale-95 transition-all"
+                style="animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);"
+                @onclick="() => IsCartModalOpen = true">
+            <div class="relative">
+                <span class="material-symbols-outlined text-[22px]">shopping_cart</span>
+                <!-- Badge -->
+                <span class="absolute -top-2 -right-2 bg-error text-white text-[10px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center shadow">
+                    @(CartItems.Sum(x => x.Quantity) > 99 ? "99+" : CartItems.Sum(x => x.Quantity).ToString())
+                </span>
+            </div>
+            <div class="flex flex-col items-start leading-none">
+                <span class="text-[10px] opacity-80">Giỏ hàng</span>
+                <span class="font-extrabold font-mono tabular-nums">@CartItems.Sum(x => x.Price * x.Quantity).ToString("N0") đ</span>
+            </div>
+        </button>
+    }
+
+    <!-- Item Modifier Drawer -->
+    <QrBottomDrawer
+        @bind-IsOpen="IsDrawerOpen"
+        Item="SelectedItem"
         ModifierGroups="SelectedItemModifiers"
         OnAddToCart="HandleAddToCart" />
+
+    <!-- Full-screen Cart Page -->
+    <QrCartModal
+        @ref="CartModalRef"
+        @bind-IsOpen="IsCartModalOpen"
+        CartItems="CartItems"
+        OnProceedToCustomerInfo="HandleOpenCustomerInfoModal" />
+
+    <!-- Loyalty / Phone Dialog -->
+    <QrCustomerInfoModal
+        @bind-IsOpen="IsCustomerInfoModalOpen"
+        IsSubmitting="IsSubmitting"
+        OnConfirm="HandleConfirmAndSubmit"
+        OnSkip="HandleSkipAndSubmit" />
+
 </div>
 
 <style>
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+    @@keyframes popIn {
+        from { transform: scale(0.7) translateY(20px); opacity: 0; }
+        to   { transform: scale(1)   translateY(0);    opacity: 1; }
+    }
 </style>
 
 @code {
@@ -146,19 +162,24 @@
     private List<QrBottomDrawer.QrCartItemLocal> CartItems = new();
 
     private bool IsDrawerOpen = false;
+    private bool IsCartModalOpen = false;
+    private bool IsCustomerInfoModalOpen = false;
     private PublicMenuItemDto? SelectedItem;
     private List<ModifierGroupDto>? SelectedItemModifiers;
     private bool IsSubmitting = false;
+
+    // Cart ref to get applied voucher
+    private QrCartModal? CartModalRef;
 
     private List<PublicMenuItemDto> DisplayedMenuItems
     {
         get
         {
-            var items = ActiveCategoryId == 0 ? AllMenuItems : AllMenuItems.Where(i => i.CategoryId == ActiveCategoryId).ToList();
+            var items = ActiveCategoryId == 0
+                ? AllMenuItems
+                : AllMenuItems.Where(i => i.CategoryId == ActiveCategoryId).ToList();
             if (!string.IsNullOrWhiteSpace(SearchText))
-            {
                 items = items.Where(i => i.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
             return items;
         }
     }
@@ -175,7 +196,8 @@
         try
         {
             int parsedTableId = int.Parse(TableId);
-            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<PublicMenuResponse>>($"api/v1/qr/menu?tableId={parsedTableId}&token={Token}");
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<PublicMenuResponse>>(
+                $"api/v1/qr/menu?tableId={parsedTableId}&token={Token}");
 
             if (res?.Success == true && res.Data != null)
             {
@@ -208,11 +230,10 @@
         {
             try
             {
-                var res = await Http.GetFromJsonAsync<ApiResponseWrapper<MenuItemDetailDto>>($"api/v1/qr/menu-items/{item.Id}?tableId={parsedTableId}&token={Token}");
+                var res = await Http.GetFromJsonAsync<ApiResponseWrapper<MenuItemDetailDto>>(
+                    $"api/v1/qr/menu-items/{item.Id}?tableId={parsedTableId}&token={Token}");
                 if (res?.Success == true && res.Data != null)
-                {
                     SelectedItemModifiers = res.Data.ModifierGroups;
-                }
             }
             catch (Exception ex)
             {
@@ -225,23 +246,38 @@
 
     private void HandleAddToCart(QrBottomDrawer.QrCartItemLocal item)
     {
-        var existing = CartItems.FirstOrDefault(x => x.MenuItemId == item.MenuItemId && (x.SelectedModifiers?.SequenceEqual(item.SelectedModifiers) == true));
+        var existing = CartItems.FirstOrDefault(x =>
+            x.MenuItemId == item.MenuItemId &&
+            (x.SelectedModifiers?.SequenceEqual(item.SelectedModifiers) == true));
+
         if (existing != null)
-        {
             existing.Quantity += item.Quantity;
-        }
         else
-        {
             CartItems.Add(item);
-        }
+
         StateHasChanged();
     }
 
-    private async Task SubmitOrder()
+    private void HandleOpenCustomerInfoModal()
+    {
+        if (CartItems.Any())
+            IsCustomerInfoModalOpen = true;
+    }
+
+    // Submit WITH customer phone
+    private async Task HandleConfirmAndSubmit((string CustomerName, string PhoneNumber) info)
+        => await DoSubmit(info.CustomerName, info.PhoneNumber);
+
+    // Submit WITHOUT customer phone (skip loyalty)
+    private async Task HandleSkipAndSubmit()
+        => await DoSubmit(null, null);
+
+    private async Task DoSubmit(string? customerName, string? customerPhone)
     {
         if (!CartItems.Any() || IsSubmitting) return;
-
         IsSubmitting = true;
+        IsCustomerInfoModalOpen = false;
+
         try
         {
             int parsedTableId = int.Parse(TableId);
@@ -249,7 +285,10 @@
             {
                 TableId = parsedTableId,
                 QrToken = Token,
+                CustomerName = customerName,
+                CustomerPhone = customerPhone,
                 CustomerNote = "Gọi từ điện thoại khách hàng",
+                VoucherCode = CartModalRef?.AppliedVoucherCode,
                 Items = CartItems.Select(i => new CartItemValidateRequest
                 {
                     MenuItemId = i.MenuItemId,

@@ -96,15 +96,15 @@ public class AdminApiClient
     // ==========================================
     // 2. INVENTORY - SUPPLIERS
     // ==========================================
-    public async Task<List<SupplierDto>> GetSuppliersAsync()
+    public async Task<List<SupplierDto>> GetSuppliersAsync(bool includeInactive = false)
     {
         await SetAuthorizationHeaderAsync();
         try
         {
-            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<SupplierDto>>>("api/v1/inventory/suppliers");
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<SupplierDto>>>($"api/v1/inventory/suppliers?includeInactive={includeInactive}");
             if (res?.Data != null) return res.Data;
 
-            var raw = await _httpClient.GetFromJsonAsync<List<SupplierDto>>("api/v1/inventory/suppliers");
+            var raw = await _httpClient.GetFromJsonAsync<List<SupplierDto>>($"api/v1/inventory/suppliers?includeInactive={includeInactive}");
             if (raw != null) return raw;
         }
         catch (Exception ex)
@@ -137,6 +137,13 @@ public class AdminApiClient
         await SetAuthorizationHeaderAsync();
         var response = await _httpClient.DeleteAsync($"api/v1/inventory/suppliers/{id}");
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<bool> ToggleSupplierStatusAsync(int id)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PostAsync($"api/v1/inventory/suppliers/{id}/toggle-status", null);
+        return response.IsSuccessStatusCode;
     }
 
     // ==========================================

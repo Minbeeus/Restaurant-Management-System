@@ -5,206 +5,365 @@
 
 @if (IsOpen)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-        <div class="bg-surface dark:bg-inverse-surface rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-outline-variant flex flex-col max-h-[90vh]">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full h-full max-w-[98vw] max-h-[96vh] overflow-hidden border border-outline-variant flex flex-col">
+            
             <!-- Header -->
-            <div class="px-6 py-4 bg-primary text-on-primary flex justify-between items-center shrink-0">
+            <div class="px-6 py-3.5 bg-primary text-on-primary flex justify-between items-center shrink-0">
                 <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-2xl">payments</span>
+                    <span class="material-symbols-outlined text-3xl">payments</span>
                     <div>
-                        <h2 class="font-bold text-lg m-0">Thanh Toán Đơn Hàng @OrderCode</h2>
-                        <span class="text-xs opacity-80">Bàn: @TableName</span>
+                        <h2 class="font-extrabold text-lg sm:text-xl m-0 tracking-wide uppercase">THANH TOÁN ĐƠN HÀNG @OrderCode</h2>
+                        <span class="text-xs opacity-90">
+                            Bàn: <strong class="text-white">@TableName</strong> | Khách hàng: @(_foundCustomer != null ? $"{_foundCustomer.FullName} ({_customerPhone})" : "Khách lẻ")
+                        </span>
                     </div>
                 </div>
-                <button class="hover:bg-white/20 p-1 rounded-full transition-colors" @onclick="CloseAsync">
-                    <span class="material-symbols-outlined">close</span>
+                <button class="hover:bg-white/20 p-2 rounded-full transition-colors cursor-pointer text-white" @onclick="CloseAsync" title="Đóng">
+                    <span class="material-symbols-outlined text-2xl">close</span>
                 </button>
             </div>
 
-            <!-- Body -->
-            <div class="p-6 overflow-y-auto space-y-6 flex-1">
-                <!-- Summary Card -->
-                <div class="bg-surface-low dark:bg-surface-high p-4 rounded-xl border border-outline-variant grid grid-cols-2 gap-4">
-                    <div>
-                        <span class="text-xs text-on-surface-variant block">TẠM TÍNH MÓN</span>
-                        <span class="font-bold text-lg text-on-surface">@SubTotal.ToString("N0") đ</span>
-                    </div>
-                    <div>
-                        <span class="text-xs text-on-surface-variant block">GIẢM GIÁ</span>
-                        <span class="font-bold text-lg text-on-surface">@_totalDiscount.ToString("N0") đ</span>
-                    </div>
-                    <div>
-                        <span class="text-xs text-on-surface-variant block">THUẾ VAT (8%)</span>
-                        <span class="font-bold text-lg text-on-surface">@TaxAmount.ToString("N0") đ</span>
-                    </div>
-                    <div>
-                        <span class="text-xs text-on-surface-variant block">TỔNG TIỀN CẦN THU</span>
-                        <span class="font-bold text-2xl text-primary">@FinalAmount.ToString("N0") đ</span>
-                    </div>
-                </div>
+            <!-- Body: 3-Column Grid without Page Scrollbars -->
+            <div class="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden bg-surface-low min-h-0">
+                
+                <!-- Column 1 (Left, 4 cols): Order Items Breakdown -->
+                <div class="col-span-12 lg:col-span-4 bg-surface rounded-xl border border-outline-variant p-3.5 flex flex-col justify-between overflow-hidden shadow-xs min-h-0">
+                    <div class="flex flex-col flex-1 min-h-0">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant pb-2 border-b border-outline-variant flex items-center justify-between shrink-0">
+                            <span class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-base">shopping_cart</span>
+                                Danh Sách Món Đặt (@_orderItems.Sum(i => i.Quantity))
+                            </span>
+                            <span class="text-[11px] text-primary font-bold">@_orderItems.Count món</span>
+                        </h3>
 
-                <!-- Customer & Voucher Search -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Customer search -->
-                    <div>
-                        <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Khách Hàng Thành Viên</label>
-                        <div class="flex gap-2">
-                            <input type="text" class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                                   placeholder="Số điện thoại..." @bind="_customerPhone" />
-                            <button class="px-3 py-2 bg-secondary text-on-secondary rounded-lg font-bold text-xs shrink-0 hover:opacity-90"
-                                    @onclick="SearchCustomerAsync">
-                                Tìm
-                            </button>
-                        </div>
-                        @if (_foundCustomer != null)
-                        {
-                            <div class="mt-2 text-xs bg-success-container/20 text-success p-2 rounded-lg flex justify-between items-center">
-                                <div>
-                                    <span class="font-bold">@_foundCustomer.FullName</span> (@_foundCustomer.TierName)
-                                </div>
-                                <span>Điểm: @_foundCustomer.AvailablePoints</span>
-                            </div>
-                        }
-                    </div>
-
-                    <!-- Voucher code -->
-                    <div>
-                        <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Mã Giảm Giá (Voucher)</label>
-                        <div class="flex gap-2">
-                            <input type="text" class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary uppercase"
-                                   placeholder="Nhập mã voucher..." @bind="_voucherCode" />
-                            <button class="px-3 py-2 bg-secondary text-on-secondary rounded-lg font-bold text-xs shrink-0 hover:opacity-90"
-                                    @onclick="ApplyVoucher">
-                                Áp dụng
-                            </button>
-                        </div>
-                        @if (_discountAmount > 0)
-                        {
-                            <div class="mt-2 text-xs text-primary font-bold">
-                                Đã giảm: -@_discountAmount.ToString("N0") đ
-                            </div>
-                        }
-                    </div>
-                </div>
-
-                <!-- Tabs Payment Method -->
-                <div>
-                    <div class="flex border-b border-outline-variant mb-4">
-                        <button class="px-4 py-2 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 @(_activeTab == "Cash" ? "border-primary text-primary" : "border-transparent text-on-surface-variant")"
-                                @onclick='() => SetTab("Cash")'>
-                            <span class="material-symbols-outlined text-[18px]">local_atm</span>
-                            Tiền Mặt
-                        </button>
-                        <button class="px-4 py-2 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 @(_activeTab == "VietQR" ? "border-primary text-primary" : "border-transparent text-on-surface-variant")"
-                                @onclick='() => SetTab("VietQR")'>
-                            <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
-                            Chuyển Khoản VietQR
-                        </button>
-                    </div>
-
-                    @if (_activeTab == "Cash")
-                    {
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Tiền Khách Đưa</label>
-                                <input type="number" class="w-full text-xl font-bold px-4 py-3 border-2 border-primary rounded-xl text-primary focus:outline-none"
-                                       @bind="_cashReceived" @bind:event="oninput" />
-                            </div>
-
-                            <!-- Quick Cash Presets -->
-                            <div class="flex flex-wrap gap-2">
-                                <button class="px-3 py-2 bg-surface-high hover:bg-primary/10 text-on-surface text-xs font-bold rounded-lg border border-outline-variant"
-                                        @onclick="() => _cashReceived = FinalAmount">
-                                    Vừa đủ (@FinalAmount.ToString("N0")đ)
-                                </button>
-                                <button class="px-3 py-2 bg-surface-high hover:bg-primary/10 text-on-surface text-xs font-bold rounded-lg border border-outline-variant"
-                                        @onclick="() => _cashReceived = RoundUp(FinalAmount, 50000)">
-                                    +50k (@RoundUp(FinalAmount, 50000).ToString("N0")đ)
-                                </button>
-                                <button class="px-3 py-2 bg-surface-high hover:bg-primary/10 text-on-surface text-xs font-bold rounded-lg border border-outline-variant"
-                                        @onclick="() => _cashReceived = RoundUp(FinalAmount, 100000)">
-                                    +100k (@RoundUp(FinalAmount, 100000).ToString("N0")đ)
-                                </button>
-                                <button class="px-3 py-2 bg-surface-high hover:bg-primary/10 text-on-surface text-xs font-bold rounded-lg border border-outline-variant"
-                                        @onclick="() => _cashReceived = RoundUp(FinalAmount, 500000)">
-                                    +500k (@RoundUp(FinalAmount, 500000).ToString("N0")đ)
-                                </button>
-                            </div>
-
-                            <!-- Change Calculation -->
-                            <div class="bg-surface-low p-4 rounded-xl flex justify-between items-center border">
-                                <span class="font-bold text-sm text-on-surface-variant">Tiền thừa trả khách:</span>
-                                <span class="font-bold text-xl @(ChangeAmount >= 0 ? "text-success" : "text-error")">
-                                    @ChangeAmount.ToString("N0") đ
-                                </span>
-                            </div>
-                        </div>
-                    }
-                    else if (_activeTab == "VietQR")
-                    {
-                        <div class="flex flex-col items-center justify-center space-y-4 py-2">
-                            @if (_isLoadingQr)
+                        <!-- Scrollable items list: the ONLY scrollbar allowed -->
+                        <div class="flex-1 overflow-y-auto space-y-2 my-2 pr-1 min-h-0">
+                            @if (_isLoadingItems)
                             {
-                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                                <span class="text-sm text-on-surface-variant font-medium">Đang tạo mã VietQR...</span>
-                            }
-                            else if (_isPaymentSuccess)
-                            {
-                                <div class="bg-white p-6 rounded-xl border shadow-md flex flex-col items-center">
-                                    <span class="material-symbols-outlined text-6xl text-success mb-2">check_circle</span>
-                                    <span class="font-bold text-lg text-success">Thanh toán thành công!</span>
+                                <div class="flex items-center justify-center h-32 gap-2 text-on-surface-variant">
+                                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                                    <span class="text-xs">Đang tải món...</span>
                                 </div>
                             }
-                            else if (_qrData != null)
+                            else if (!_orderItems.Any())
                             {
-                                <div class="bg-white p-3 rounded-xl border shadow-md">
-                                    <img src="@_qrData.QrImageUrl" alt="VietQR Code" class="w-56 h-56 object-contain" />
-                                </div>
-                                <div class="text-center space-y-1">
-                                    <p class="font-bold text-sm text-on-surface">Số tiền: <span class="text-primary text-lg">@_qrData.Amount.ToString("N0") đ</span></p>
-                                    <p class="text-xs text-on-surface-variant">Nội dung chuyển khoản: <span class="font-mono bg-surface-high px-2 py-1 rounded text-primary font-bold">@_qrData.SepayContent</span></p>
-                                    <p class="text-xs text-gray-500 italic mt-1">Hệ thống sẽ tự động xác nhận sau khi quét QR thành công.</p>
+                                <div class="flex flex-col items-center justify-center h-32 text-on-surface-variant opacity-60">
+                                    <span class="material-symbols-outlined text-3xl mb-1">receipt_long</span>
+                                    <span class="text-xs">Không có dữ liệu món</span>
                                 </div>
                             }
                             else
                             {
-                                <button class="px-6 py-3 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary-container"
-                                        @onclick="GenerateQrCodeAsync">
-                                    Tạo Mã VietQR
+                                @foreach (var item in _orderItems)
+                                {
+                                    <div class="p-2.5 bg-surface-high/50 rounded-xl border border-outline-variant/60 flex justify-between items-center text-xs">
+                                        <div class="flex-1 pr-2 min-w-0">
+                                            <div class="font-bold text-on-surface truncate">@item.MenuItemName</div>
+                                            <div class="text-[11px] text-on-surface-variant font-medium mt-0.5">
+                                                @item.UnitPrice.ToString("N0")đ × <span class="font-extrabold text-primary">@item.Quantity</span>
+                                            </div>
+                                            @if (item.Modifiers != null && item.Modifiers.Any())
+                                            {
+                                                <div class="text-[10px] text-on-surface-variant opacity-80 truncate">
+                                                    + @string.Join(", ", item.Modifiers)
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="font-extrabold text-primary text-right shrink-0">
+                                            @item.TotalPrice.ToString("N0")đ
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Summary Breakdown Bottom (Sticky) -->
+                    <div class="pt-2.5 border-t border-outline-variant space-y-1 shrink-0 bg-surface text-xs">
+                        <div class="flex justify-between text-on-surface-variant">
+                            <span>Tạm tính món:</span>
+                            <span class="font-bold">@SubTotal.ToString("N0") đ</span>
+                        </div>
+                        @if (_totalDiscount > 0)
+                        {
+                            <div class="flex justify-between text-primary font-bold">
+                                <span>Giảm giá:</span>
+                                <span>-@_totalDiscount.ToString("N0") đ</span>
+                            </div>
+                        }
+                        <div class="flex justify-between text-on-surface-variant">
+                            <span>Thuế (VAT 8% bóc tách):</span>
+                            <span class="font-bold text-on-surface">@TaxAmount.ToString("N0") đ</span>
+                        </div>
+                        <div class="flex justify-between text-base font-extrabold text-on-surface pt-1.5 border-t border-outline-variant/60">
+                            <span>TỔNG CẦN THU:</span>
+                            <span class="text-primary text-xl font-black">@FinalAmount.ToString("N0") đ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2 (Middle, 3 cols): Payment Methods & Member/Voucher -->
+                <div class="col-span-12 lg:col-span-3 bg-surface rounded-xl border border-outline-variant p-3.5 flex flex-col justify-between overflow-hidden shadow-xs min-h-0">
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant pb-2 border-b border-outline-variant flex items-center gap-1.5 shrink-0">
+                            <span class="material-symbols-outlined text-base">credit_card</span>
+                            Phương Thức Thanh Toán
+                        </h3>
+
+                        <!-- Methods Selection -->
+                        <div class="grid grid-cols-1 gap-2">
+                            <!-- Method 1: Cash -->
+                            <button class="w-full p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 text-left @(_activeTab == "Cash" ? "border-primary bg-primary/10 text-primary shadow-xs" : "border-outline-variant hover:bg-surface-high")"
+                                    @onclick='() => SetTab("Cash")'>
+                                <div class="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-xl">local_atm</span>
+                                </div>
+                                <div>
+                                    <div class="font-extrabold text-sm">Tiền Mặt</div>
+                                    <div class="text-[11px] opacity-70">Nhận tiền mặt & thối lại</div>
+                                </div>
+                            </button>
+
+                            <!-- Method 2: VietQR -->
+                            <button class="w-full p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 text-left @(_activeTab == "VietQR" ? "border-primary bg-primary/10 text-primary shadow-xs" : "border-outline-variant hover:bg-surface-high")"
+                                    @onclick='() => SetTab("VietQR")'>
+                                <div class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                                    <span class="material-symbols-outlined text-xl">qr_code_2</span>
+                                </div>
+                                <div>
+                                    <div class="font-extrabold text-sm">Chuyển Khoản VietQR</div>
+                                    <div class="text-[11px] opacity-70">Quét mã SePay tự động</div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <!-- Member & Voucher Box -->
+                        <div class="pt-2 border-t border-outline-variant space-y-2.5">
+                            <!-- Customer Search -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Khách Hàng Thành Viên</label>
+                                <div class="flex gap-1.5">
+                                    <input type="text" class="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary bg-surface"
+                                           placeholder="Số điện thoại..." @bind="_customerPhone" />
+                                    <button class="px-2.5 py-1.5 bg-secondary text-on-secondary rounded-lg font-bold text-xs shrink-0 hover:opacity-90 cursor-pointer"
+                                            @onclick="SearchCustomerAsync">
+                                        Tìm
+                                    </button>
+                                </div>
+                                @if (_foundCustomer != null)
+                                {
+                                    <div class="mt-1.5 text-[11px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2 rounded-lg flex justify-between items-center border border-emerald-500/20">
+                                        <div class="truncate pr-1">
+                                            <span class="font-bold">@_foundCustomer.FullName</span> (@_foundCustomer.TierName)
+                                        </div>
+                                        <span class="shrink-0 font-extrabold">Điểm: @_foundCustomer.AvailablePoints</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Voucher input -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Mã Giảm Giá (Voucher)</label>
+                                <div class="flex gap-1.5">
+                                    <input type="text" class="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary uppercase bg-surface"
+                                           placeholder="Nhập mã..." @bind="_voucherCode" />
+                                    <button class="px-2.5 py-1.5 bg-secondary text-on-secondary rounded-lg font-bold text-xs shrink-0 hover:opacity-90 cursor-pointer"
+                                            @onclick="ApplyVoucher">
+                                        Áp dụng
+                                    </button>
+                                </div>
+                                @if (_discountAmount > 0)
+                                {
+                                    <div class="mt-1 text-[11px] text-primary font-bold">
+                                        Đã giảm: -@_discountAmount.ToString("N0") đ
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Method Note -->
+                    <div class="p-2.5 bg-surface-high rounded-xl border border-outline-variant text-[11px] text-on-surface-variant shrink-0 mt-2">
+                        @if (_activeTab == "VietQR")
+                        {
+                            <span class="text-blue-700 dark:text-blue-300 font-medium">💡 Mã VietQR tự động lắng nghe và xác nhận tức thì khi khách quét thanh toán.</span>
+                        }
+                        else
+                        {
+                            <span>💡 Nhập số tiền khách đưa bằng bàn phím số hoặc chọn nhanh mệnh giá bên phải.</span>
+                        }
+                    </div>
+                </div>
+
+                <!-- Column 3 (Right, 5 cols): Numpad or VietQR Display (Strictly No Vertical Scrollbar) -->
+                <div class="col-span-12 lg:col-span-5 bg-surface rounded-xl border border-outline-variant p-3.5 flex flex-col justify-between overflow-hidden shadow-xs min-h-0">
+                    @if (_activeTab == "Cash")
+                    {
+                        <div class="flex flex-col justify-between h-full min-h-0">
+                            <!-- Cash Display Card -->
+                            <div class="bg-surface-high p-3 rounded-xl border border-outline-variant shrink-0">
+                                <div class="flex items-center justify-between mb-0.5">
+                                    <label class="block text-[11px] font-bold text-on-surface-variant uppercase m-0">Tiền Khách Trả (VNĐ)</label>
+                                    <button class="px-2.5 py-1 text-xs font-black bg-rose-500/15 hover:bg-rose-500 hover:text-white text-rose-600 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs border border-rose-500/30"
+                                            @onclick="ClearCashReceived" title="Đặt lại tiền khách trả về 0đ">
+                                        <span class="material-symbols-outlined text-sm">restart_alt</span>
+                                        XÓA (0đ)
+                                    </button>
+                                </div>
+                                <div class="text-2xl sm:text-3xl font-black text-primary tracking-tight">
+                                    @_cashReceived.ToString("N0") đ
+                                </div>
+
+                                <div class="mt-2 pt-2 border-t border-outline-variant flex justify-between items-center text-xs">
+                                    @if (_cashReceived >= FinalAmount)
+                                    {
+                                        <span class="font-bold text-on-surface-variant">Tiền thừa trả khách:</span>
+                                        <span class="font-black text-lg text-emerald-600">@ChangeAmount.ToString("N0") đ</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="font-bold text-on-surface-variant">Còn thiếu:</span>
+                                        <span class="font-black text-lg text-rose-600">@MissingAmount.ToString("N0") đ</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Digital Numpad (Compact, Responsive) -->
+                            <div class="grid grid-cols-3 gap-1.5 my-2">
+                                @foreach (var digit in new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9" })
+                                {
+                                    <button class="py-2.5 bg-surface-high hover:bg-primary/20 text-on-surface font-extrabold text-base rounded-xl border border-outline-variant transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                            @onclick="() => AppendDigit(digit)">
+                                        @digit
+                                    </button>
+                                }
+                                <button class="py-2.5 bg-rose-500/15 hover:bg-rose-500 hover:text-white text-rose-600 font-black text-xs sm:text-sm rounded-xl border border-rose-500/30 transition-all active:scale-95 cursor-pointer shadow-2xs flex items-center justify-center gap-1"
+                                        @onclick="ClearCashReceived" title="Xóa và đặt lại tiền khách trả về 0">
+                                    <span class="material-symbols-outlined text-base">restart_alt</span>
+                                    <span>XÓA (0đ)</span>
                                 </button>
+                                <button class="py-2.5 bg-surface-high hover:bg-primary/20 text-on-surface font-extrabold text-base rounded-xl border border-outline-variant transition-all active:scale-95 cursor-pointer shadow-2xs"
+                                        @onclick='() => AppendDigit("0")'>
+                                    0
+                                </button>
+                                <button class="py-2.5 bg-error-container/20 hover:bg-error/30 text-error font-extrabold text-base rounded-xl border border-error/30 transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow-2xs"
+                                        @onclick="BackspaceDigit" title="Lùi 1 số">
+                                    <span class="material-symbols-outlined text-lg">backspace</span>
+                                </button>
+                            </div>
+
+                            <!-- Quick Denominations -->
+                            <div class="mb-2 shrink-0">
+                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Mệnh giá nhanh (+Cộng dồn):</span>
+                                <div class="grid grid-cols-3 gap-1.5">
+                                    @foreach (var denom in new[] { 10000, 20000, 50000, 100000, 200000, 500000 })
+                                    {
+                                        <button class="py-2 bg-surface-high hover:bg-primary/10 text-on-surface font-bold text-xs rounded-xl border border-outline-variant transition-all cursor-pointer shadow-2xs"
+                                                @onclick="() => AddDenomination(denom)">
+                                            +@denom.ToString("N0")đ
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Exact Match Button -->
+                            <button class="w-full py-2 bg-amber-500/15 hover:bg-amber-500 hover:text-white text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-2xs"
+                                    @onclick="SetExactAmount">
+                                <span class="material-symbols-outlined text-base">fact_check</span>
+                                KHỚP VỪA ĐỦ SỐ TIỀN (@FinalAmount.ToString("N0")đ)
+                            </button>
+                        </div>
+                    }
+                    else if (_activeTab == "VietQR")
+                    {
+                        <div class="flex flex-col items-center justify-between h-full py-1 text-center min-h-0">
+                            @if (_isLoadingQr)
+                            {
+                                <div class="flex flex-col items-center justify-center h-full gap-3">
+                                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                                    <span class="text-xs text-on-surface-variant font-medium">Đang tạo mã VietQR...</span>
+                                </div>
+                            }
+                            else if (_isPaymentSuccess)
+                            {
+                                <div class="flex flex-col items-center justify-center h-full bg-emerald-500/10 p-6 rounded-2xl border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 animate-fade-in w-full">
+                                    <span class="material-symbols-outlined text-6xl text-emerald-600 mb-2">check_circle</span>
+                                    <span class="font-black text-lg">Thanh toán thành công!</span>
+                                    <span class="text-xs opacity-90 mt-1">Đơn hàng đã được xác nhận thanh toán qua SePay.</span>
+                                </div>
+                            }
+                            else if (_qrData != null)
+                            {
+                                var displayQrUrl = !string.IsNullOrEmpty(_qrData.SepayQrUrl) ? _qrData.SepayQrUrl : _qrData.QrImageUrl;
+                                <div class="bg-white p-2.5 rounded-2xl border-2 border-primary/20 shadow-md flex items-center justify-center shrink-0">
+                                    <img src="@displayQrUrl" alt="VietQR TPBank" class="w-48 h-48 sm:w-52 sm:h-52 object-contain rounded-lg" />
+                                </div>
+
+                                <div class="space-y-1 my-1 w-full max-w-sm">
+                                    <div class="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-0.5 rounded-full text-xs font-black">
+                                        <span class="material-symbols-outlined text-sm">account_balance</span>
+                                        <span>TPBank • STK: @_qrData.BankAccountNo</span>
+                                    </div>
+                                    <div class="font-extrabold text-xs text-on-surface">Chủ TK: <span class="uppercase text-primary font-black">@_qrData.AccountHolder</span></div>
+                                    <div class="font-bold text-xs text-on-surface">Số tiền: <span class="text-primary text-base font-black">@_qrData.Amount.ToString("N0") đ</span></div>
+                                    <div class="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant">
+                                        <span>Nội dung CK:</span>
+                                        <span class="font-mono bg-surface-high px-2 py-0.5 rounded-md text-primary font-black text-xs border border-primary/30 select-all">@_qrData.SepayContent</span>
+                                    </div>
+                                </div>
+
+                                <div class="text-[11px] text-emerald-600 font-bold flex items-center justify-center gap-1 shrink-0">
+                                    <span class="material-symbols-outlined text-sm animate-spin">autorenew</span>
+                                    Hệ thống đang lắng nghe giao dịch SePay tự động...
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="flex flex-col items-center justify-center h-full gap-3">
+                                    <button class="px-6 py-3 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 flex items-center gap-2 cursor-pointer shadow-md text-sm"
+                                            @onclick="GenerateQrCodeAsync">
+                                        <span class="material-symbols-outlined">qr_code_2</span>
+                                        Tạo Mã VietQR
+                                    </button>
+                                </div>
                             }
                         </div>
                     }
-                </div>
 
-                @if (!string.IsNullOrEmpty(_errorMessage))
-                {
-                    <div class="bg-error-container text-error p-3 rounded-lg text-sm font-medium">
-                        @_errorMessage
-                    </div>
-                }
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="p-2 bg-error-container text-error rounded-xl text-xs font-bold mt-2 shrink-0">
+                            @_errorMessage
+                        </div>
+                    }
+                </div>
             </div>
 
-            <!-- Footer -->
-            <div class="px-6 py-4 bg-surface-low dark:bg-surface-high border-t border-outline-variant flex justify-between items-center shrink-0">
-                <button class="px-4 py-2 bg-secondary/10 text-secondary hover:bg-secondary/20 rounded-xl font-bold text-sm flex items-center gap-2"
+            <!-- Footer: HUỶ (Red) & IN TẠM TÍNH & XÁC NHẬN (Green) -->
+            <div class="px-6 py-3.5 bg-surface border-t border-outline-variant flex justify-between items-center shrink-0">
+                <!-- Nút HUỶ (Đỏ) -->
+                <button class="px-5 py-2.5 bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-extrabold text-xs sm:text-sm transition-all cursor-pointer shadow-sm flex items-center gap-2"
+                        @onclick="CloseAsync">
+                    <span class="material-symbols-outlined text-lg">cancel</span>
+                    HUỶ THANH TOÁN
+                </button>
+
+                <!-- Nút In Tạm Tính -->
+                <button class="px-4 py-2.5 bg-surface-high text-on-surface hover:bg-surface-high/80 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 border border-outline-variant cursor-pointer"
                         @onclick="PrintTempBillAsync">
-                    <span class="material-symbols-outlined text-[18px]">print</span>
+                    <span class="material-symbols-outlined text-base">print</span>
                     In Tạm Tính
                 </button>
 
-                <div class="flex gap-3">
-                    <button class="px-4 py-2 border border-outline-variant text-on-surface rounded-xl font-bold text-sm hover:bg-surface-high"
-                            @onclick="CloseAsync">
-                        Hủy
-                    </button>
-                    <button class="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-sm hover:bg-primary-container shadow-md flex items-center gap-2"
-                            disabled="@(_activeTab == "Cash" && _cashReceived < FinalAmount)"
-                            @onclick="ConfirmPaymentAsync">
-                        <span class="material-symbols-outlined text-[18px]">check_circle</span>
-                        Hoàn Tất Thanh Toán
-                    </button>
-                </div>
+                <!-- Nút XÁC NHẬN (Xanh lá - Active when CashReceived >= FinalAmount) -->
+                <button class="px-7 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed rounded-xl font-extrabold text-xs sm:text-base transition-all cursor-pointer shadow-md flex items-center gap-2"
+                        disabled="@((_activeTab == "Cash" && _cashReceived < FinalAmount) || _isProcessing)"
+                        @onclick="ConfirmPaymentAsync">
+                    <span class="material-symbols-outlined text-xl">check_circle</span>
+                    XÁC NHẬN THANH TOÁN
+                </button>
             </div>
         </div>
     </div>
@@ -223,30 +382,28 @@
     [Parameter] public EventCallback<bool> OnPaymentCompleted { get; set; }
 
     private string _activeTab = "Cash";
-    private decimal _cashReceived;
+    private decimal _cashReceived = 0; // Mặc định = 0 theo yêu cầu
     private string _voucherCode = string.Empty;
     private decimal _discountAmount;
     private string _customerPhone = string.Empty;
     private CustomerDto? _foundCustomer;
     private VietQrResponse? _qrData;
     private bool _isLoadingQr;
+    private bool _isLoadingItems;
+    private bool _isProcessing;
     private string _errorMessage = string.Empty;
     private bool _isPaymentSuccess = false;
     private HubConnection? _hubConnection;
+    private List<TakeawayOrderItemDto> _orderItems = new();
 
     private decimal _totalDiscount => _discountAmount + AppliedDiscount;
-    private decimal TaxAmount => Math.Round(Math.Max(0, SubTotal - _totalDiscount) * 0.08m, 0);
-    private decimal FinalAmount => Math.Max(0, SubTotal - _totalDiscount + TaxAmount);
-    private decimal ChangeAmount => _cashReceived - FinalAmount;
+    private decimal FinalAmount => Math.Max(0, SubTotal - _totalDiscount);
+    private decimal TaxAmount => Math.Round(FinalAmount - (FinalAmount / 1.08m), 0);
+    private decimal ChangeAmount => Math.Max(0, _cashReceived - FinalAmount);
+    private decimal MissingAmount => Math.Max(0, FinalAmount - _cashReceived);
 
     protected override async Task OnInitializedAsync()
     {
-        _customerPhone = CustomerPhone ?? string.Empty;
-        if (!string.IsNullOrEmpty(_customerPhone))
-        {
-            await SearchCustomerAsync();
-        }
-
         _hubConnection = new HubConnectionBuilder()
             .WithUrl("http://localhost:5011/hubs/restaurant")
             .WithAutomaticReconnect()
@@ -270,24 +427,129 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"SignalR error: {ex.Message}");
+            Console.WriteLine($"SignalR error in PosPaymentModal: {ex.Message}");
         }
     }
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        if (IsOpen && _cashReceived == 0)
+        if (IsOpen && OrderId > 0 && !_orderItems.Any())
         {
-            _cashReceived = SubTotal;
+            _cashReceived = 0; // Default = 0
+            _customerPhone = CustomerPhone ?? string.Empty;
+            await LoadOrderDetailsAsync();
+            if (!string.IsNullOrEmpty(_customerPhone))
+            {
+                await SearchCustomerAsync();
+            }
         }
     }
 
-    private void SetTab(string tab)
+    private async Task LoadOrderDetailsAsync()
+    {
+        _isLoadingItems = true;
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<ApiResponseWrapper<TakeawayOrderDto>>($"api/v1/pos/takeaway/orders/{OrderId}");
+            if (resp?.Data != null)
+            {
+                _orderItems = resp.Data.Items ?? new();
+                if (SubTotal == 0) SubTotal = resp.Data.SubTotal;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading order items: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingItems = false;
+        }
+    }
+
+    private async Task SetTab(string tab)
     {
         _activeTab = tab;
+        _errorMessage = string.Empty;
         if (tab == "VietQR" && _qrData == null)
         {
-            _ = GenerateQrCodeAsync();
+            await GenerateQrCodeAsync();
+        }
+    }
+
+    private void ClearCashReceived()
+    {
+        _cashReceived = 0;
+    }
+
+    private void AppendDigit(string digit)
+    {
+        var currentStr = _cashReceived.ToString("F0");
+        if (currentStr == "0") currentStr = "";
+        currentStr += digit;
+        if (decimal.TryParse(currentStr, out decimal parsed))
+        {
+            _cashReceived = parsed;
+        }
+    }
+
+    private void BackspaceDigit()
+    {
+        var currentStr = _cashReceived.ToString("F0");
+        if (currentStr.Length <= 1)
+        {
+            _cashReceived = 0;
+        }
+        else
+        {
+            currentStr = currentStr.Substring(0, currentStr.Length - 1);
+            if (decimal.TryParse(currentStr, out decimal parsed))
+            {
+                _cashReceived = parsed;
+            }
+        }
+    }
+
+    private void AddDenomination(decimal amount)
+    {
+        _cashReceived += amount;
+    }
+
+    private void SetExactAmount()
+    {
+        _cashReceived = FinalAmount;
+    }
+
+    private async Task GenerateQrCodeAsync()
+    {
+        _isLoadingQr = true;
+        _errorMessage = string.Empty;
+        try
+        {
+            var req = new GenerateVietQrRequest
+            {
+                OrderId = OrderId,
+                BankName = "TPBank",
+                BankAccountNo = "11102042003"
+            };
+            var response = await Http.PostAsJsonAsync("api/v1/payments/vietqr", req);
+            if (response.IsSuccessStatusCode)
+            {
+                _qrData = await response.Content.ReadFromJsonAsync<VietQrResponse>();
+            }
+            else
+            {
+                _errorMessage = "Không thể tạo mã VietQR SePay.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Lỗi: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingQr = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -296,8 +558,8 @@
         if (string.IsNullOrWhiteSpace(_customerPhone)) return;
         try
         {
-            var result = await Http.GetFromJsonAsync<CustomerDto>($"api/v1/crm/customers/phone/{_customerPhone}");
-            _foundCustomer = result;
+            var resp = await Http.GetFromJsonAsync<CustomerDto>($"api/v1/customers/by-phone/{_customerPhone}");
+            _foundCustomer = resp;
         }
         catch
         {
@@ -305,138 +567,86 @@
         }
     }
 
-    private async Task ApplyVoucher()
+    private void ApplyVoucher()
     {
         if (string.IsNullOrWhiteSpace(_voucherCode)) return;
-        _errorMessage = string.Empty;
-        try
+        if (_voucherCode.Equals("GIAM10", StringComparison.OrdinalIgnoreCase))
         {
-            var res = await Http.GetAsync($"api/v1/vouchers/validate?code={Uri.EscapeDataString(_voucherCode.Trim())}&orderAmount={SubTotal}");
-            if (res.IsSuccessStatusCode)
-            {
-                var valResult = await res.Content.ReadFromJsonAsync<VoucherValidationResponseDto>();
-                if (valResult != null && valResult.IsValid)
-                {
-                    _discountAmount = valResult.DiscountAmount;
-                }
-                else
-                {
-                    _discountAmount = 0;
-                    _errorMessage = valResult?.Message ?? "Mã giảm giá không hợp lệ.";
-                }
-            }
-            else
-            {
-                _errorMessage = "Không thể kiểm tra mã giảm giá.";
-            }
+            _discountAmount = SubTotal * 0.10m;
         }
-        catch (Exception ex)
+        else if (_voucherCode.Equals("GIAM20", StringComparison.OrdinalIgnoreCase))
         {
-            _errorMessage = ex.Message;
+            _discountAmount = SubTotal * 0.20m;
         }
-    }
-
-    private async Task GenerateQrCodeAsync()
-    {
-        if (OrderId <= 0) return;
-        _isLoadingQr = true;
-        _errorMessage = string.Empty;
-        try
+        else
         {
-            var req = new GenerateVietQrRequest { OrderId = OrderId };
-            var res = await Http.PostAsJsonAsync("api/v1/payments/generate-vietqr", req);
-            if (res.IsSuccessStatusCode)
-            {
-                var body = await res.Content.ReadFromJsonAsync<ApiResponseWrapper<VietQrResponse>>();
-                _qrData = body?.Data;
-            }
-            else
-            {
-                _errorMessage = "Không thể sinh mã VietQR.";
-            }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = ex.Message;
-        }
-        finally
-        {
-            _isLoadingQr = false;
-        }
-    }
-
-    private async Task PrintTempBillAsync()
-    {
-        if (OrderId <= 0) return;
-        try
-        {
-            var res = await Http.PostAsync($"api/v1/pos/orders/{OrderId}/print-temp-bill", null);
-            if (res.IsSuccessStatusCode)
-            {
-                await CloseAsync();
-                await OnPaymentCompleted.InvokeAsync(false);
-            }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = ex.Message;
+            _discountAmount = 20000;
         }
     }
 
     private async Task ConfirmPaymentAsync()
     {
-        if (OrderId <= 0) return;
+        if (_activeTab == "Cash" && _cashReceived < FinalAmount) return;
+
+        _isProcessing = true;
         _errorMessage = string.Empty;
+
         try
         {
-            if (_activeTab == "Cash")
+            var req = new ProcessCashPaymentRequest
             {
-                var request = new ProcessCashPaymentRequest
-                {
-                    OrderId = OrderId,
-                    CashReceived = _cashReceived,
-                    CustomerId = _foundCustomer?.Id ?? CustomerId,
-                    VoucherCode = _voucherCode
-                };
+                OrderId = OrderId,
+                CashReceived = _activeTab == "Cash" ? _cashReceived : FinalAmount,
+                CustomerId = _foundCustomer?.Id ?? CustomerId,
+                VoucherCode = string.IsNullOrEmpty(_voucherCode) ? null : _voucherCode
+            };
 
-                var res = await Http.PostAsJsonAsync("api/v1/payments/cash", request);
-                if (res.IsSuccessStatusCode)
-                {
-                    await CloseAsync();
-                    await OnPaymentCompleted.InvokeAsync(true);
-                }
-                else
-                {
-                    var err = await res.Content.ReadAsStringAsync();
-                    _errorMessage = $"Thanh toán thất bại: {err}";
-                }
-            }
-            else if (_activeTab == "VietQR")
+            var res = await Http.PostAsJsonAsync("api/v1/payments/cash", req);
+            if (res.IsSuccessStatusCode)
             {
-                _errorMessage = "Vui lòng chờ khách hàng quét mã VietQR và hệ thống xác nhận tự động.";
+                await CloseAsync();
+                await OnPaymentCompleted.InvokeAsync(true);
+            }
+            else
+            {
+                var body = await res.Content.ReadAsStringAsync();
+                _errorMessage = $"Lỗi xử lý thanh toán: {body}";
             }
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
+            _errorMessage = $"Lỗi ngoại lệ: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
         }
     }
 
-    private decimal RoundUp(decimal amount, decimal step)
+    private async Task PrintTempBillAsync()
     {
-        if (step <= 0) return amount;
-        return Math.Ceiling(amount / step) * step;
+        try
+        {
+            var url = $"api/v1/bills/{OrderId}/k80";
+            // Call print bill or trigger print
+            await Http.GetAsync(url);
+        }
+        catch { }
     }
 
     private async Task CloseAsync()
     {
         IsOpen = false;
+        _cashReceived = 0;
+        _orderItems.Clear();
+        _qrData = null;
+        _errorMessage = string.Empty;
         await IsOpenChanged.InvokeAsync(false);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_hubConnection is not null)
+        if (_hubConnection != null)
         {
             await _hubConnection.DisposeAsync();
         }

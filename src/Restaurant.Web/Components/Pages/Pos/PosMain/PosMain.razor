@@ -25,12 +25,6 @@ else
     <header class="h-14 bg-surface border-b border-outline-variant px-4 flex items-center justify-between shrink-0 shadow-xs z-30 select-none">
         <!-- Left: Table / Order Info -->
         <div class="flex items-center gap-3">
-            <button class="p-2 hover:bg-surface-high rounded-xl text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
-                    @onclick="HandleHeaderBackNav">
-                <span class="material-symbols-outlined text-lg">arrow_back</span>
-                <span>@(IsTakeaway ? "Takeaway" : "Sơ đồ bàn")</span>
-            </button>
-            <div class="h-5 w-[1px] bg-outline-variant"></div>
             <div class="flex items-center gap-2">
                 <span class="px-2.5 py-1 bg-primary/10 text-primary font-bold text-xs rounded-lg">
                     @CurrentTableName
@@ -85,17 +79,18 @@ else
             </button>
 
             <!-- 5. Xong (Done & Send to Kitchen) -->
-            <button class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-sm flex items-center gap-2 shadow-md transition-all cursor-pointer"
+            <button class="px-6 py-2 bg-primary hover:bg-[#3d5600] active:scale-95 text-on-primary rounded-xl font-bold text-sm flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
                     @onclick="HandleDoneAsync" disabled="@IsProcessing">
                 @if (IsProcessing)
                 {
-                    <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    <span class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                    <span>Đang gửi...</span>
                 }
                 else
                 {
                     <span class="material-symbols-outlined text-[20px]">send</span>
+                    <span>Hoàn Thành</span>
                 }
-                <span>Xác Nhận & Gửi Bếp</span>
             </button>
         </div>
     </header>
@@ -130,6 +125,7 @@ else
                     Item="SelectedItemDetail"
                     ModifierGroups="SelectedModifierGroups"
                     InitialSelectedModifiers="@(CartItems?.FirstOrDefault(i => i.Id == EditingCartItemId)?.SelectedModifiers)"
+                    InitialNote="@(CartItems?.FirstOrDefault(i => i.Id == EditingCartItemId)?.Note)"
                     OnSave="HandleSaveModifyItem"
                     OnCancel="HandleCancelModifyItem" />
             }
@@ -378,6 +374,50 @@ else
     ActionType="@TableActionType"
     SourceTableId="@(int.TryParse(TableId, out int t) ? t : 0)"
     OnActionCompleted="HandleTableActionCompleted" />
+
+<!-- Modal Xác Nhận Hủy Order Khi Giỏ Hàng Trống -->
+@if (ShowEmptyOrderCancelModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+        <div class="bg-surface rounded-2xl border border-outline-variant shadow-2xl max-w-md w-full p-6 flex flex-col gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-2xl">warning</span>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-on-surface">Xác nhận hủy lượt gọi món</h3>
+                    <p class="text-xs text-on-surface-variant mt-0.5">Giỏ hàng hiện chưa có món nào.</p>
+                </div>
+            </div>
+            
+            <p class="text-sm text-on-surface">
+                Đơn hàng hiện chưa có món nào. Bạn có muốn hủy lượt order này, giải phóng bàn <strong>@CurrentTableName</strong> về trạng thái Trống và quay lại sơ đồ bàn?
+            </p>
+
+            <div class="flex items-center justify-end gap-3 pt-2 border-t border-outline-variant/60">
+                <button class="px-4 py-2 rounded-xl bg-surface-high hover:bg-surface-variant text-on-surface text-xs font-bold transition-all cursor-pointer"
+                        @onclick="() => ShowEmptyOrderCancelModal = false"
+                        disabled="@IsProcessing">
+                    Ở lại
+                </button>
+                <button class="px-5 py-2 rounded-xl bg-error hover:bg-error/90 text-on-error text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                        @onclick="ConfirmCancelEmptyOrderAsync"
+                        disabled="@IsProcessing">
+                    @if (IsProcessing)
+                    {
+                        <span class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></span>
+                        <span>Đang xử lý...</span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined text-base">check</span>
+                        <span>Xác nhận hủy</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Toast Notification -->
 @if (!string.IsNullOrEmpty(ToastMessage))

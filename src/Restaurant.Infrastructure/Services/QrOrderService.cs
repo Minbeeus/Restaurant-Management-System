@@ -353,10 +353,44 @@ public class QrOrderService : IQrOrderService
                 .Include(o => o.OrderItems)
                 .FirstOrDefaultAsync(o => o.TableId == request.TableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Cancelled);
 
+            // Lookup or create Customer if PhoneNumber is provided
+            Customer? customer = null;
+            if (!string.IsNullOrWhiteSpace(request.CustomerPhone))
+            {
+                var cleanPhone = request.CustomerPhone.Trim();
+                customer = await _context.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == cleanPhone && !c.IsDeleted);
+                if (customer == null)
+                {
+                    var defaultTier = await _context.CustomerTiers.FirstOrDefaultAsync() 
+                                      ?? new CustomerTier { Name = "Bronze", MinPoints = 0, DiscountPercent = 0 };
+                    customer = new Customer
+                    {
+                        PhoneNumber = cleanPhone,
+                        FullName = string.IsNullOrWhiteSpace(request.CustomerName) ? "Khách QR" : request.CustomerName.Trim(),
+                        TierId = defaultTier.Id > 0 ? defaultTier.Id : 1,
+                        TotalPoints = 0,
+                        AvailablePoints = 0,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Customers.Add(customer);
+                    await _context.SaveChangesAsync();
+                }
+                else if (!string.IsNullOrWhiteSpace(request.CustomerName) && (string.IsNullOrWhiteSpace(customer.FullName) || customer.FullName == "Khách QR"))
+                {
+                    customer.FullName = request.CustomerName.Trim();
+                }
+            }
+
             Order targetOrder;
             if (activeOrder != null)
             {
                 targetOrder = activeOrder;
+                if (customer != null && targetOrder.CustomerId == null)
+                {
+                    targetOrder.CustomerId = customer.Id;
+                    targetOrder.CustomerName = customer.FullName;
+                    targetOrder.CustomerPhone = customer.PhoneNumber;
+                }
             }
             else
             {
@@ -373,6 +407,9 @@ public class QrOrderService : IQrOrderService
                     OrderCode = $"ORD-{DateTime.UtcNow:yyyyMMddHHmmss}-{request.TableId}",
                     OrderType = 0, // DineIn
                     TableId = request.TableId,
+                    CustomerId = customer?.Id,
+                    CustomerName = customer?.FullName ?? request.CustomerName,
+                    CustomerPhone = customer?.PhoneNumber ?? request.CustomerPhone,
                     ShiftId = shiftId,
                     CreatedByUserId = createdUserId,
                     Status = (int)OrderStatus.Draft,

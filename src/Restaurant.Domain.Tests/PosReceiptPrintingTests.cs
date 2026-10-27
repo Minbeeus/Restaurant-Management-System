@@ -458,4 +458,307 @@ public class PosReceiptPrintingTests
         Assert.Single(orderAfterPrint.OrderItems);
         Assert.Equal(2, orderAfterPrint.OrderItems.First().Quantity);
     }
+
+    [Fact]
+    public async Task Test9_BillViewerService_ExtractsVat8Percent_FromTotalAmount()
+    {
+        var db = GetDbContext(nameof(Test9_BillViewerService_ExtractsVat8Percent_FromTotalAmount));
+        var (cashier, _, shift, table, category) = SeedBaseData(db);
+
+        var pizza = new MenuItem { Id = 10, CategoryId = category.Id, Name = "Pizza Margherita", Price = 108000, IsActive = true };
+        db.MenuItems.Add(pizza);
+
+        var order = new Order
+        {
+            Id = 200,
+            OrderCode = "HD-VAT-TEST",
+            TableId = table.Id,
+            ShiftId = shift.Id,
+            CreatedByUserId = cashier.Id,
+            SubTotal = 108000,
+            DiscountAmount = 0,
+            TotalAmount = 108000,
+            PaymentStatus = (int)PaymentStatus.Unpaid
+        };
+
+        order.OrderItems.Add(new OrderItem
+        {
+            Id = 201,
+            OrderId = order.Id,
+            MenuItemId = pizza.Id,
+            MenuItemName = pizza.Name,
+            UnitPrice = 108000,
+            Quantity = 1
+        });
+        db.Orders.Add(order);
+        await db.SaveChangesAsync();
+
+        var billViewerService = new BillViewerService(db);
+        var receipt = await billViewerService.GetBillK80ReceiptAsync(order.Id);
+
+        Assert.NotNull(receipt);
+        Assert.Equal(108000, receipt.TotalAmount);
+        // VAT 8% extracted: 108,000 - 108,000 / 1.08 = 8,000
+        Assert.Equal(8000, receipt.TaxAmount);
+    }
+
+    [Fact]
+    public async Task Test10_ClearTableAsync_CancelsEmptyOrder_AndReleasesTable()
+    {
+        var db = GetDbContext(nameof(Test10_ClearTableAsync_CancelsEmptyOrder_AndReleasesTable));
+        var (cashier, _, shift, table, _) = SeedBaseData(db);
+
+        // Create an empty order for the table
+        var emptyOrder = new Order
+        {
+            Id = 300,
+            OrderCode = "HD-EMPTY-TEST",
+            TableId = table.Id,
+            ShiftId = shift.Id,
+            CreatedByUserId = cashier.Id,
+            SubTotal = 0,
+            DiscountAmount = 0,
+            TotalAmount = 0,
+            Status = (int)OrderStatus.InPreparation,
+            PaymentStatus = (int)PaymentStatus.Unpaid
+        };
+        db.Orders.Add(emptyOrder);
+        table.Status = (int)TableStatus.Occupied;
+        await db.SaveChangesAsync();
+
+        var notificationMock = new Mock<IRestaurantNotificationService>();
+        var localizerMock = new Mock<IStringLocalizer<SharedResources>>();
+        var posOrderService = new PosOrderService(db, notificationMock.Object, localizerMock.Object);
+
+        var success = await posOrderService.ClearTableAsync(table.Id);
+        Assert.True(success);
+
+        var refreshedTable = await db.Tables.FindAsync(table.Id);
+        Assert.Equal((int)TableStatus.Available, refreshedTable!.Status);
+
+        var refreshedOrder = await db.Orders.FindAsync(emptyOrder.Id);
+        Assert.Equal((int)OrderStatus.Cancelled, refreshedOrder!.Status);
+        Assert.Contains("[HỦY ĐƠN RỖNG]", refreshedOrder.Note);
+    }
+
+    [Fact]
+    public async Task Test11_BillViewerService_ExcludesSauceAndSpiceFromReceiptModifiers()
+    {
+        var db = GetDbContext(nameof(Test11_BillViewerService_ExcludesSauceAndSpiceFromReceiptModifiers));
+        var (cashier, _, shift, table, category) = SeedBaseData(db);
+
+        var pizza = new MenuItem { Id = 10, CategoryId = category.Id, Name = "Pizza BBQ Gà", Price = 179000, IsActive = true };
+        db.MenuItems.Add(pizza);
+
+        var order = new Order
+        {
+            Id = 400,
+            OrderCode = "HD-SAUCE-TEST",
+            TableId = table.Id,
+            ShiftId = shift.Id,
+            CreatedByUserId = cashier.Id,
+            SubTotal = 179000,
+            DiscountAmount = 0,
+            TotalAmount = 179000,
+            PaymentStatus = (int)PaymentStatus.Unpaid
+        };
+
+        var orderItem = new OrderItem
+        {
+            Id = 401,
+            OrderId = order.Id,
+            MenuItemId = pizza.Id,
+            MenuItemName = pizza.Name,
+            UnitPrice = 179000,
+            Quantity = 1,
+            Note = "Ghi chú: Không hành, nướng giòn"
+        };
+
+        var opt1 = new ModifierOption { Id = 10, Name = "Thêm Phô Mai Mozzarella", ExtraPrice = 20000 };
+        var opt2 = new ModifierOption { Id = 11, Name = "Sốt BBQ Khói Đậm Đà", ExtraPrice = 0 };
+        var opt3 = new ModifierOption { Id = 12, Name = "Mức Độ Cay: Vừa", ExtraPrice = 0 };
+        db.ModifierOptions.AddRange(opt1, opt2, opt3);
+
+        // Add 3 modifiers: 1 topping (should stay), 1 pizza sauce (should be excluded), 1 spice level (should be excluded)
+        orderItem.OrderItemModifiers.Add(new OrderItemModifier { OrderItemId = 401, ModifierOptionId = 10, ModifierOption = opt1, ModifierOptionName = opt1.Name, ExtraPrice = 20000 });
+        orderItem.OrderItemModifiers.Add(new OrderItemModifier { OrderItemId = 401, ModifierOptionId = 11, ModifierOption = opt2, ModifierOptionName = opt2.Name, ExtraPrice = 0 });
+        orderItem.OrderItemModifiers.Add(new OrderItemModifier { OrderItemId = 401, ModifierOptionId = 12, ModifierOption = opt3, ModifierOptionName = opt3.Name, ExtraPrice = 0 });
+
+        order.OrderItems.Add(orderItem);
+        db.Orders.Add(order);
+        await db.SaveChangesAsync();
+
+        var billViewerService = new BillViewerService(db);
+        var receipt = await billViewerService.GetBillK80ReceiptAsync(order.Id);
+
+        Assert.NotNull(receipt);
+        Assert.Single(receipt.Items);
+        var item = receipt.Items[0];
+        Assert.Equal("Ghi chú: Không hành, nướng giòn", item.Note);
+        // Only Mozzarella cheese should remain, sauce and spice should be filtered out
+        Assert.Single(item.Modifiers);
+        Assert.Contains("Thêm Phô Mai Mozzarella", item.Modifiers);
+        Assert.DoesNotContain("Sốt BBQ Khói Đậm Đà", item.Modifiers);
+        Assert.DoesNotContain("Mức Độ Cay: Vừa", item.Modifiers);
+    }
+
+    [Fact]
+    public async Task Test12_VatCalculation_PriceIncludesVat_NoSurcharge()
+    {
+        var db = GetDbContext(nameof(Test12_VatCalculation_PriceIncludesVat_NoSurcharge));
+        var (cashier, _, shift, table, category) = SeedBaseData(db);
+
+        // Subtotal = 270,000 (listed price already including VAT)
+        // Discount = 50,000
+        // Total collected = 220,000
+        // Extracted VAT 8% = Math.Round(220,000 - 220,000 / 1.08m) = 16,296
+        var order = new Order
+        {
+            Id = 500,
+            OrderCode = "HD-VAT-DISCOUNT",
+            TableId = table.Id,
+            ShiftId = shift.Id,
+            CreatedByUserId = cashier.Id,
+            SubTotal = 270000,
+            DiscountAmount = 50000,
+            TotalAmount = 220000,
+            PaymentStatus = (int)PaymentStatus.Unpaid
+        };
+
+        var orderItem = new OrderItem
+        {
+            Id = 501,
+            OrderId = order.Id,
+            MenuItemId = 1,
+            MenuItemName = "Món Ăn Test VAT",
+            UnitPrice = 270000,
+            Quantity = 1
+        };
+
+        order.OrderItems.Add(orderItem);
+        db.Orders.Add(order);
+        await db.SaveChangesAsync();
+
+        var billViewerService = new BillViewerService(db);
+        var receipt = await billViewerService.GetBillK80ReceiptAsync(order.Id);
+
+        Assert.NotNull(receipt);
+        Assert.Equal(270000, receipt.SubTotal);
+        Assert.Equal(50000, receipt.DiscountAmount);
+        Assert.Equal(220000, receipt.TotalAmount);
+        // VAT extracted from revenue (TotalAmount) without adding any extra surcharge to customer
+        Assert.Equal(16296, receipt.TaxAmount);
+    }
+
+    [Fact]
+    public async Task Test13_OrderItem_CustomNote_PreservedInKitchenAndBill()
+    {
+        var db = GetDbContext(nameof(Test13_OrderItem_CustomNote_PreservedInKitchenAndBill));
+        var (cashier, _, shift, table, category) = SeedBaseData(db);
+
+        var drink = new MenuItem { Id = 30, CategoryId = category.Id, Name = "Coca Cola", Price = 25000, IsActive = true };
+        db.MenuItems.Add(drink);
+        await db.SaveChangesAsync();
+
+        var notificationMock = new Mock<IRestaurantNotificationService>();
+        var localizerMock = new Mock<IStringLocalizer<SharedResources>>();
+        var posOrderService = new PosOrderService(db, notificationMock.Object, localizerMock.Object);
+
+        var submitReq = new SubmitPosOrderRequest
+        {
+            TableId = table.Id,
+            Items = new List<CartItemValidateRequest>
+            {
+                new CartItemValidateRequest
+                {
+                    MenuItemId = drink.Id,
+                    Quantity = 2,
+                    Note = "Uống lạnh, thêm chanh lát"
+                }
+            }
+        };
+
+        var submitResp = await posOrderService.SubmitPosOrderAsync(submitReq);
+        Assert.True(submitResp.OrderId > 0);
+
+        var savedOrderItem = await db.OrderItems.FirstOrDefaultAsync(oi => oi.OrderId == submitResp.OrderId);
+        Assert.NotNull(savedOrderItem);
+        Assert.Equal("Uống lạnh, thêm chanh lát", savedOrderItem.Note);
+
+        var billViewerService = new BillViewerService(db);
+        var billDetail = await billViewerService.GetBillDetailsAsync(submitResp.OrderId);
+        Assert.NotNull(billDetail);
+        Assert.Single(billDetail.Items);
+        Assert.Equal("Uống lạnh, thêm chanh lát", billDetail.Items[0].Note);
+    }
+
+    [Fact]
+    public async Task Test14_TakeawayOrder_ExcludesSauceAndSpiceFromModifiers_AndShowsExtractedVat()
+    {
+        var db = GetDbContext(nameof(Test14_TakeawayOrder_ExcludesSauceAndSpiceFromModifiers_AndShowsExtractedVat));
+        var (cashier, _, shift, _, category) = SeedBaseData(db);
+
+        var pizza = new MenuItem { Id = 10, CategoryId = category.Id, Name = "Pizza BBQ Gà", Price = 179000, IsActive = true };
+        db.MenuItems.Add(pizza);
+
+        var opt1 = new ModifierOption { Id = 20, Name = "Thêm Phô Mai Mozzarella", ExtraPrice = 20000 };
+        var opt2 = new ModifierOption { Id = 21, Name = "Sốt BBQ Khói Đậm Đà", ExtraPrice = 0 };
+        var opt3 = new ModifierOption { Id = 22, Name = "Mức Độ Cay: Vừa", ExtraPrice = 0 };
+        db.ModifierOptions.AddRange(opt1, opt2, opt3);
+        await db.SaveChangesAsync();
+
+        var takeawayOrder = new Order
+        {
+            Id = 600,
+            OrderCode = "TAK-600",
+            OrderType = (int)OrderType.Pickup,
+            TableId = null,
+            ShiftId = shift.Id,
+            CreatedByUserId = cashier.Id,
+            SubTotal = 199000,
+            DiscountAmount = 0,
+            TotalAmount = 199000,
+            PaymentStatus = (int)PaymentStatus.Unpaid
+        };
+
+        var orderItem = new OrderItem
+        {
+            Id = 601,
+            OrderId = takeawayOrder.Id,
+            MenuItemId = pizza.Id,
+            MenuItemName = pizza.Name,
+            UnitPrice = 199000,
+            Quantity = 1,
+            Note = "Ghi chú: CSR ghi chú riêng"
+        };
+
+        orderItem.OrderItemModifiers.Add(new OrderItemModifier { OrderItemId = 601, ModifierOptionId = 20, ModifierOption = opt1, ModifierOptionName = opt1.Name, ExtraPrice = 20000 });
+        orderItem.OrderItemModifiers.Add(new OrderItemModifier { OrderItemId = 601, ModifierOptionId = 21, ModifierOption = opt2, ModifierOptionName = opt2.Name, ExtraPrice = 0 });
+        orderItem.OrderItemModifiers.Add(new OrderItemModifier { OrderItemId = 601, ModifierOptionId = 22, ModifierOption = opt3, ModifierOptionName = opt3.Name, ExtraPrice = 0 });
+
+        takeawayOrder.OrderItems.Add(orderItem);
+        db.Orders.Add(takeawayOrder);
+        await db.SaveChangesAsync();
+
+        var notificationMock = new Mock<IRestaurantNotificationService>();
+        var localizerMock = new Mock<IStringLocalizer<SharedResources>>();
+        var posOrderService = new PosOrderService(db, notificationMock.Object, localizerMock.Object);
+
+        var takeawayDto = await posOrderService.GetTakeawayOrderByIdAsync(takeawayOrder.Id);
+        Assert.NotNull(takeawayDto);
+        Assert.Single(takeawayDto.Items);
+
+        var item = takeawayDto.Items[0];
+        Assert.Equal("Ghi chú: CSR ghi chú riêng", item.Note);
+        // Sauce and Spice modifiers must be strictly excluded from takeaway modifiers
+        Assert.Single(item.Modifiers);
+        Assert.Contains("Thêm Phô Mai Mozzarella", item.Modifiers);
+        Assert.DoesNotContain("Sốt BBQ Khói Đậm Đà", item.Modifiers);
+        Assert.DoesNotContain("Mức Độ Cay: Vừa", item.Modifiers);
+
+        // Extracted VAT 8% from TotalAmount (no surcharge)
+        var extractedVat = Math.Round(takeawayDto.TotalAmount - (takeawayDto.TotalAmount / 1.08m), 0);
+        Assert.Equal(14741, extractedVat);
+        Assert.Equal(199000, takeawayDto.TotalAmount);
+    }
 }

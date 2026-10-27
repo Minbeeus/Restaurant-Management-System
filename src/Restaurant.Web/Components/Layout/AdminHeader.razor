@@ -5,11 +5,6 @@
 <header class="flex justify-between items-center h-16 px-margin-page bg-surface dark:bg-background border-b border-outline-variant font-label-bold text-label-bold shrink-0 z-10">
     <div class="flex items-center gap-8">
         <span class="font-headline-sm text-headline-sm font-bold text-primary">@L["Admin_System_Title"]</span>
-        <nav class="hidden md:flex items-center gap-6">
-            <NavLink class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="/admin/dashboard" Match="NavLinkMatch.All" ActiveClass="text-primary font-bold border-b-2 border-primary pb-1">@L["Header_Overview"]</NavLink>
-            <NavLink class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="/admin/orders" ActiveClass="text-primary font-bold border-b-2 border-primary pb-1">@L["Header_Orders"]</NavLink>
-            <NavLink class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="/admin/reports/revenue" ActiveClass="text-primary font-bold border-b-2 border-primary pb-1">@L["Header_Reports"]</NavLink>
-        </nav>
     </div>
     
     <div class="flex items-center gap-4">
@@ -35,10 +30,6 @@
             }
         </div>
 
-        <div class="relative flex items-center">
-            <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary mr-2" data-icon="search">search</span>
-            <input type="text" placeholder="@L["Header_Search_Placeholder"]" class="px-3 py-1.5 text-xs rounded-full border border-outline-variant bg-surface-low focus:outline-none focus:border-primary w-40 focus:w-60 transition-all" />
-        </div>
         <button class="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-low relative cursor-pointer" title="Thông báo" @onclick="ToggleNotifications">
             <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
             <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-error"></span>

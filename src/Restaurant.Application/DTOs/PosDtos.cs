@@ -136,6 +136,7 @@ public class TakeawayOrderItemDto
 public class VoidOrderItemRequest
 {
     public string Reason { get; set; } = string.Empty;
+    public string? ManagerPin { get; set; }
 }
 
 public class VoucherValidationResponseDto

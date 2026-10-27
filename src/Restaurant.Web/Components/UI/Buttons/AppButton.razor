@@ -1,42 +1,59 @@
 @code {
-    [Parameter] public string Variant { get; set; } = "Primary"; // Primary, Secondary, Danger, Ghost
-    [Parameter] public string Size { get; set; } = "Md"; // Sm, Md, Lg
+    [Parameter] public string Variant { get; set; } = "Primary"; // Primary, Secondary, Outline, Ghost, Danger, Success, Warning
+    [Parameter] public string Size { get; set; } = "Md"; // Sm, Md, Lg, Touch
+    [Parameter] public string Type { get; set; } = "button";
     [Parameter] public bool IsLoading { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Class { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    private string CssClass => $"btn {GetVariantClass()} {GetSizeClass()} {(Disabled || IsLoading ? "disabled" : "")}";
+    private string BaseClass => "inline-flex items-center justify-center font-bold font-body transition-all duration-150 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none";
 
-    private string GetVariantClass() => Variant.ToLower() switch
+    private string VariantClass => Variant.ToLower() switch
     {
-        "primary" => "btn-primary",
-        "secondary" => "btn-secondary",
-        "danger" => "btn-danger",
-        "ghost" => "btn-light border-0", 
-        _ => "btn-primary"
+        "primary" => "bg-primary hover:bg-[#3d5600] text-on-primary shadow-xs active:scale-[0.98]",
+        "secondary" => "bg-surface-high hover:bg-surface-container text-on-surface border border-outline-variant/60 shadow-2xs active:scale-[0.98]",
+        "outline" => "bg-transparent hover:bg-primary/10 text-primary border border-primary/40 active:scale-[0.98]",
+        "ghost" => "bg-transparent hover:bg-surface-high text-on-surface-variant hover:text-on-surface border-0",
+        "danger" => "bg-error hover:bg-red-700 text-on-error shadow-xs active:scale-[0.98]",
+        "success" => "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs active:scale-[0.98]",
+        "warning" => "bg-amber-600 hover:bg-amber-700 text-white shadow-xs active:scale-[0.98]",
+        _ => "bg-primary hover:bg-[#3d5600] text-on-primary shadow-xs active:scale-[0.98]"
     };
 
-    private string GetSizeClass() => Size.ToLower() switch
+    private string SizeClass => Size.ToLower() switch
     {
-        "sm" => "btn-sm",
-        "lg" => "btn-lg",
-        _ => ""
+        "sm" => "px-3 py-1.5 text-xs rounded-lg gap-1.5 min-h-[32px]",
+        "lg" => "px-5 py-2.5 text-sm md:text-base rounded-xl gap-2.5 min-h-[48px]",
+        "touch" => "px-6 py-3.5 text-base rounded-2xl gap-3 min-h-[54px]",
+        _ => "px-4 py-2 text-xs md:text-sm rounded-xl gap-2 min-h-[40px]"
     };
+
+    private string IconSizeClass => Size.ToLower() switch
+    {
+        "sm" => "text-sm",
+        "lg" => "text-xl",
+        "touch" => "text-2xl",
+        _ => "text-base"
+    };
+
+    private string ComputedClass => $"{BaseClass} {VariantClass} {SizeClass} {Class}".Trim();
 }
 
-<button type="button" class="@CssClass" disabled="@(Disabled || IsLoading)" @onclick="OnClick">
+<button type="@Type" class="@ComputedClass" disabled="@(Disabled || IsLoading)" @onclick="OnClick" title="@Title">
     @if (IsLoading)
     {
-        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-        <span class="ms-1">@L["Loading..."]</span>
+        <span class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" role="status" aria-hidden="true"></span>
+        <span class="leading-none">@L["Loading..."]</span>
     }
     else
     {
         @if (!string.IsNullOrEmpty(Icon))
         {
-            <i class="@Icon me-2"></i>
+            <span class="material-symbols-outlined @IconSizeClass leading-none shrink-0" data-icon="@Icon">@Icon</span>
         }
         @ChildContent
     }

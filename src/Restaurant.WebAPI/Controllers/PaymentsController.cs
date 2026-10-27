@@ -34,7 +34,8 @@ public class PaymentsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> SepayWebhook([FromBody] SepayWebhookPayload payload)
     {
-        var signatureHeader = Request.Headers["X-SePay-Signature"].FirstOrDefault();
+        var signatureHeader = Request.Headers["X-SePay-Signature"].FirstOrDefault()
+                              ?? Request.Headers["Authorization"].FirstOrDefault();
         var success = await _paymentService.ProcessSepayWebhookAsync(payload, signatureHeader);
 
         if (!success)

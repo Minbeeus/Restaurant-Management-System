@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 720" width="1240" height="720" style="background-color: transparent;">
+  <defs>
+    <!-- Grid patterns -->
+    <pattern id="architectural-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" stroke-width="0.75" stroke-opacity="0.6"/>
+    </pattern>
+    <pattern id="wood-floor" width="60" height="15" patternUnits="userSpaceOnUse">
+      <rect width="60" height="15" fill="#fdfbf7"/>
+      <path d="M 0 0 L 60 0 M 30 0 L 30 15 M 0 15 L 60 15" stroke="#f1e9dd" stroke-width="0.75"/>
+    </pattern>
+    <pattern id="terrace-tiles" width="30" height="30" patternUnits="userSpaceOnUse">
+      <rect width="30" height="30" fill="#f8fafc"/>
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2,2"/>
+    </pattern>
+
+    <!-- Drop Shadows -->
+    <filter id="zone-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.04" />
+    </filter>
+  </defs>
+
+  <!-- Global floor background texture -->
+  <rect x="90" y="50" width="1070" height="630" rx="18" fill="#fbfcfd" stroke="#cbd5e1" stroke-width="1.5" />
+  <rect x="90" y="50" width="1070" height="630" rx="18" fill="url(#architectural-grid)" />
+
+  <!-- ==================== KHU VỰC BẾP (KITCHEN) ==================== -->
+  <g id="zone-kitchen">
+    <rect x="110" y="70" width="230" height="175" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4,3" />
+    <!-- Stainless steel tables -->
+    <rect x="125" y="85" width="90" height="30" rx="4" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="170" y="104" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#64748b" text-anchor="middle">BÀN SƠ CHẾ</text>
+    <rect x="235" y="85" width="85" height="30" rx="4" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+    <text x="277" y="104" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#dc2626" text-anchor="middle">🔥 BẾP NẤU</text>
+    
+    <!-- Pass window / Cửa ra món -->
+    <rect x="125" y="225" width="200" height="20" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="225" y="239" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#b45309" text-anchor="middle">➔ CỬA RA MÓN (PASS WINDOW) ➔</text>
+    
+    <!-- Badge Kitchen -->
+    <rect x="125" y="135" width="195" height="34" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#zone-shadow)"/>
+    <text x="222" y="156" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#334155" text-anchor="middle">👨‍🍳 KHU BẾP TRUNG TÂM</text>
+  </g>
+
+  <!-- ==================== QUẦY THU NGÂN & PHA CHẾ (BAR / CASHIER) ==================== -->
+  <g id="zone-bar-cashier">
+    <path d="M 110 265 L 320 265 L 320 460 L 240 460 L 240 370 L 110 370 Z" fill="#fffbeb" stroke="#fcd34d" stroke-width="2" rx="10" />
+    <rect x="125" y="280" width="180" height="70" rx="8" fill="#ffffff" stroke="#fef08a" stroke-width="1.5" filter="url(#zone-shadow)"/>
+    <text x="215" y="307" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#b45309" text-anchor="middle">🍸 QUẦY PHA CHẾ (BAR)</text>
+    <text x="215" y="325" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#d97706" text-anchor="middle">Máy POS Thu Ngân &amp; In Bill</text>
+
+    <!-- Cashier badge -->
+    <rect x="250" y="385" width="60" height="60" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="280" y="412" font-family="system-ui, sans-serif" font-size="18" text-anchor="middle">💻</text>
+    <text x="280" y="432" font-family="system-ui, sans-serif" font-size="9" font-weight="800" fill="#b45309" text-anchor="middle">POS MAIN</text>
+  </g>
+
+  <!-- ==================== KHU VỆ SINH (WC) ==================== -->
+  <g id="zone-wc">
+    <rect x="110" y="475" width="120" height="42" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" />
+    <text x="170" y="501" font-family="system-ui, sans-serif" font-size="11" font-weight="800" fill="#64748b" text-anchor="middle">🚻 KHU VỆ SINH</text>
+  </g>
+
+  <!-- ==================== KHU A: SẢNH CHÍNH (MAIN HALL / VIP) ==================== -->
+  <g id="zone-khu-a">
+    <!-- Zone boundary around A01..A08 -->
+    <rect x="340" y="70" width="510" height="235" rx="16" fill="url(#wood-floor)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="0.7" />
+    
+    <!-- Zone Label Pill -->
+    <rect x="360" y="85" width="220" height="30" rx="15" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#zone-shadow)"/>
+    <circle cx="378" cy="100" r="6" fill="#3b82f6" />
+    <text x="475" y="105" font-family="system-ui, sans-serif" font-size="12" font-weight="900" fill="#1d4ed8" text-anchor="middle">KHU A • SẢNH CHÍNH (8 BÀN)</text>
+    
+    <!-- Floor plan guide notes -->
+    <text x="810" y="115" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#94a3b8" text-anchor="middle">GÓC VIP CỬA SỔ</text>
+    <path d="M 810 120 L 810 130" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="2,2"/>
+  </g>
+
+  <!-- ==================== KHU B: TRUNG TÂM (CENTRAL DINING ROOM) ==================== -->
+  <g id="zone-khu-b">
+    <!-- Zone boundary around B01..B08 -->
+    <rect x="385" y="325" width="370" height="185" rx="16" fill="#ffffff" fill-opacity="0.8" stroke="#10b981" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="0.7" />
+    
+    <!-- Zone Label Pill -->
+    <rect x="405" y="335" width="235" height="28" rx="14" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1.5" filter="url(#zone-shadow)"/>
+    <circle cx="421" cy="349" r="6" fill="#10b981" />
+    <text x="525" y="354" font-family="system-ui, sans-serif" font-size="12" font-weight="900" fill="#047857" text-anchor="middle">KHU B • PHÒNG TRUNG TÂM (8 BÀN)</text>
+    
+    <!-- Decorative Divider Line between A and B -->
+    <line x1="390" y1="315" x2="750" y2="315" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4,4" />
+    <text x="570" y="321" font-family="system-ui, sans-serif" font-size="9" font-weight="700" fill="#94a3b8" text-anchor="middle">HÀNH LANG ĐI LẠI TRUNG TÂM</text>
+  </g>
+
+  <!-- ==================== KHU C: CỬA SỔ VIEW NGOÀI TRỜI (WINDOW GALLERY) ==================== -->
+  <g id="zone-khu-c">
+    <!-- Zone boundary around C01..C07 -->
+    <rect x="880" y="270" width="270" height="245" rx="16" fill="#f0f9ff" fill-opacity="0.7" stroke="#0ea5e9" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="0.7" />
+    
+    <!-- Window Wall on the right edge -->
+    <line x1="1150" y1="260" x2="1150" y2="520" stroke="#38bdf8" stroke-width="5" />
+    <line x1="1153" y1="260" x2="1153" y2="520" stroke="#bae6fd" stroke-width="2" />
+    <text x="1142" y="390" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="#0284c7" text-anchor="middle" transform="rotate(-90 1142 390)">VÁCH KÍNH VIEW ĐẸP (WINDOW)</text>
+    
+    <!-- Zone Label Pill -->
+    <rect x="895" y="280" width="220" height="28" rx="14" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="1.5" filter="url(#zone-shadow)"/>
+    <circle cx="911" cy="294" r="6" fill="#0ea5e9" />
+    <text x="1008" y="299" font-family="system-ui, sans-serif" font-size="12" font-weight="900" fill="#0369a1" text-anchor="middle">KHU C • VIEW CỬA SỔ (7 BÀN)</text>
+  </g>
+
+  <!-- ==================== KHU D: HIÊN NGOÀI TRỜI / MẶT TIỀN (PATIO & FRONT TERRACE) ==================== -->
+  <g id="zone-khu-d">
+    <!-- Terrace Floor Pattern -->
+    <rect x="120" y="525" width="1030" height="125" rx="16" fill="url(#terrace-tiles)" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="0.8" />
+    
+    <!-- Zone Label Pill -->
+    <rect x="140" y="533" width="260" height="26" rx="13" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5" filter="url(#zone-shadow)"/>
+    <circle cx="155" cy="546" r="6" fill="#f59e0b" />
+    <text x="272" y="551" font-family="system-ui, sans-serif" font-size="11" font-weight="900" fill="#b45309" text-anchor="middle">KHU D • HIÊN NGOÀI TRỜI / SÂN VƯỜN (11 BÀN)</text>
+
+    <!-- Outdoor railing along bottom -->
+    <line x1="120" y1="645" x2="520" y2="645" stroke="#94a3b8" stroke-width="3" stroke-dasharray="10,5" />
+    <line x1="720" y1="645" x2="1150" y2="645" stroke="#94a3b8" stroke-width="3" stroke-dasharray="10,5" />
+  </g>
+
+  <!-- ==================== CỬA VÀO CHÍNH (MAIN ENTRANCE) ==================== -->
+  <g id="main-entrance">
+    <!-- Entrance door opening -->
+    <rect x="525" y="640" width="190" height="35" rx="8" fill="#ffffff" stroke="#3b82f6" stroke-width="2" filter="url(#zone-shadow)"/>
+    
+    <!-- Door swing arcs -->
+    <path d="M 545 640 A 25 25 0 0 1 570 665" fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="3,3"/>
+    <path d="M 695 640 A 25 25 0 0 0 670 665" fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="3,3"/>
+    
+    <!-- Door glass panels -->
+    <line x1="545" y1="640" x2="570" y2="665" stroke="#2563eb" stroke-width="2.5" />
+    <line x1="695" y1="640" x2="670" y2="665" stroke="#2563eb" stroke-width="2.5" />
+
+    <text x="620" y="661" font-family="system-ui, sans-serif" font-size="11" font-weight="900" fill="#1d4ed8" text-anchor="middle">🚪 CỬA VÀO CHÍNH (ENTRANCE)</text>
+  </g>
+
+  <!-- ==================== DECORATIVE INDOOR PLANTS & CORNERS ==================== -->
+  <!-- Plant 1: Entrance left -->
+  <g transform="translate(505, 642)">
+    <circle cx="10" cy="10" r="9" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+    <path d="M 10 2 Q 6 10 10 18 M 2 10 Q 10 6 18 10" stroke="#15803d" stroke-width="1.5"/>
+  </g>
+  <!-- Plant 2: Entrance right -->
+  <g transform="translate(720, 642)">
+    <circle cx="10" cy="10" r="9" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+    <path d="M 10 2 Q 6 10 10 18 M 2 10 Q 10 6 18 10" stroke="#15803d" stroke-width="1.5"/>
+  </g>
+  <!-- Plant 3: Top Right Corner -->
+  <g transform="translate(1120, 80)">
+    <circle cx="12" cy="12" r="11" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+    <path d="M 12 3 Q 7 12 12 21 M 3 12 Q 12 7 21 12" stroke="#15803d" stroke-width="1.5"/>
+  </g>
+  <!-- Plant 4: Zone B / Corridor corner -->
+  <g transform="translate(355, 330)">
+    <circle cx="10" cy="10" r="9" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+    <path d="M 10 2 Q 6 10 10 18 M 2 10 Q 10 6 18 10" stroke="#15803d" stroke-width="1.5"/>
+  </g>
+  <!-- Plant 5: Zone C bottom corner -->
+  <g transform="translate(1125, 490)">
+    <circle cx="10" cy="10" r="9" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+    <path d="M 10 2 Q 6 10 10 18 M 2 10 Q 10 6 18 10" stroke="#15803d" stroke-width="1.5"/>
+  </g>
+
+  <!-- Architectural Compass Rose (North Arrow) -->
+  <g transform="translate(1115, 620)">
+    <circle cx="15" cy="15" r="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#zone-shadow)"/>
+    <polygon points="15,4 19,15 15,13 11,15" fill="#ef4444"/>
+    <polygon points="15,26 19,15 15,13 11,15" fill="#64748b"/>
+    <text x="15" y="3" font-family="system-ui, sans-serif" font-size="8" font-weight="900" fill="#ef4444" text-anchor="middle">N</text>
+  </g>
+</svg>

@@ -233,5 +233,61 @@ public class TableFloorplanSeederTests
             }
         }
     }
+
+    [Fact]
+    public async Task LiveDatabase_CheckAndRestoreSuppliers()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=RestaurantDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new ApplicationDbContext(options);
+        var allSuppliers = await context.Suppliers.IgnoreQueryFilters().ToListAsync();
+        
+        // Log all suppliers found
+        foreach (var sup in allSuppliers)
+        {
+            // Reactivate any inactive suppliers
+            if (!sup.IsActive)
+            {
+                sup.IsActive = true;
+            }
+        }
+
+        // Ensure default suppliers exist
+        var defaultSuppliers = new List<(string Name, string Contact, string Phone, string Address)>
+        {
+            ("Công ty TNHH Thực phẩm Ý Việt", "Nguyễn Văn Hùng", "0901234567", "123 Quận 1, TP.HCM"),
+            ("Nông sản Sạch Đà Lạt", "Trần Thị Mai", "0987654321", "45 Phường 3, Đà Lạt"),
+            ("Công ty CP Sữa & Phô Mai Anchor Việt Nam", "Lê Hoàng Long", "0918882233", "Khu chế xuất Tân Thuận, Quận 7, TP.HCM"),
+            ("Nhà Phân Phối Hải Sản & Thịt Tươi Biển Đông", "Phạm Văn Tuấn", "0934567890", "Cảng cá Hạ Long, Quảng Ninh")
+        };
+
+        foreach (var def in defaultSuppliers)
+        {
+            var exists = allSuppliers.FirstOrDefault(s => s.Name == def.Name);
+            if (exists == null)
+            {
+                var newSup = new Supplier
+                {
+                    Name = def.Name,
+                    ContactPerson = def.Contact,
+                    PhoneNumber = def.Phone,
+                    Address = def.Address,
+                    IsActive = true
+                };
+                await context.Suppliers.AddAsync(newSup);
+            }
+            else
+            {
+                exists.IsActive = true;
+            }
+        }
+
+        await context.SaveChangesAsync();
+
+        var activeSuppliers = await context.Suppliers.Where(s => s.IsActive).ToListAsync();
+        Assert.True(activeSuppliers.Count >= 2);
+    }
 }
 

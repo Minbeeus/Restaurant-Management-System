@@ -46,7 +46,7 @@
             </div>
             <div>
                 <div class="text-xs text-on-surface-variant font-medium">Tổng giá trị nhập kho</div>
-                <div class="text-2xl font-bold text-emerald-600 font-mono">@_receipts.Sum(r => r.TotalAmount).ToString("N0")đ</div>
+                <div class="text-2xl font-bold text-emerald-600 font-mono tabular-nums">@_receipts.Sum(r => r.TotalAmount).ToString("N0") đ</div>
             </div>
         </div>
         <div class="bg-surface rounded-2xl p-5 border border-outline-variant/30 flex items-center gap-4">
@@ -104,7 +104,7 @@
                                 <td class="py-4 px-6 font-semibold text-on-surface">@r.SupplierName</td>
                                 <td class="py-4 px-6 text-xs text-on-surface-variant">@r.ReceivedByUserName</td>
                                 <td class="py-4 px-6 text-center text-xs text-on-surface-variant">@r.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                                <td class="py-4 px-6 text-right font-mono font-bold text-on-surface">@r.TotalAmount.ToString("N0")đ</td>
+                                <td class="py-4 px-6 text-right font-mono tabular-nums font-bold text-on-surface">@r.TotalAmount.ToString("N0") đ</td>
                                 <td class="py-4 px-6 text-center">
                                     <span class="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold">
                                         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>

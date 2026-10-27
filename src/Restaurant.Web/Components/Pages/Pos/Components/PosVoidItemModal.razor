@@ -6,8 +6,8 @@
 
 @if (IsOpen)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in select-none">
-        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-error/40 p-6 space-y-4">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-error/40 p-6 space-y-4">
             
             <div class="flex items-center gap-3 text-error border-b border-outline-variant pb-3">
                 <span class="material-symbols-outlined text-3xl">remove_shopping_cart</span>
@@ -79,7 +79,7 @@
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string ItemId { get; set; } = string.Empty;
     [Parameter] public string ItemName { get; set; } = string.Empty;
-    [Parameter] public EventCallback<bool> OnVoidCompleted { get; set; }
+    [Parameter] public EventCallback<(bool Success, string Reason, string ManagerPin)> OnVoidCompleted { get; set; }
 
     protected string ManagerPin { get; set; } = string.Empty;
     protected string VoidReason { get; set; } = string.Empty;
@@ -123,7 +123,7 @@
             }
 
             await CloseAsync();
-            await OnVoidCompleted.InvokeAsync(true);
+            await OnVoidCompleted.InvokeAsync((true, FinalReason, ManagerPin));
         }
         catch (Exception ex)
         {

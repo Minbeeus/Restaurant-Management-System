@@ -636,7 +636,7 @@ public static class SampleDataSeeder
         // 7. ATTACH MODIFIER GROUPS TO MENU ITEMS
         // ============================================================
         // Attach Pizza modifiers (Size, Crust, Sauce, Cheese, Topping, Spice) to all Pizza items
-        var pizzaItems = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Pizza") && !m.IsCombo).ToListAsync();
+        var pizzaItems = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Pizza") && !m.IsCombo).ToListAsync();
         var pizzaModGroupCodes = new[] { "SIZE", "CRUST", "SAUCE", "CHEESE", "TOPPING", "SPICE" };
         foreach (var p in pizzaItems)
         {
@@ -660,7 +660,7 @@ public static class SampleDataSeeder
         }
 
         // Attach Salad dressings to all Salad items
-        var saladItems = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Salad")).ToListAsync();
+        var saladItems = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Salad")).ToListAsync();
         if (modGroupMap.TryGetValue("SALAD_DRESSING", out var saladMg))
         {
             foreach (var s in saladItems)
@@ -679,7 +679,7 @@ public static class SampleDataSeeder
         }
 
         // Attach Drink Sugar, Ice, Toppings to freshly made drinks (Tea, Soda, Milk Tea)
-        var freshDrinkItems = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Drink") && (m.Name.Contains("Trà") || m.Name.Contains("Soda"))).ToListAsync();
+        var freshDrinkItems = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Drink") && (m.Name.Contains("Trà") || m.Name.Contains("Soda"))).ToListAsync();
         var drinkModGroupCodes = new[] { "DRINK_SUGAR", "DRINK_ICE", "DRINK_TOPPING" };
         foreach (var d in freshDrinkItems)
         {
@@ -707,14 +707,14 @@ public static class SampleDataSeeder
         // 8. COMBOS CONFIGURATION (10 Complete Combos with Groups & Items)
         // ============================================================
         // Helper lists for combo choices
-        var allPizzas = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Pizza") && !m.IsCombo && m.IsActive).ToListAsync();
-        var allPastas = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Pasta") && m.IsActive).ToListAsync();
-        var allChickens = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Chicken") && m.IsActive).ToListAsync();
-        var allSides = await context.MenuItems.Where(m => (m.Category.NameEn.Contains("Sides") || m.Category.NameEn.Contains("Appetizers")) && m.IsActive).ToListAsync();
-        var allSalads = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Salad") && m.IsActive).ToListAsync();
-        var allDrinks = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Drink") && m.IsActive && !m.Name.Contains("Chai")).ToListAsync();
-        var allDesserts = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Dessert") && m.IsActive).ToListAsync();
-        var allKidsMains = await context.MenuItems.Where(m => m.Category.NameEn.Contains("Kids") && m.IsActive).ToListAsync();
+        var allPizzas = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Pizza") && !m.IsCombo && m.IsActive).ToListAsync();
+        var allPastas = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Pasta") && m.IsActive).ToListAsync();
+        var allChickens = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Chicken") && m.IsActive).ToListAsync();
+        var allSides = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && (m.Category.NameEn.Contains("Sides") || m.Category.NameEn.Contains("Appetizers")) && m.IsActive).ToListAsync();
+        var allSalads = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Salad") && m.IsActive).ToListAsync();
+        var allDrinks = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Drink") && m.IsActive && !m.Name.Contains("Chai")).ToListAsync();
+        var allDesserts = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Dessert") && m.IsActive).ToListAsync();
+        var allKidsMains = await context.MenuItems.Where(m => m.Category != null && m.Category.NameEn != null && m.Category.NameEn.Contains("Kids") && m.IsActive).ToListAsync();
 
         var friesItem = allSides.FirstOrDefault(s => s.Name.Contains("Khoai Tây Chiên Cắt Thẳng")) ?? allSides.First();
 

@@ -96,10 +96,13 @@ public class Tier3_CrossFeatureCombinationTests
         var cancelled = await ctx.CancelOrderService.CancelOrderAsync(ctx.ManagerUser.Id, order.Id, "Khách bận việc gia đình");
         Assert.True(cancelled);
 
-        // 4. BOM deduction converts to CancellationWaste
+        // 4. BOM deduction maintains immutable ledger: SaleDeduction intact + CancellationWaste recorded
         await ctx.Db.Entry(tx).ReloadAsync();
-        Assert.Equal((int)InventoryTransactionType.CancellationWaste, tx.TransactionType);
-        Assert.False(string.IsNullOrEmpty(tx.Note));
+        Assert.Equal((int)InventoryTransactionType.SaleDeduction, tx.TransactionType); // Preserves immutable audit trail
+
+        var wasteTx = await ctx.Db.InventoryTransactions.FirstOrDefaultAsync(t => t.TransactionType == (int)InventoryTransactionType.CancellationWaste && t.MaterialId == tx.MaterialId);
+        Assert.NotNull(wasteTx);
+        Assert.False(string.IsNullOrEmpty(wasteTx.Note));
 
         // Table 1 released
         var table = await ctx.Db.Tables.FindAsync(ctx.Table1.Id);

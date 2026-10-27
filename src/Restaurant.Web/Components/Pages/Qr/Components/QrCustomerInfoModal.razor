@@ -1,0 +1,158 @@
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
+        <!-- Backdrop - clickable to skip/close -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @onclick="HandleSkip"></div>
+
+        <!-- Modal -->
+        <div class="relative w-full max-w-sm bg-surface rounded-t-3xl sm:rounded-3xl shadow-2xl p-6 border border-outline-variant"
+             style="animation: slideUp 0.2s ease-out;">
+
+            <!-- Close button -->
+            <button @onclick="HandleSkip"
+                    class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-low">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+
+            <!-- Icon & Title -->
+            <div class="text-center space-y-1 mb-5">
+                <div class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <span class="material-symbols-outlined text-primary text-[28px]">loyalty</span>
+                </div>
+                <h3 class="font-bold text-lg text-on-surface">Tích điểm thành viên</h3>
+                <p class="text-xs text-on-surface-variant leading-relaxed px-2">
+                    Nhập số điện thoại để tích điểm tự động khi thanh toán.
+                    Bạn có thể bỏ qua nếu không muốn.
+                </p>
+            </div>
+
+            <!-- Phone input -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-on-surface-variant mb-1.5 tracking-wide">
+                        Số điện thoại / Mã thành viên
+                    </label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">phone</span>
+                        <input id="qr-phone-input"
+                               type="tel"
+                               inputmode="numeric"
+                               placeholder="0912 345 678"
+                               class="w-full bg-surface-low border @(string.IsNullOrEmpty(PhoneError) ? "border-outline-variant" : "border-error") rounded-2xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary text-on-surface"
+                               @bind="PhoneNumber"
+                               @bind:event="oninput"
+                               @onkeydown="HandleKeyDown" />
+                    </div>
+                    @if (!string.IsNullOrEmpty(PhoneError))
+                    {
+                        <p class="text-xs text-error mt-1.5 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">error</span>
+                            @PhoneError
+                        </p>
+                    }
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-on-surface-variant mb-1.5 tracking-wide">
+                        Tên khách hàng <span class="normal-case font-normal">(tuỳ chọn)</span>
+                    </label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">person</span>
+                        <input type="text"
+                               placeholder="Anh Tuấn, Chị Lan..."
+                               class="w-full bg-surface-low border border-outline-variant rounded-2xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary text-on-surface"
+                               @bind="CustomerName" />
+                    </div>
+                </div>
+
+                <!-- Points info -->
+                <div class="p-3 bg-primary/5 rounded-xl flex items-start gap-2 text-xs text-on-surface-variant">
+                    <span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">stars</span>
+                    <span>Mỗi <strong>10.000đ</strong> hóa đơn = <strong>1 điểm</strong> tích lũy. Điểm được cộng tự động sau khi thanh toán.</span>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex gap-2.5 pt-1">
+                    <button class="flex-1 py-3 border border-outline-variant rounded-2xl font-bold text-sm text-on-surface-variant hover:bg-surface-low transition-colors"
+                            disabled="@IsSubmitting"
+                            @onclick="HandleSkip">
+                        Bỏ qua
+                    </button>
+                    <button class="flex-1 py-3 bg-primary text-on-primary rounded-2xl font-bold text-sm shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                            disabled="@IsSubmitting"
+                            @onclick="HandleConfirm">
+                        @if (IsSubmitting)
+                        {
+                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        }
+                        else
+                        {
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                        }
+                        <span>@(IsSubmitting ? "Đang gửi..." : "Xác nhận")</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    @@keyframes slideUp {
+        from { transform: translateY(40px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+    }
+</style>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public bool IsSubmitting { get; set; }
+    /// <summary>Confirmed: (CustomerName, PhoneNumber)</summary>
+    [Parameter] public EventCallback<(string CustomerName, string PhoneNumber)> OnConfirm { get; set; }
+    /// <summary>User chose to skip loyalty — submit without customer info</summary>
+    [Parameter] public EventCallback OnSkip { get; set; }
+
+    private string CustomerName { get; set; } = string.Empty;
+    private string PhoneNumber { get; set; } = string.Empty;
+    private string PhoneError { get; set; } = string.Empty;
+
+    private async Task Close()
+    {
+        PhoneError = string.Empty;
+        PhoneNumber = string.Empty;
+        CustomerName = string.Empty;
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private async Task HandleSkip()
+    {
+        await Close();
+        await OnSkip.InvokeAsync();
+    }
+
+    private async Task HandleConfirm()
+    {
+        PhoneError = string.Empty;
+        var clean = PhoneNumber.Trim().Replace(" ", "");
+
+        if (string.IsNullOrWhiteSpace(clean))
+        {
+            PhoneError = "Vui lòng nhập số điện thoại.";
+            return;
+        }
+        if (clean.Length < 9 || clean.Length > 12 || !clean.All(char.IsDigit))
+        {
+            PhoneError = "Số điện thoại phải từ 9–12 chữ số.";
+            return;
+        }
+
+        await OnConfirm.InvokeAsync((CustomerName.Trim(), clean));
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await HandleConfirm();
+    }
+}
