@@ -20,6 +20,11 @@ public partial class MenuItemCard
         {
             if (string.IsNullOrEmpty(Item?.Name)) return string.Empty;
             var name = Item.Name.Trim();
+            // Loyalty reward items keep full descriptive name
+            if (Item.PointsCost > 0 || Item.IsRewardItem)
+            {
+                return name;
+            }
             if (name.StartsWith("Pizza ", StringComparison.OrdinalIgnoreCase))
             {
                 return name.Substring(6).Trim();

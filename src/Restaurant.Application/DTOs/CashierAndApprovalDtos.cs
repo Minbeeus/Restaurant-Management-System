@@ -179,3 +179,47 @@ public class StoreSalesSummaryDto
     public decimal TransferSales { get; set; }
     public decimal OtherSales { get; set; }
 }
+
+public class ShiftReconciliationDetailDto
+{
+    public int ShiftId { get; set; }
+    public string StaffName { get; set; } = string.Empty;
+    public string? RegisterName { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime? EndTime { get; set; }
+    public int Status { get; set; } // 0 = Open, 1 = Closed
+    public string StatusName { get; set; } = string.Empty;
+    public decimal OpeningBalance { get; set; }
+    public decimal ExpectedCash { get; set; }
+    public decimal ActualCash { get; set; }
+    public decimal Difference { get; set; }
+    public string? Note { get; set; }
+
+    public decimal CashSales { get; set; }
+    public decimal TransferSales { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public int TotalCashOrders { get; set; }
+    public int TotalTransferOrders { get; set; }
+
+    public decimal TotalTillIn { get; set; }
+    public decimal TotalTillOut { get; set; }
+    public decimal TotalRefunds { get; set; }
+
+    public List<ReconciliationOrderDto> Orders { get; set; } = new();
+    public List<PaymentReconciliationItemDto> ReconciliationItems { get; set; } = new();
+    public StoreSalesSummaryDto SalesSummary { get; set; } = new();
+}
+
+public class ReconciliationOrderDto
+{
+    public int OrderId { get; set; }
+    public string OrderCode { get; set; } = string.Empty;
+    public string TableName { get; set; } = string.Empty;
+    public string OrderType { get; set; } = "Tại Bàn";
+    public DateTime CreatedAt { get; set; }
+    public decimal SubTotal { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string PaymentMethodName { get; set; } = "Tiền Mặt";
+    public string StatusName { get; set; } = "Đã thanh toán";
+}

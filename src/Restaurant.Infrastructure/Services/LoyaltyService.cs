@@ -35,6 +35,7 @@ public class LoyaltyService : ILoyaltyService
             FullName = customer.FullName,
             TierId = customer.TierId,
             TierName = customer.Tier?.Name ?? "Standard",
+            DiscountPercent = customer.Tier?.DiscountPercent ?? 0m,
             TotalPoints = customer.TotalPoints,
             AvailablePoints = customer.AvailablePoints
         };
@@ -56,6 +57,7 @@ public class LoyaltyService : ILoyaltyService
             FullName = c.FullName,
             TierId = c.TierId,
             TierName = c.Tier?.Name ?? "Standard",
+            DiscountPercent = c.Tier?.DiscountPercent ?? 0m,
             TotalPoints = c.TotalPoints,
             AvailablePoints = c.AvailablePoints
         }).ToList();
@@ -64,6 +66,7 @@ public class LoyaltyService : ILoyaltyService
     public async Task<CustomerDto> CreateCustomerAsync(CreateCustomerRequest request)
     {
         var existing = await _context.Customers
+            .Include(c => c.Tier)
             .FirstOrDefaultAsync(c => c.PhoneNumber == request.PhoneNumber);
 
         if (existing != null)
@@ -74,7 +77,8 @@ public class LoyaltyService : ILoyaltyService
                 PhoneNumber = existing.PhoneNumber,
                 FullName = existing.FullName,
                 TierId = existing.TierId,
-                TierName = "Standard",
+                TierName = existing.Tier?.Name ?? "Standard",
+                DiscountPercent = existing.Tier?.DiscountPercent ?? 0m,
                 TotalPoints = existing.TotalPoints,
                 AvailablePoints = existing.AvailablePoints
             };
@@ -103,6 +107,7 @@ public class LoyaltyService : ILoyaltyService
             FullName = customer.FullName,
             TierId = customer.TierId,
             TierName = defaultTier.Name,
+            DiscountPercent = defaultTier.DiscountPercent,
             TotalPoints = 0,
             AvailablePoints = 0
         };

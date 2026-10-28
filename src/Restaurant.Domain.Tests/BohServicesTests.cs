@@ -123,4 +123,47 @@ public class BohServicesTests
         Assert.NotNull(qrImage);
         Assert.NotEmpty(qrImage);
     }
+
+    [Fact]
+    public async Task InventoryService_GetMaterialsBySupplier_ShouldFilterBySupplierCategory()
+    {
+        // Arrange
+        var uom = new UnitOfMeasure { Name = "Kilogram", Abbreviation = "Kg" };
+        await _context.UnitOfMeasures.AddAsync(uom);
+        await _context.SaveChangesAsync();
+
+        var materials = new List<Material>
+        {
+            new Material { UnitOfMeasureId = uom.Id, Name = "Phô mai Mozzarella khối", CostPerUnit = 220000, IsActive = true },
+            new Material { UnitOfMeasureId = uom.Id, Name = "Sữa tươi tiệt trùng", CostPerUnit = 32000, IsActive = true },
+            new Material { UnitOfMeasureId = uom.Id, Name = "Bắp ngọt hạt", CostPerUnit = 35000, IsActive = true },
+            new Material { UnitOfMeasureId = uom.Id, Name = "Bột Matcha Nhật Bản", CostPerUnit = 450000, IsActive = true },
+            new Material { UnitOfMeasureId = uom.Id, Name = "Cánh gà tươi", CostPerUnit = 110000, IsActive = true },
+            new Material { UnitOfMeasureId = uom.Id, Name = "Bột mì Pizza Tipo 00", CostPerUnit = 28000, IsActive = true }
+        };
+        await _context.Materials.AddRangeAsync(materials);
+
+        var anchorSupplier = new Supplier { Name = "Công ty CP Sữa & Phô Mai Anchor Việt Nam", IsActive = true };
+        var dalatSupplier = new Supplier { Name = "Nông sản Sạch Đà Lạt", IsActive = true };
+        await _context.Suppliers.AddRangeAsync(anchorSupplier, dalatSupplier);
+        await _context.SaveChangesAsync();
+
+        var inventoryService = new InventoryService(_context, null!);
+
+        // Act
+        var anchorItems = await inventoryService.GetMaterialsBySupplierIdAsync(anchorSupplier.Id);
+        var dalatItems = await inventoryService.GetMaterialsBySupplierIdAsync(dalatSupplier.Id);
+
+        // Assert - Anchor should ONLY return cheese & dairy items
+        Assert.Contains(anchorItems, m => m.Name.Contains("Phô mai Mozzarella"));
+        Assert.Contains(anchorItems, m => m.Name.Contains("Sữa tươi"));
+        Assert.DoesNotContain(anchorItems, m => m.Name.Contains("Bắp ngọt"));
+        Assert.DoesNotContain(anchorItems, m => m.Name.Contains("Bột Matcha"));
+        Assert.DoesNotContain(anchorItems, m => m.Name.Contains("Cánh gà"));
+
+        // Assert - Da Lat should return vegetables/fruits
+        Assert.Contains(dalatItems, m => m.Name.Contains("Bắp ngọt"));
+        Assert.DoesNotContain(dalatItems, m => m.Name.Contains("Phô mai"));
+        Assert.DoesNotContain(dalatItems, m => m.Name.Contains("Cánh gà"));
+    }
 }

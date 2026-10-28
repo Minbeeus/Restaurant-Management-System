@@ -17,6 +17,7 @@ public class PaymentsController : ControllerBase
     }
 
     [HttpPost("generate-vietqr")]
+    [HttpPost("vietqr")]
     [Authorize]
     public async Task<IActionResult> GenerateVietQr([FromBody] GenerateVietQrRequest request)
     {

@@ -133,11 +133,11 @@ public class ShiftsController : ControllerBase
 
         try
         {
-            var report = await _shiftService.CloseShiftAsync(userId, request);
+            var result = await _shiftService.CloseShiftAsync(userId, request);
             return Ok(new
             {
                 success = true,
-                data = report,
+                data = result,
                 error = (object?)null,
                 timestamp = DateTime.UtcNow
             });

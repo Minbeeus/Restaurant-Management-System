@@ -24,7 +24,9 @@ builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
     }
     else
     {
-        options.UseSqlServer(connStr).AddInterceptors(interceptor);
+        options.UseSqlServer(connStr)
+               .AddInterceptors(interceptor)
+               .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     }
 });
 
@@ -53,6 +55,7 @@ builder.Services.AddScoped<ICashMovementService, CashMovementService>();
 builder.Services.AddScoped<IBillViewerService, BillViewerService>();
 builder.Services.AddScoped<IReconciliationService, ReconciliationService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IPosPolicyService, PosPolicyService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IRestaurantNotificationService, RestaurantNotificationService>();

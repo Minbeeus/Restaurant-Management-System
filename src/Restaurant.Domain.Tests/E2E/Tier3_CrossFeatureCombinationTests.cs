@@ -272,11 +272,11 @@ public class Tier3_CrossFeatureCombinationTests
             CustomerId = ctx.Customer1.Id
         });
 
-        // Customer gains: 355,000 / 10,000 = 35 points
-        // Final available points: 200 (initial) - 100 (redeemed) + 35 (gained) = 135 points
+        // Customer gains from subtotal before discount: 360,000 / 10,000 = 36 points
+        // Final available points: 200 (initial) - 100 (redeemed) + 36 (gained) = 136 points
         var customerAfter = await ctx.Db.Customers.FindAsync(ctx.Customer1.Id);
         Assert.NotNull(customerAfter);
-        Assert.Equal(135, customerAfter.AvailablePoints);
+        Assert.Equal(136, customerAfter.AvailablePoints);
     }
 
     [Fact]

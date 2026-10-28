@@ -8,6 +8,13 @@ namespace Restaurant.Domain.Tests;
 
 public class TableFloorplanSeederTests
 {
+    private readonly Xunit.Abstractions.ITestOutputHelper _output;
+
+    public TableFloorplanSeederTests(Xunit.Abstractions.ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     private ApplicationDbContext GetDbContext(string dbName)
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -213,6 +220,10 @@ public class TableFloorplanSeederTests
         Assert.Equal(4, activeAreas.Count);
 
         var activeTables = await context.Tables.Where(t => t.IsActive).ToListAsync();
+        foreach (var t in activeTables.OrderBy(x => x.Name))
+        {
+            _output.WriteLine($"DB TABLE: {t.Name} | AreaId={t.AreaId} | X={t.PositionX}, Y={t.PositionY}, W={t.Width}, H={t.Height}");
+        }
         Assert.Equal(34, activeTables.Count);
         Assert.Equal(76, activeTables.Sum(t => t.Capacity));
 

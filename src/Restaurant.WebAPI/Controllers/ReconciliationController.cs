@@ -35,6 +35,20 @@ public class ReconciliationController : ControllerBase
         }
     }
 
+    [HttpGet("details/{shiftId}")]
+    public async Task<IActionResult> GetShiftReconciliationDetails(int shiftId)
+    {
+        try
+        {
+            var data = await _reconciliationService.GetShiftDetailForReconciliationAsync(shiftId);
+            return Ok(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpPost("save")]
     public async Task<IActionResult> SaveShiftReconciliation([FromBody] SaveReconciliationRequest request)
     {
@@ -56,13 +70,13 @@ public class ReconciliationController : ControllerBase
     }
 
     [HttpGet("sales-summary")]
-    public async Task<IActionResult> GetStoreSalesSummary([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+    public async Task<IActionResult> GetStoreSalesSummary([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int? shiftId)
     {
         try
         {
-            var start = fromDate ?? DateTime.Today;
-            var end = toDate ?? DateTime.Today.AddDays(1).AddTicks(-1);
-            var data = await _reconciliationService.GetStoreSalesSummaryAsync(start, end);
+            var start = fromDate ?? (shiftId == null ? DateTime.Today : null);
+            var end = toDate ?? (shiftId == null ? DateTime.Today.AddDays(1).AddTicks(-1) : null);
+            var data = await _reconciliationService.GetStoreSalesSummaryAsync(start, end, shiftId);
             return Ok(new { success = true, data });
         }
         catch (Exception ex)

@@ -67,12 +67,18 @@ public class PaymentService : IPaymentService
             : (_configuration["SePay:AccountHolder"] ?? "VAN CONG MINH");
 
         var amountStr = order.TotalAmount.ToString("0");
+        var encodedHolder = Uri.EscapeDataString(accountHolder);
 
-        // Official SePay dynamic QR image URL with TPBank, account number, amount, and content
+        // VietQR URLs:
+        // 1. Dynamic VietQR with amount and memo (VietQR official standard image)
+        var vietQrDynamicUrl = $"https://img.vietqr.io/image/{bankName}-{bankAccount}-compact2.png?amount={amountStr}&addInfo={sepayContent}&accountName={encodedHolder}";
+        // 2. Pure static account VietQR (without amount/memo - static counter account QR)
+        var vietQrStaticUrl = $"https://img.vietqr.io/image/{bankName}-{bankAccount}-compact2.png?accountName={encodedHolder}";
+        // 3. Official SePay QR image URL fallback
         var sepayQrUrl = $"https://qr.sepay.vn/img?acc={bankAccount}&bank={bankName}&amount={amountStr}&des={sepayContent}&template=compact";
 
-        // Generate base64 fallback QR image using the direct SePay transfer URL
-        var qrBytes = _qrCodeService.GenerateQrCodeImage(sepayQrUrl);
+        // Generate base64 fallback QR image using the dynamic VietQR URL
+        var qrBytes = _qrCodeService.GenerateQrCodeImage(vietQrDynamicUrl);
         var qrBase64 = Convert.ToBase64String(qrBytes);
         var qrImageUrl = $"data:image/png;base64,{qrBase64}";
 
@@ -83,7 +89,8 @@ public class PaymentService : IPaymentService
             Amount = order.TotalAmount,
             SepayContent = sepayContent,
             QrImageUrl = qrImageUrl,
-            SepayQrUrl = sepayQrUrl,
+            SepayQrUrl = vietQrDynamicUrl,
+            StaticQrUrl = vietQrStaticUrl,
             BankAccountNo = bankAccount,
             BankName = bankName,
             AccountHolder = accountHolder
@@ -226,10 +233,10 @@ public class PaymentService : IPaymentService
             existingLog.IsProcessed = true;
             await _context.SaveChangesAsync();
 
-            // Accumulate Loyalty Points if Customer exists
+            // Accumulate Loyalty Points if Customer exists (Tích điểm theo giá trị đơn trước khi khấu trừ giảm giá thành viên và voucher)
             if (order.CustomerId.HasValue)
             {
-                await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, payload.transferAmount);
+                await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, order.SubTotal);
             }
 
             // OrderPaidDomainEvent removed (BOM Inventory Deduction is now handled by Kitchen Item Done event)
@@ -310,6 +317,73 @@ public class PaymentService : IPaymentService
                 throw new InvalidOperationException("Không thể thanh toán đơn hàng đã bị hủy.");
             }
 
+            if (request.CustomerId.HasValue)
+            {
+                order.CustomerId = request.CustomerId.Value;
+            }
+
+            // Apply member tier discount (món lẻ, không áp dụng cho combo)
+            if (order.CustomerId.HasValue)
+            {
+                var customer = await _context.Customers
+                    .Include(c => c.Tier)
+                    .FirstOrDefaultAsync(c => c.Id == order.CustomerId.Value);
+
+                if (customer?.Tier != null && customer.Tier.DiscountPercent > 0)
+                {
+                    // Filter single items only (ParentItemId == null, ComboGroupId == null, UnitPrice > 0)
+                    var eligibleAmount = order.OrderItems
+                        .Where(oi => oi.ParentItemId == null && !oi.ComboGroupId.HasValue && oi.UnitPrice > 0)
+                        .Sum(oi => oi.UnitPrice * oi.Quantity);
+
+                    var memberDiscount = Math.Round(eligibleAmount * (customer.Tier.DiscountPercent / 100m));
+                    if (memberDiscount > 0 && order.DiscountAmount < memberDiscount)
+                    {
+                        order.DiscountAmount = memberDiscount;
+                        order.TotalAmount = Math.Max(0, order.SubTotal - order.DiscountAmount);
+                    }
+                }
+            }
+
+            // Check redemption dishes (Price == 0) and deduct points if not already deducted
+            if (order.CustomerId.HasValue)
+            {
+                var redemptionItems = order.OrderItems
+                    .Where(oi => oi.UnitPrice == 0 && oi.MenuItemName.Contains("Đổi"))
+                    .ToList();
+
+                if (redemptionItems.Any())
+                {
+                    int totalPointsToDeduct = 0;
+                    foreach (var rItem in redemptionItems)
+                    {
+                        var match = System.Text.RegularExpressions.Regex.Match(rItem.MenuItemName, @"(?:Đổi\s*)?(\d+)\s*điểm", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        int pts = match.Success && int.TryParse(match.Groups[1].Value, out int p) ? p : 100;
+                        totalPointsToDeduct += pts * rItem.Quantity;
+                    }
+
+                    if (totalPointsToDeduct > order.LoyaltyPointsUsed)
+                    {
+                        var diff = totalPointsToDeduct - order.LoyaltyPointsUsed;
+                        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == order.CustomerId.Value);
+                        if (customer != null)
+                        {
+                            customer.AvailablePoints = Math.Max(0, customer.AvailablePoints - diff);
+                            order.LoyaltyPointsUsed = totalPointsToDeduct;
+                            _context.LoyaltyTransactions.Add(new LoyaltyTransaction
+                            {
+                                CustomerId = customer.Id,
+                                OrderId = order.Id,
+                                Type = (int)LoyaltyTransactionType.Redeem,
+                                Points = -diff,
+                                Description = $"Đổi {diff} điểm nhận món ăn trên đơn {order.OrderCode}",
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
+            }
+
             // POS-005 Strict Amount Validation
             if (request.CashReceived < order.TotalAmount)
             {
@@ -321,6 +395,10 @@ public class PaymentService : IPaymentService
             var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open)
                              ?? await _context.Shifts.FirstOrDefaultAsync();
 
+            var paymentMethod = request.PaymentMethod == (int)PaymentMethod.BankTransfer
+                ? (int)PaymentMethod.BankTransfer
+                : (int)PaymentMethod.Cash;
+
             var payment = new Payment
             {
                 OrderId = order.Id,
@@ -329,7 +407,7 @@ public class PaymentService : IPaymentService
                 CashReceived = request.CashReceived,
                 ChangeAmount = changeAmount,
                 IdempotencyKey = request.IdempotencyKey,
-                PaymentMethod = (int)PaymentMethod.Cash,
+                PaymentMethod = paymentMethod,
                 Status = (int)PaymentStatus.Paid,
                 CompletedAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
@@ -354,18 +432,21 @@ public class PaymentService : IPaymentService
 
             await _context.SaveChangesAsync();
 
-            await _auditService.LogAsync(order.CreatedByUserId, "Payment.CashCompleted", "Payment", payment.Id.ToString(), $"Thanh toán tiền mặt thành công đơn {order.OrderCode} số tiền {order.TotalAmount:N0}đ", activeShift?.RegisterId, activeShift?.Id);
+            var actionName = paymentMethod == (int)PaymentMethod.BankTransfer ? "Payment.TransferCompleted" : "Payment.CashCompleted";
+            var actionDesc = paymentMethod == (int)PaymentMethod.BankTransfer ? "chuyển khoản VietQR" : "tiền mặt";
+            await _auditService.LogAsync(order.CreatedByUserId, actionName, "Payment", payment.Id.ToString(), $"Thanh toán {actionDesc} thành công đơn {order.OrderCode} số tiền {order.TotalAmount:N0}đ", activeShift?.RegisterId, activeShift?.Id);
 
-            // Loyalty Points Accumulation
+            // Loyalty Points Accumulation (Tích điểm theo giá trị đơn trước khi khấu trừ giảm giá thành viên và voucher)
             if (order.CustomerId.HasValue)
             {
-                await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, order.TotalAmount);
+                await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, order.SubTotal);
             }
 
             await dbTransaction.CommitAsync();
 
             // Realtime SignalR Notification
-            await _notificationService.NotifyPaymentCompletedAsync(order.Id, order.OrderCode, order.TotalAmount, "Tiền mặt");
+            var methodTitle = paymentMethod == (int)PaymentMethod.BankTransfer ? "Chuyển khoản VietQR" : "Tiền mặt";
+            await _notificationService.NotifyPaymentCompletedAsync(order.Id, order.OrderCode, order.TotalAmount, methodTitle);
             if (order.TableId.HasValue)
             {
                 await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Paid) ?? "Paid");

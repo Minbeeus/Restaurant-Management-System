@@ -111,10 +111,10 @@ public class BillViewerService : IBillViewerService
 
         return new K80ReceiptDto
         {
-            RestaurantName = "NHÀ HÀNG MINBEEUS",
+            RestaurantName = "NHÀ HÀNG PIZZA CONNER",
             RestaurantAddress = "123 Nguyễn Văn Linh, Q.7, TP.HCM",
             RestaurantPhone = "0901.234.567",
-            WifiInfo = "Wifi: Minbeeus_Guest / Pass: 88888888",
+            WifiInfo = "Wifi: PizzaConner_Guest / Pass: 88888888",
             ReceiptTitle = receiptTitle,
 
             OrderId = bill.OrderId,

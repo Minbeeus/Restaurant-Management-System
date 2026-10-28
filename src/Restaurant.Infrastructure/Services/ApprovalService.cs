@@ -391,6 +391,10 @@ public class ApprovalService : IApprovalService
                                 item.Status = (int)OrderItemStatus.Voided;
                             }
                         }
+
+                        var explanation = !string.IsNullOrWhiteSpace(req.ApprovalNote) ? req.ApprovalNote : req.Reason;
+                        var cancelText = $"[HỦY ĐƠN]: {explanation}";
+                        order.Note = string.IsNullOrEmpty(order.Note) ? cancelText : $"{order.Note} | {cancelText}";
                     }
                 }
                 break;

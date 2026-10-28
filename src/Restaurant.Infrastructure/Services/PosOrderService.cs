@@ -500,6 +500,19 @@ public class PosOrderService : IPosOrderService
             decimal addedSubTotal = 0;
             decimal addedDiscount = 0;
             var newItemsForKitchen = new List<OrderItem>();
+
+            // Check customer tier discount if customer is attached
+            decimal customerTierDiscountPercent = 0;
+            if (targetOrder.CustomerId.HasValue)
+            {
+                var cust = await _context.Customers
+                    .Include(c => c.Tier)
+                    .FirstOrDefaultAsync(c => c.Id == targetOrder.CustomerId.Value);
+                if (cust?.Tier != null)
+                {
+                    customerTierDiscountPercent = cust.Tier.DiscountPercent;
+                }
+            }
             
             foreach (var itemReq in request.Items)
             {
@@ -536,8 +549,47 @@ public class PosOrderService : IPosOrderService
                 {
                     itemDiscount = Math.Max(0, baseUnitPrice - itemReq.CustomUnitPrice.Value);
                 }
+                else if (!menuItem.IsCombo && customerTierDiscountPercent > 0 && baseUnitPrice > 0)
+                {
+                    // Member discount: single dishes only (no combo)
+                    itemDiscount = Math.Round(baseUnitPrice * (customerTierDiscountPercent / 100m));
+                }
 
                 decimal finalUnitPrice = Math.Max(0, baseUnitPrice - itemDiscount);
+
+                // If redemption item (0 VND), deduct loyalty points and log transaction
+                if (baseUnitPrice == 0 && targetOrder.CustomerId.HasValue)
+                {
+                    int ptsCost = 0;
+                    var match = System.Text.RegularExpressions.Regex.Match(menuItem.Name + " " + (menuItem.Description ?? ""), @"(?:Đổi\s*)?(\d+)\s*điểm", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int pts))
+                    {
+                        ptsCost = pts * itemReq.Quantity;
+                    }
+                    else
+                    {
+                        ptsCost = 100 * itemReq.Quantity;
+                    }
+
+                    if (ptsCost > 0)
+                    {
+                        var cust = await _context.Customers.FirstOrDefaultAsync(c => c.Id == targetOrder.CustomerId.Value);
+                        if (cust != null)
+                        {
+                            cust.AvailablePoints = Math.Max(0, cust.AvailablePoints - ptsCost);
+                            targetOrder.LoyaltyPointsUsed += ptsCost;
+                            _context.LoyaltyTransactions.Add(new LoyaltyTransaction
+                            {
+                                CustomerId = cust.Id,
+                                OrderId = targetOrder.Id,
+                                Type = (int)LoyaltyTransactionType.Redeem,
+                                Points = -ptsCost,
+                                Description = $"Đổi {ptsCost} điểm nhận {itemReq.Quantity}x {menuItem.Name}",
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
 
                 // Step 1: Create Combo Header (or standard item)
                 var orderItem = new OrderItem
@@ -878,6 +930,7 @@ public class PosOrderService : IPosOrderService
         {
             OrderId = o.Id,
             OrderCode = string.IsNullOrEmpty(o.OrderCode) ? $"#TAK-{o.Id}" : o.OrderCode,
+            CustomerId = o.CustomerId,
             CustomerName = o.Customer?.FullName ?? "Khách mang về",
             CustomerPhone = o.Customer?.PhoneNumber ?? string.Empty,
             CreatedAt = o.CreatedAt,

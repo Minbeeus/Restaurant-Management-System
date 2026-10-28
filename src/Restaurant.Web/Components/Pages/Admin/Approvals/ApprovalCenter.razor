@@ -94,7 +94,7 @@
                                 <span class="font-bold text-on-surface">@req.RequestedByUserName</span>
                             </div>
                             <div class="pt-1">
-                                <span class="text-on-surface-variant font-medium">Lý do:</span>
+                                <span class="text-on-surface-variant font-medium">Lý do yêu cầu:</span>
                                 <p class="font-semibold text-on-surface bg-surface-high p-2 rounded-lg mt-1 text-[11px]">@req.Reason</p>
                             </div>
                             @if (!string.IsNullOrEmpty(req.Note))
@@ -102,6 +102,34 @@
                                 <div class="text-[11px] text-on-surface-variant italic">Ghi chú: @req.Note</div>
                             }
                         </div>
+
+                        @if (req.Status == 0) // Pending
+                        {
+                            <!-- Textfield: Lý do giải trình việc huỷ đơn -->
+                            <div class="mt-3 pt-2.5 border-t border-outline-variant/60">
+                                <label class="block text-[11px] font-bold text-on-surface mb-1 flex items-center justify-between">
+                                    <span class="flex items-center gap-1.5 text-primary">
+                                        <span class="material-symbols-outlined text-base">edit_note</span>
+                                        <span>Lý do giải trình hủy đơn / Ghi chú duyệt:</span>
+                                    </span>
+                                </label>
+                                <textarea class="w-full px-3 py-2 text-xs border border-outline-variant rounded-xl bg-surface-high/60 focus:bg-surface focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/50 transition-all resize-none"
+                                          rows="2"
+                                          placeholder="Nhập lý do giải trình việc huỷ đơn..."
+                                          value="@GetExplanationNote(req.Id)"
+                                          @oninput="(e) => SetExplanationNote(req.Id, e.Value?.ToString() ?? string.Empty)"></textarea>
+                            </div>
+                        }
+                        else if (!string.IsNullOrEmpty(req.ApprovalNote))
+                        {
+                            <div class="mt-3 p-2.5 bg-primary/5 rounded-xl border border-primary/20 text-xs">
+                                <div class="font-bold text-primary flex items-center gap-1 text-[11px] mb-0.5">
+                                    <span class="material-symbols-outlined text-sm">fact_check</span>
+                                    <span>Lý do giải trình của Quản lý:</span>
+                                </div>
+                                <p class="text-on-surface font-medium text-[11px] m-0">@req.ApprovalNote</p>
+                            </div>
+                        }
                     </div>
 
                     <!-- Footer Actions -->
@@ -141,6 +169,13 @@
     protected List<ApprovalRequestDto> DisplayedRequests => ActiveFilter == "Pending" ? PendingRequests : HistoryRequests;
 
     protected string? ErrorMessage { get; set; }
+    private Dictionary<int, string> _explanationNotes = new();
+
+    private string GetExplanationNote(int reqId) =>
+        _explanationNotes.TryGetValue(reqId, out var val) ? val : string.Empty;
+
+    private void SetExplanationNote(int reqId, string val) =>
+        _explanationNotes[reqId] = val;
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,10 +210,13 @@
         ErrorMessage = null;
         try
         {
-            var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = "Đã duyệt bởi Quản lý" };
+            var note = GetExplanationNote(requestId);
+            var approvalNote = !string.IsNullOrWhiteSpace(note) ? note.Trim() : "Đã duyệt bởi Quản lý";
+            var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = approvalNote };
             var res = await Http.PostAsJsonAsync($"api/v1/approvals/{requestId}/approve", req);
             if (res.IsSuccessStatusCode)
             {
+                _explanationNotes.Remove(requestId);
                 await LoadRequestsAsync();
             }
             else
@@ -198,10 +236,13 @@
         ErrorMessage = null;
         try
         {
-            var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = "Từ chối bởi Quản lý" };
+            var note = GetExplanationNote(requestId);
+            var rejectionNote = !string.IsNullOrWhiteSpace(note) ? note.Trim() : "Từ chối bởi Quản lý";
+            var req = new ProcessApprovalRequestDto { ApprovalRequestId = requestId, ApprovalNote = rejectionNote };
             var res = await Http.PostAsJsonAsync($"api/v1/approvals/{requestId}/reject", req);
             if (res.IsSuccessStatusCode)
             {
+                _explanationNotes.Remove(requestId);
                 await LoadRequestsAsync();
             }
             else

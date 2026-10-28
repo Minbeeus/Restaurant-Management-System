@@ -49,9 +49,9 @@
                         <div class="flex items-center bg-surface-high p-1 border border-outline-variant rounded-xl text-xs font-bold gap-1">
                             <button class="px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 @(ShowFloorplanBackground ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
                                     @onclick="() => ShowFloorplanBackground = !ShowFloorplanBackground"
-                                    title="Bật/Tắt hiển thị sơ đồ mặt bằng quán">
+                                    title="Bật/Tắt hiển thị bản vẽ kiến trúc mặt bằng quán">
                                 <span class="material-symbols-outlined text-[16px]">layers</span>
-                                <span>Mặt Bằng</span>
+                                <span>Ảnh Bản Vẽ</span>
                             </button>
 
                             <label class="px-2 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface/80"
@@ -73,12 +73,14 @@
 
                     <div class="flex items-center bg-surface-high p-1 border border-outline-variant rounded-xl text-xs font-bold">
                         <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Canvas" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
-                                @onclick='() => ViewMode = "Canvas"'>
+                                @onclick='() => ViewMode = "Canvas"'
+                                title="Xem trực quan theo vị trí sơ đồ bàn">
                             <span class="material-symbols-outlined text-[16px]">dashboard</span>
-                            <span>Sơ Đồ Mặt Bằng</span>
+                            <span>Sơ Đồ Bàn</span>
                         </button>
                         <button class="px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 @(ViewMode == "Grid" ? "bg-primary text-on-primary shadow-xs" : "text-on-surface-variant hover:text-on-surface")"
-                                @onclick='() => ViewMode = "Grid"'>
+                                @onclick='() => ViewMode = "Grid"'
+                                title="Xem danh sách bàn dạng thẻ lưới">
                             <span class="material-symbols-outlined text-[16px]">grid_view</span>
                             <span>Dạng Lưới</span>
                         </button>
@@ -483,14 +485,17 @@
 
     private static readonly Dictionary<string, (double X, double Y, double W, double H)> StandardTablePositions = new()
     {
-        ["A01"] = (380, 135, 75, 55),
-        ["A02"] = (490, 135, 75, 55),
-        ["A03"] = (600, 135, 75, 55),
-        ["A04"] = (710, 135, 75, 55),
-        ["A05"] = (380, 215, 75, 55),
-        ["A06"] = (490, 215, 75, 55),
-        ["A07"] = (600, 215, 75, 55),
-        ["A08"] = (710, 215, 75, 55),
+        // === KHU A: Sảnh Chính (8 bàn đôi, capacity 2) ===
+        ["A01"] = (390, 135, 65, 65),
+        ["A02"] = (495, 135, 65, 65),
+        ["A03"] = (600, 135, 65, 65),
+        ["A04"] = (705, 135, 65, 65),
+        ["A05"] = (390, 225, 65, 65),
+        ["A06"] = (495, 225, 65, 65),
+        ["A07"] = (600, 225, 65, 65),
+        ["A08"] = (705, 225, 65, 65),
+
+        // === KHU B: Phòng Trung Tâm (8 bàn đôi, capacity 2) ===
         ["B01"] = (410, 375, 65, 65),
         ["B02"] = (495, 375, 65, 65),
         ["B03"] = (580, 375, 65, 65),
@@ -499,6 +504,8 @@
         ["B06"] = (495, 445, 65, 65),
         ["B07"] = (580, 445, 65, 65),
         ["B08"] = (665, 445, 65, 65),
+
+        // === KHU C: View Cửa Sổ (7 bàn đôi, capacity 2) ===
         ["C01"] = (930, 320, 60, 60),
         ["C02"] = (1040, 320, 60, 60),
         ["C03"] = (900, 390, 60, 60),
@@ -506,6 +513,8 @@
         ["C05"] = (1070, 390, 60, 60),
         ["C06"] = (930, 455, 60, 60),
         ["C07"] = (1040, 455, 60, 60),
+
+        // === KHU D: Hiên Ngoài Trời / Sân Vườn (11 bàn) ===
         ["D08"] = (135, 565, 80, 55),
         ["D09"] = (225, 565, 80, 55),
         ["D01"] = (315, 565, 55, 55),
@@ -526,7 +535,13 @@
         double baseW = table.Width > 0 ? table.Width : 65.0;
         double baseH = table.Height > 0 ? table.Height : 65.0;
 
-        if ((rawY < 70 || rawX < 90) && StandardTablePositions.TryGetValue(table.TableName, out var std))
+        // Check if table coordinates are out of bounds or misplaced outside its designated architectural zone
+        bool isMisplaced = (rawY < 70 || rawX < 90 || rawX > 1180 || rawY > 660);
+        if (!isMisplaced && table.TableName.StartsWith("B") && rawY < 300) isMisplaced = true;
+        if (!isMisplaced && table.TableName.StartsWith("C") && (rawY < 270 || rawX < 850)) isMisplaced = true;
+        if (!isMisplaced && table.TableName.StartsWith("D") && rawY < 500) isMisplaced = true;
+
+        if (isMisplaced && StandardTablePositions.TryGetValue(table.TableName, out var std))
         {
             rawX = std.X;
             rawY = std.Y;
@@ -534,12 +549,7 @@
             baseH = std.H;
         }
 
-        var width = (int)(baseW * 1.25);
-        var height = (int)(baseH * 1.25);
-        var posX = rawX - (width - baseW) / 2.0;
-        var posY = rawY - (height - baseH) / 2.0;
-
-        return (posX, posY, width, height);
+        return (rawX, rawY, baseW, baseH);
     }
 
     private async Task HandleCustomFloorplanUpload(InputFileChangeEventArgs e)
@@ -695,7 +705,6 @@
             var response = await Http.PostAsync($"api/v1/pos/orders/{SelectedTable.CurrentOrderId.Value}/print-temp-bill", null);
             if (response.IsSuccessStatusCode)
             {
-                _ = ShowToastAsync("Đã in tạm tính và chuyển bàn sang trạng thái Chờ thanh toán.");
                 await LoadTablesAsync();
                 await ShowReceiptForOrderAsync(SelectedTable.CurrentOrderId.Value);
             }

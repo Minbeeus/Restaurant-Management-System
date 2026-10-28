@@ -102,6 +102,21 @@ public class MenuItemDto
     public bool IsActive { get; set; }
     public int SortOrder { get; set; }
     public List<ModifierGroupDto> ModifierGroups { get; set; } = new();
+
+    public int PointsCost
+    {
+        get
+        {
+            if (Price > 0) return 0;
+            var match = System.Text.RegularExpressions.Regex.Match(Name + " " + (Description ?? ""), @"(?:Đổi\s*)?(\d+)\s*điểm", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int pts))
+            {
+                return pts;
+            }
+            return (CategoryName != null && CategoryName.Contains("Đổi Điểm", System.StringComparison.OrdinalIgnoreCase)) ? 100 : 0;
+        }
+    }
+    public bool IsRewardItem => PointsCost > 0 || (CategoryName != null && CategoryName.Contains("Đổi Điểm", System.StringComparison.OrdinalIgnoreCase));
 }
 
 public class CreateMenuItemRequest

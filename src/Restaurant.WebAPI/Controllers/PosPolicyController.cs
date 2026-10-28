@@ -7,6 +7,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/pos/policy")]
+[Route("api/v1/pos/policy")]
 [Authorize]
 public class PosPolicyController : ControllerBase
 {

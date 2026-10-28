@@ -72,6 +72,7 @@ public partial class PosMain : IAsyncDisposable
     {
         if (string.IsNullOrEmpty(name)) return "restaurant_menu";
         var n = name.ToLowerInvariant();
+        if (n.Contains("đổi điểm") || n.Contains("loyalty") || n.Contains("quà tặng") || n.Contains("reward")) return "stars";
         if (n.Contains("pizza")) return "local_pizza";
         if (n.Contains("melts")) return "bakery_dining";
         if (n.Contains("mì") || n.Contains("pasta") || n.Contains("spaghetti")) return "ramen_dining";
@@ -304,6 +305,18 @@ public partial class PosMain : IAsyncDisposable
                         {
                             var activeOrder = activeOrderResp.Data;
                             CartItems = ReconstructCartItemsFromOrder(activeOrder.Items);
+                            if (SelectedMember == null && !string.IsNullOrEmpty(activeOrder.CustomerPhone))
+                            {
+                                try
+                                {
+                                    SelectedMember = await Http.GetFromJsonAsync<CustomerDto>($"api/v1/customers/by-phone/{activeOrder.CustomerPhone}");
+                                }
+                                catch { }
+                            }
+                            if (activeOrder.DiscountAmount > 0)
+                            {
+                                AppliedDiscountAmount = activeOrder.DiscountAmount;
+                            }
                         }
                     }
                 }
@@ -461,6 +474,48 @@ public partial class PosMain : IAsyncDisposable
 
     protected void HandleMenuItemClicked(MenuItemDto item)
     {
+        // Check if item is a loyalty point redemption item
+        if (item.PointsCost > 0 || item.IsRewardItem)
+        {
+            if (SelectedMember == null)
+            {
+                _ = ShowToastAsync("Vui lòng chọn hoặc tra cứu Thành Viên trước khi chọn món đổi điểm tích lũy!");
+                ShowMemberModal = true;
+                return;
+            }
+
+            int currentUsedPoints = CartItems.Where(i => i.IsRedemption).Sum(i => i.PointsCost * i.Quantity);
+            int requiredPoints = item.PointsCost;
+            if (currentUsedPoints + requiredPoints > SelectedMember.AvailablePoints)
+            {
+                _ = ShowToastAsync($"Thành viên {SelectedMember.FullName} chỉ còn {SelectedMember.AvailablePoints - currentUsedPoints} điểm khả dụng, không đủ {requiredPoints} điểm để đổi món này!");
+                return;
+            }
+
+            var existingRedeem = CartItems.FirstOrDefault(i => i.MenuItemId == item.Id && i.IsRedemption && !i.IsSentToKitchen);
+            if (existingRedeem != null)
+            {
+                existingRedeem.Quantity += 1;
+            }
+            else
+            {
+                CartItems.Add(new OrderCartItemLocal
+                {
+                    MenuItemId = item.Id,
+                    Name = item.Name,
+                    Price = 0m,
+                    Quantity = 1,
+                    IsRedemption = true,
+                    PointsCost = item.PointsCost,
+                    NeedsConfiguration = false,
+                    IsSentToKitchen = false
+                });
+            }
+            _ = ShowToastAsync($"Đã thêm '{item.Name}' (Đổi {item.PointsCost} điểm) vào giỏ hàng!");
+            StateHasChanged();
+            return;
+        }
+
         if (item.IsCombo)
         {
             IsComboBuilderActive = true;
@@ -980,7 +1035,8 @@ public partial class PosMain : IAsyncDisposable
     protected void HandleMemberConfirmed(CustomerDto member)
     {
         SelectedMember = member;
-        _ = ShowToastAsync("Đã xác nhận thành viên " + member.FullName + " (" + member.TierName + ") cho đơn!");
+        _ = ShowToastAsync($"Đã xác nhận thành viên {member.FullName} ({member.TierName}{(member.DiscountPercent > 0 ? $" - Giảm {member.DiscountPercent:G29}% món lẻ" : "")}) cho đơn!");
+        StateHasChanged();
     }
 
     // 2. Action Toolbar: Discount Confirmation
@@ -1038,6 +1094,8 @@ public partial class PosMain : IAsyncDisposable
                 {
                     TableId = parsedTableId,
                     CustomerId = SelectedMember?.Id,
+                    CustomerName = SelectedMember?.FullName,
+                    CustomerPhone = SelectedMember?.PhoneNumber,
                     CustomerNote = IsTakeaway ? "Đơn mang về (POS)" : "Đơn ăn tại bàn (POS)",
                     Items = unsentItems.Select(i => new CartItemValidateRequest
                     {
@@ -1260,6 +1318,8 @@ public partial class PosMain : IAsyncDisposable
         {
             TableId = parsedTableId,
             CustomerId = SelectedMember?.Id,
+            CustomerName = SelectedMember?.FullName,
+            CustomerPhone = SelectedMember?.PhoneNumber,
             CustomerNote = IsTakeaway ? "Đơn mang về (POS)" : "Đơn ăn tại bàn (POS)",
             Items = unsentItems.Select(i => new CartItemValidateRequest
             {
@@ -1406,6 +1466,7 @@ public partial class PosMain : IAsyncDisposable
             // If this item has children, it's a Combo header
             if (childMap.TryGetValue(item.OrderItemId, out var children))
             {
+                cartItem.IsCombo = true;
                 cartItem.SelectedComboItems = children.Select(c => new CartComboItemRequest
                 {
                     ComboItemId = c.ComboGroupId ?? 0,
@@ -1419,6 +1480,19 @@ public partial class PosMain : IAsyncDisposable
                     var extraText = c.UnitPrice > 0 ? $" (+{c.UnitPrice:N0}đ)" : "";
                     return $"{c.Quantity}x {c.MenuItemName}{extraText}";
                 }).ToList();
+            }
+            else
+            {
+                var matched = AllMenuItems.FirstOrDefault(m => m.Id == item.MenuItemId);
+                if (matched != null && matched.IsCombo)
+                {
+                    cartItem.IsCombo = true;
+                }
+                if (item.UnitPrice == 0 && (item.MenuItemName.Contains("Đổi") || (matched != null && matched.IsRewardItem)))
+                {
+                    cartItem.IsRedemption = true;
+                    cartItem.PointsCost = matched?.PointsCost ?? 0;
+                }
             }
 
             reconstructed.Add(cartItem);

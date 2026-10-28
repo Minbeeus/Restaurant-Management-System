@@ -242,9 +242,9 @@ public static class DbInitializer
         // 9. Customers & CustomerTiers
         if (!await context.CustomerTiers.AnyAsync())
         {
-            var tierBronze = new CustomerTier { Name = "Thành viên Bạc", MinPoints = 0, DiscountPercent = 0 };
-            var tierGold = new CustomerTier { Name = "Thành viên Vàng (Gold)", MinPoints = 500, DiscountPercent = 5 };
-            var tierDiamond = new CustomerTier { Name = "Thành viên Kim Cương (Diamond)", MinPoints = 2000, DiscountPercent = 10 };
+            var tierBronze = new CustomerTier { Name = "Thành viên Bạc", MinPoints = 0, DiscountPercent = 5, SortOrder = 1 };
+            var tierGold = new CustomerTier { Name = "Thành viên Vàng (Gold)", MinPoints = 500, DiscountPercent = 10, SortOrder = 2 };
+            var tierDiamond = new CustomerTier { Name = "Thành viên Kim Cương (Diamond)", MinPoints = 2000, DiscountPercent = 15, SortOrder = 3 };
 
             await context.CustomerTiers.AddRangeAsync(tierBronze, tierGold, tierDiamond);
             await context.SaveChangesAsync();
@@ -256,6 +256,18 @@ public static class DbInitializer
                 new Customer { FullName = "Hoàng Minh Trí", PhoneNumber = "0933345678", TierId = tierDiamond.Id, TotalPoints = 3400, AvailablePoints = 1100 }
             };
             await context.Customers.AddRangeAsync(customers);
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            // Ensure customer tier discounts match: Bạc 5%, Vàng 10%, Kim Cương 15%
+            var tiers = await context.CustomerTiers.ToListAsync();
+            foreach (var t in tiers)
+            {
+                if (t.Name.Contains("Bạc") || t.Name.Contains("Silver")) t.DiscountPercent = 5;
+                else if (t.Name.Contains("Vàng") || t.Name.Contains("Gold")) t.DiscountPercent = 10;
+                else if (t.Name.Contains("Kim Cương") || t.Name.Contains("Diamond")) t.DiscountPercent = 15;
+            }
             await context.SaveChangesAsync();
         }
 
@@ -512,6 +524,53 @@ public static class DbInitializer
 
         if (hasChanges)
         {
+            await context.SaveChangesAsync();
+        }
+
+        // 13. Category & Reward MenuItems for Loyalty Point Redemption
+        var loyaltyCat = await context.Categories.FirstOrDefaultAsync(c => c.Name.Contains("Đổi Điểm"));
+        if (loyaltyCat == null)
+        {
+            loyaltyCat = new Category
+            {
+                Name = "Đổi Điểm Thành Viên",
+                NameEn = "Loyalty Rewards",
+                Description = "Đổi điểm tích lũy thành viên lấy món ăn & thức uống miễn phí",
+                DescriptionEn = "Redeem loyalty points for free food and drinks",
+                SortOrder = 18,
+                IsActive = true
+            };
+            context.Categories.Add(loyaltyCat);
+            await context.SaveChangesAsync();
+        }
+
+        if (!await context.MenuItems.AnyAsync(m => m.CategoryId == loyaltyCat.Id))
+        {
+            var stationBar = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "BAR");
+            var stationFryer = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "FRYER");
+            var stationDessert = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "DESSERT");
+            var stationSalad = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "SALAD");
+            var stationGrill = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "GRILL");
+            var stationPasta = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "PASTA");
+            var stationPizza = await context.KitchenStations.FirstOrDefaultAsync(s => s.Code == "PIZZA");
+
+            var rewardItems = new List<MenuItem>
+            {
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationBar?.Id, Name = "Coca-Cola Tươi (Đổi 50 điểm)", NameEn = "Fresh Coca-Cola (50 Points)", Description = "Đổi 50 điểm tích lũy nhận 1 ly Coca-Cola tươi mát lạnh.", DescriptionEn = "Redeem 50 points for 1 glass of fresh Coca-Cola.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 1 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationBar?.Id, Name = "Trà Chanh Sả Hạt Chia (Đổi 70 điểm)", NameEn = "Chia Seed Lemon Tea (70 Points)", Description = "Đổi 70 điểm tích lũy nhận 1 ly Trà chanh sả hạt chia thanh mát.", DescriptionEn = "Redeem 70 points for 1 glass of iced chia seed lemon tea.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 2 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationFryer?.Id, Name = "Khoai Tây Chiên Lắc Phô Mai (Đổi 80 điểm)", NameEn = "Cheese French Fries (80 Points)", Description = "Đổi 80 điểm tích lũy nhận 1 đĩa khoai tây chiên giòn rụm lắc phô mai.", DescriptionEn = "Redeem 80 points for 1 portion of cheese french fries.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 3 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationDessert?.Id, Name = "Bánh Tiramisu Ý (Đổi 90 điểm)", NameEn = "Italian Tiramisu (90 Points)", Description = "Đổi 90 điểm tích lũy nhận 1 phần bánh Tiramisu chuẩn vị Ý.", DescriptionEn = "Redeem 90 points for 1 slice of authentic Italian Tiramisu.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 4 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationSalad?.Id, Name = "Salad Trộn Giấm Ý (Đổi 80 điểm)", NameEn = "Balsamic Garden Salad (80 Points)", Description = "Đổi 80 điểm tích lũy nhận 1 đĩa salad rau củ Đà Lạt tươi giòn sốt balsamic.", DescriptionEn = "Redeem 80 points for 1 plate of fresh garden salad with balsamic dressing.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 5 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationFryer?.Id, Name = "Bánh Bắp Nachos Sốt Phô Mai & Bò (Đổi 120 điểm)", NameEn = "Beef Cheese Nachos (120 Points)", Description = "Đổi 120 điểm tích lũy nhận 1 phần bánh bắp Nachos sốt phô mai & bò bằm.", DescriptionEn = "Redeem 120 points for 1 portion of beef cheese nachos.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 6 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationFryer?.Id, Name = "Mực Khoanh Chiên Calamari (Đổi 160 điểm)", NameEn = "Crispy Calamari Rings (160 Points)", Description = "Đổi 160 điểm tích lũy nhận 1 đĩa mực khoanh chiên giòn chấm sốt Tartar.", DescriptionEn = "Redeem 160 points for 1 plate of crispy calamari rings.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 7 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationGrill?.Id, Name = "Cánh Gà Nướng BBQ (Đổi 180 điểm)", NameEn = "Grilled BBQ Wings (180 Points)", Description = "Đổi 180 điểm tích lũy nhận 1 phần 4 miếng cánh gà nướng sốt BBQ đậm đà.", DescriptionEn = "Redeem 180 points for 1 portion of 4 grilled BBQ chicken wings.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 8 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationPasta?.Id, Name = "Mì Ý Bò Bằm Bolognaise (Đổi 200 điểm)", NameEn = "Bolognaise Pasta (200 Points)", Description = "Đổi 200 điểm tích lũy nhận 1 đĩa mì Ý sốt thịt bò bằm truyền thống.", DescriptionEn = "Redeem 200 points for 1 plate of traditional beef bolognaise pasta.", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 9 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationPizza?.Id, Name = "Pizza Margherita 20cm (Đổi 200 điểm)", NameEn = "Margherita Pizza 20cm (200 Points)", Description = "Đổi 200 điểm nhận 1 bánh Pizza Margherita sốt cà chua San Marzano & phô mai Mozzarella (20cm).", DescriptionEn = "Redeem 200 points for 1 Margherita Mozzarella pizza (20cm).", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 10 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationPizza?.Id, Name = "Pizza Pepperoni 20cm (Đổi 240 điểm)", NameEn = "Pepperoni Pizza 20cm (240 Points)", Description = "Đổi 240 điểm nhận 1 bánh Pizza Pepperoni xúc xích Ý cay giòn & phô mai Mozzarella (20cm).", DescriptionEn = "Redeem 240 points for 1 Italian Pepperoni pizza (20cm).", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 11 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationPizza?.Id, Name = "Pizza Hawaiian 20cm (Đổi 240 điểm)", NameEn = "Hawaiian Pizza 20cm (240 Points)", Description = "Đổi 240 điểm nhận 1 bánh Pizza Hawaiian giăm bông & dứa ngọt nhiệt đới (20cm).", DescriptionEn = "Redeem 240 points for 1 Hawaiian pizza (20cm).", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 12 },
+                new MenuItem { CategoryId = loyaltyCat.Id, KitchenStationId = stationPizza?.Id, Name = "Pizza Rau Củ Nấm Mỡ 20cm (Đổi 200 điểm)", NameEn = "Veggie Mushroom Pizza 20cm (200 Points)", Description = "Đổi 200 điểm nhận 1 bánh Pizza rau củ tươi & nấm mỡ thanh đạm (20cm).", DescriptionEn = "Redeem 200 points for 1 fresh veggie mushroom pizza (20cm).", Price = 0, IsSoldOut = false, IsCombo = false, IsActive = true, SortOrder = 13 }
+            };
+            context.MenuItems.AddRange(rewardItems);
             await context.SaveChangesAsync();
         }
     }

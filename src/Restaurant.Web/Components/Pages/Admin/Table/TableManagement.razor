@@ -514,14 +514,17 @@
 
     private static readonly Dictionary<string, (double X, double Y, double W, double H)> StandardTablePositions = new()
     {
-        ["A01"] = (380, 135, 75, 55),
-        ["A02"] = (490, 135, 75, 55),
-        ["A03"] = (600, 135, 75, 55),
-        ["A04"] = (710, 135, 75, 55),
-        ["A05"] = (380, 215, 75, 55),
-        ["A06"] = (490, 215, 75, 55),
-        ["A07"] = (600, 215, 75, 55),
-        ["A08"] = (710, 215, 75, 55),
+        // === KHU A: Sảnh Chính (8 bàn đôi, capacity 2) ===
+        ["A01"] = (390, 135, 65, 65),
+        ["A02"] = (495, 135, 65, 65),
+        ["A03"] = (600, 135, 65, 65),
+        ["A04"] = (705, 135, 65, 65),
+        ["A05"] = (390, 225, 65, 65),
+        ["A06"] = (495, 225, 65, 65),
+        ["A07"] = (600, 225, 65, 65),
+        ["A08"] = (705, 225, 65, 65),
+
+        // === KHU B: Phòng Trung Tâm (8 bàn đôi, capacity 2) ===
         ["B01"] = (410, 375, 65, 65),
         ["B02"] = (495, 375, 65, 65),
         ["B03"] = (580, 375, 65, 65),
@@ -530,6 +533,8 @@
         ["B06"] = (495, 445, 65, 65),
         ["B07"] = (580, 445, 65, 65),
         ["B08"] = (665, 445, 65, 65),
+
+        // === KHU C: View Cửa Sổ (7 bàn đôi, capacity 2) ===
         ["C01"] = (930, 320, 60, 60),
         ["C02"] = (1040, 320, 60, 60),
         ["C03"] = (900, 390, 60, 60),
@@ -537,6 +542,8 @@
         ["C05"] = (1070, 390, 60, 60),
         ["C06"] = (930, 455, 60, 60),
         ["C07"] = (1040, 455, 60, 60),
+
+        // === KHU D: Hiên Ngoài Trời / Sân Vườn (11 bàn) ===
         ["D08"] = (135, 565, 80, 55),
         ["D09"] = (225, 565, 80, 55),
         ["D01"] = (315, 565, 55, 55),
@@ -557,7 +564,12 @@
         var baseW = table.Width > 0 ? table.Width : 60;
         var baseH = table.Height > 0 ? table.Height : 60;
 
-        if ((rawY < 70 || rawX < 90) && StandardTablePositions.TryGetValue(table.Name, out var std))
+        bool isMisplaced = (rawY < 70 || rawX < 90 || rawX > 1180 || rawY > 660);
+        if (!isMisplaced && table.Name.StartsWith("B") && rawY < 300) isMisplaced = true;
+        if (!isMisplaced && table.Name.StartsWith("C") && (rawY < 270 || rawX < 850)) isMisplaced = true;
+        if (!isMisplaced && table.Name.StartsWith("D") && rawY < 500) isMisplaced = true;
+
+        if (isMisplaced && StandardTablePositions.TryGetValue(table.Name, out var std))
         {
             rawX = std.X;
             rawY = std.Y;

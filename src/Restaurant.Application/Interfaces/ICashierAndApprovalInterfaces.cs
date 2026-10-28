@@ -40,4 +40,6 @@ public interface IReconciliationService
     Task<List<PaymentReconciliationItemDto>> GetShiftReconciliationPreviewAsync(int shiftId);
     Task<bool> SaveShiftReconciliationAsync(int userId, SaveReconciliationRequest request);
     Task<StoreSalesSummaryDto> GetStoreSalesSummaryAsync(DateTime fromDate, DateTime toDate);
+    Task<StoreSalesSummaryDto> GetStoreSalesSummaryAsync(DateTime? fromDate, DateTime? toDate, int? shiftId = null);
+    Task<ShiftReconciliationDetailDto> GetShiftDetailForReconciliationAsync(int shiftId);
 }

@@ -93,14 +93,143 @@ public class ReconciliationService : IReconciliationService
         return true;
     }
 
+    public async Task<ShiftReconciliationDetailDto> GetShiftDetailForReconciliationAsync(int shiftId)
+    {
+        var shift = await _context.Shifts
+            .AsNoTracking()
+            .Include(s => s.User)
+            .Include(s => s.Register)
+            .FirstOrDefaultAsync(s => s.Id == shiftId);
+
+        if (shift == null) throw new ArgumentException("Ca làm việc không tồn tại.");
+
+        // Reconciliation items
+        var reconItems = await GetShiftReconciliationPreviewAsync(shiftId);
+
+        // Orders in this shift
+        var orders = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Table)
+            .Include(o => o.Payments)
+            .Where(o => o.ShiftId == shiftId && o.Status != (int)OrderStatus.Cancelled)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+
+        var orderDtos = orders.Select(o => {
+            var primaryPayment = o.Payments.FirstOrDefault(p => p.Status == (int)PaymentStatus.Paid);
+            var payMethod = primaryPayment?.PaymentMethod == (int)PaymentMethod.BankTransfer 
+                ? "Chuyển Khoản VietQR" 
+                : (primaryPayment?.PaymentMethod == (int)PaymentMethod.Cash ? "Tiền Mặt" : "Chưa thanh toán");
+            return new ReconciliationOrderDto
+            {
+                OrderId = o.Id,
+                OrderCode = o.OrderCode,
+                TableName = o.Table?.Name ?? (o.OrderType == 1 ? "Mang Về" : "Tại Bàn"),
+                OrderType = o.OrderType == 1 ? "Mang Về" : "Tại Bàn",
+                CreatedAt = o.CreatedAt,
+                SubTotal = o.SubTotal,
+                DiscountAmount = o.DiscountAmount,
+                TotalAmount = o.TotalAmount,
+                PaymentMethodName = payMethod,
+                StatusName = o.PaymentStatus == (int)PaymentStatus.Paid ? "Đã thanh toán" : "Chờ thanh toán"
+            };
+        }).ToList();
+
+        // Cash movements in this shift
+        var cashMovements = await _context.CashMovements
+            .AsNoTracking()
+            .Where(cm => cm.ShiftId == shiftId)
+            .ToListAsync();
+
+        var tillIn = cashMovements.Where(cm => cm.Type == (int)CashMovementType.TillIn).Sum(cm => cm.Amount);
+        var tillOut = cashMovements.Where(cm => cm.Type == (int)CashMovementType.TillOut).Sum(cm => cm.Amount);
+        var refunds = cashMovements.Where(cm => cm.Type == (int)CashMovementType.CashRefund).Sum(cm => cm.Amount);
+
+        var cashSales = reconItems.FirstOrDefault(i => i.PaymentMethod == (int)PaymentMethod.Cash)?.SystemAmount ?? 0m;
+        var transferSales = reconItems.FirstOrDefault(i => i.PaymentMethod == (int)PaymentMethod.BankTransfer)?.SystemAmount ?? 0m;
+        var totalRev = cashSales + transferSales;
+
+        var expectedCash = shift.OpeningBalance + cashSales + tillIn - tillOut - refunds;
+        var actualCash = reconItems.FirstOrDefault(i => i.PaymentMethod == (int)PaymentMethod.Cash)?.ActualAmount ?? (shift.ActualCashCounted ?? expectedCash);
+
+        // Sales summary for this shift
+        var grossSales = orders.Sum(o => o.SubTotal);
+        var totalDiscounts = orders.Sum(o => o.DiscountAmount);
+        var totalOrders = orders.Count;
+
+        var salesSummary = new StoreSalesSummaryDto
+        {
+            FromDate = shift.OpenedAt,
+            ToDate = shift.ClosedAt ?? DateTime.UtcNow,
+            GrossSales = grossSales > 0 ? grossSales : totalRev,
+            TotalDiscounts = totalDiscounts,
+            TotalOrders = totalOrders,
+            TotalItemsSold = 0,
+            CashSales = cashSales,
+            TransferSales = transferSales,
+            OtherSales = 0
+        };
+
+        return new ShiftReconciliationDetailDto
+        {
+            ShiftId = shift.Id,
+            StaffName = shift.User?.FullName ?? "Thu ngân",
+            RegisterName = shift.Register?.Name ?? "Máy POS chính",
+            StartTime = shift.OpenedAt,
+            EndTime = shift.ClosedAt,
+            Status = shift.Status,
+            StatusName = shift.Status == 0 ? "Đang mở" : "Đã đóng ca",
+            OpeningBalance = shift.OpeningBalance,
+            ExpectedCash = expectedCash,
+            ActualCash = actualCash,
+            Difference = actualCash - expectedCash,
+            Note = shift.Note,
+
+            CashSales = cashSales,
+            TransferSales = transferSales,
+            TotalRevenue = totalRev,
+            TotalCashOrders = shift.TotalCashOrders > 0 ? shift.TotalCashOrders : orders.Count(o => o.Payments.Any(p => p.PaymentMethod == (int)PaymentMethod.Cash)),
+            TotalTransferOrders = shift.TotalTransferOrders > 0 ? shift.TotalTransferOrders : orders.Count(o => o.Payments.Any(p => p.PaymentMethod == (int)PaymentMethod.BankTransfer)),
+
+            TotalTillIn = tillIn,
+            TotalTillOut = tillOut,
+            TotalRefunds = refunds,
+
+            Orders = orderDtos,
+            ReconciliationItems = reconItems,
+            SalesSummary = salesSummary
+        };
+    }
+
     public async Task<StoreSalesSummaryDto> GetStoreSalesSummaryAsync(DateTime fromDate, DateTime toDate)
     {
-        var completedOrders = await _context.Orders
+        return await GetStoreSalesSummaryInternalAsync(fromDate, toDate, null);
+    }
+
+    public async Task<StoreSalesSummaryDto> GetStoreSalesSummaryAsync(DateTime? fromDate, DateTime? toDate, int? shiftId = null)
+    {
+        return await GetStoreSalesSummaryInternalAsync(fromDate, toDate, shiftId);
+    }
+
+    private async Task<StoreSalesSummaryDto> GetStoreSalesSummaryInternalAsync(DateTime? fromDate, DateTime? toDate, int? shiftId)
+    {
+        var query = _context.Orders
             .AsNoTracking()
             .Include(o => o.Payments)
             .Include(o => o.OrderItems)
-            .Where(o => o.CreatedAt >= fromDate && o.CreatedAt <= toDate && o.Status != (int)OrderStatus.Cancelled)
-            .ToListAsync();
+            .Where(o => o.Status != (int)OrderStatus.Cancelled);
+
+        if (shiftId.HasValue)
+        {
+            query = query.Where(o => o.ShiftId == shiftId.Value);
+        }
+        else
+        {
+            if (fromDate.HasValue) query = query.Where(o => o.CreatedAt >= fromDate.Value);
+            if (toDate.HasValue) query = query.Where(o => o.CreatedAt <= toDate.Value);
+        }
+
+        var completedOrders = await query.ToListAsync();
 
         var grossSales = completedOrders.Sum(o => o.SubTotal);
         var totalDiscounts = completedOrders.Sum(o => o.DiscountAmount);
@@ -117,11 +246,13 @@ public class ReconciliationService : IReconciliationService
             .Where(p => p.PaymentMethod == (int)PaymentMethod.BankTransfer && p.Status == (int)PaymentStatus.Paid)
             .Sum(p => p.Amount);
 
+        var totalDirect = cashSales + transferSales;
+
         return new StoreSalesSummaryDto
         {
-            FromDate = fromDate,
-            ToDate = toDate,
-            GrossSales = grossSales,
+            FromDate = fromDate ?? DateTime.Today,
+            ToDate = toDate ?? DateTime.Today.AddDays(1).AddTicks(-1),
+            GrossSales = grossSales > 0 ? grossSales : totalDirect,
             TotalDiscounts = totalDiscounts,
             TotalOrders = totalOrders,
             TotalItemsSold = totalItems,

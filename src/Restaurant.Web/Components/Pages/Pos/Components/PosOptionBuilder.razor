@@ -15,8 +15,9 @@
 
             <div>
                 <div class="flex items-center gap-2">
-                    <span class="px-2 py-0.5 bg-primary/10 text-primary font-black text-[10px] rounded uppercase tracking-wider">
-                        CHỈNH SỬA MÓN
+                    <span class="px-2 py-0.5 bg-primary/10 text-primary font-black text-[10px] rounded uppercase tracking-wider flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[13px]">tune</span>
+                        <span>CHỈNH SỬA TÙY CHỌN</span>
                     </span>
                     <h2 class="text-base font-black text-on-surface leading-tight">
                         @(Item?.DisplayName ?? Item?.Name ?? "Tùy chọn món ăn")
@@ -120,9 +121,9 @@
                             @foreach (var opt in group.ModifierOptions.Where(o => o.IsActive).OrderBy(o => o.SortOrder))
                             {
                                 var isSelected = _selectedOptionIds.Contains(opt.Id);
-                                var isMaxReached = !isSelected && selectedInGroup.Count >= group.MaxSelections;
+                                var isMaxReached = !isSingleSelect && !isSelected && selectedInGroup.Count >= group.MaxSelections;
 
-                                <div class="relative bg-surface hover:bg-surface-high rounded-xl p-3 border transition-all duration-150 cursor-pointer select-none flex flex-col justify-between @(isSelected ? "border-primary ring-2 ring-primary/30 bg-primary/5 shadow-xs" : (isMaxReached ? "border-outline-variant/40 opacity-50 cursor-not-allowed" : "border-outline-variant hover:border-primary/50 shadow-2xs"))"
+                                <div class="relative bg-surface hover:bg-surface-high rounded-xl p-3 border transition-all duration-150 cursor-pointer select-none flex flex-col justify-between @(isSelected ? "border-primary ring-2 ring-primary/30 bg-primary/5 shadow-xs" : (isMaxReached ? "border-outline-variant/40 opacity-70" : "border-outline-variant hover:border-primary/50 shadow-2xs"))"
                                      @onclick="() => HandleOptionClicked(group, opt)">
                                     
                                     @if (isSelected)
@@ -148,7 +149,7 @@
                                             @(opt.ExtraPrice > 0 ? $"+{opt.ExtraPrice:N0}đ" : "0đ")
                                         </span>
                                         <span class="material-symbols-outlined text-base @(isSelected ? "text-primary" : "text-on-surface-variant/40")">
-                                            @(isSingleSelect ? (isSelected ? "radio_button_checked" : "radio_button_unchecked") : (isSelected ? "check_box" : "check_box_outline_blank"))
+                                            @(isSingleSelect ? (isSelected ? "check_circle" : "radio_button_unchecked") : (isSelected ? "check_box" : "check_box_outline_blank"))
                                         </span>
                                     </div>
                                 </div>

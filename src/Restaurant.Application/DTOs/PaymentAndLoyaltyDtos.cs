@@ -7,6 +7,7 @@ public class CustomerDto
     public string FullName { get; set; } = string.Empty;
     public int TierId { get; set; }
     public string TierName { get; set; } = string.Empty;
+    public decimal DiscountPercent { get; set; }
     public int TotalPoints { get; set; }
     public int AvailablePoints { get; set; }
 }
@@ -39,6 +40,7 @@ public class VietQrResponse
     public string SepayContent { get; set; } = string.Empty;
     public string QrImageUrl { get; set; } = string.Empty;
     public string SepayQrUrl { get; set; } = string.Empty;
+    public string StaticQrUrl { get; set; } = string.Empty;
     public string BankAccountNo { get; set; } = "11102042003";
     public string BankName { get; set; } = "TPBank";
     public string AccountHolder { get; set; } = "VAN CONG MINH";
@@ -75,6 +77,7 @@ public class ProcessCashPaymentRequest
     public int? CustomerId { get; set; }
     public string? VoucherCode { get; set; }
     public string? IdempotencyKey { get; set; }
+    public int PaymentMethod { get; set; } = 0; // 0 = Cash, 1 = BankTransfer
 }
 
 public class CashPaymentResponse

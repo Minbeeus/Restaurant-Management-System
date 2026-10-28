@@ -365,9 +365,9 @@
                                         {
                                             var qty = GetSelectedOptionQuantity(group.Id, opt.MenuItemId);
                                             var isSelected = qty > 0;
-                                            var canSelectMore = !isMaxReached || isSelected;
+                                            var canSelectMore = !isMaxReached || isSelected || group.MaxSelections == 1;
 
-                                            <div class="pos-menu-item bg-surface hover:bg-surface-high border transition-all duration-150 cursor-pointer select-none relative overflow-hidden group min-h-[90px] w-full rounded-xl p-3.5 flex flex-col justify-between @(isSelected ? "border-primary ring-2 ring-primary/40 bg-primary/5 shadow-md" : (canSelectMore ? "border-outline-variant/70 hover:border-primary/50 hover:shadow-sm" : "border-outline-variant/40 opacity-60 cursor-not-allowed"))"
+                                            <div class="pos-menu-item bg-surface hover:bg-surface-high border transition-all duration-150 cursor-pointer select-none relative overflow-hidden group min-h-[90px] w-full rounded-xl p-3.5 flex flex-col justify-between @(isSelected ? "border-primary ring-2 ring-primary/40 bg-primary/5 shadow-md" : (canSelectMore ? "border-outline-variant/70 hover:border-primary/50 hover:shadow-sm" : "border-outline-variant/40 opacity-70"))"
                                                  @onclick="() => HandleItemCardClicked(group, opt)">
                                                 
                                                 <!-- Top Row: Name and Selected Badge -->

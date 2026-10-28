@@ -7,12 +7,12 @@
     <main class="w-full h-screen flex flex-col md:flex-row">
         <!-- Left Side: Imagery -->
         <div class="hidden md:flex md:w-1/2 relative bg-surface-variant overflow-hidden items-center justify-center">
-            <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA0YXnknoDfOZRb5aPh4NUZpzQA-tiZPnLsd3Vbn7H0mCXHIuuQZcvTI16HgxroIog7M1oHo4sZZi5q2c-0wcTiLeGRJg6vA2QkmlBhou5LIKk5VJQHxF1xy3JkUIW5Zv5-qmzlmz4gZbnKpcJp4N4R7tH9kFYx7k87P6_3lUidAbCtNrUbI0vCLCYTSdgzftB51JoAiTXnn9yQBSC3M7NzfUro3xsqNbzuYHXcM4XQlzPsI3VUiNw2kjL6FS8-jxhnDlOd4ni4lFE')"></div>
+            <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('/images/login-bg.jpg')"></div>
             <!-- Subtle Overlay -->
-            <div class="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 to-inverse-surface/20"></div>
-            <div class="relative z-10 p-margin-page flex flex-col justify-end h-full text-on-primary">
-                <h2 class="font-display-lg text-display-lg mb-4 max-w-lg leading-tight">Mang trải nghiệm ẩm thực đỉnh cao đến khách hàng</h2>
-                <div class="h-1 w-16 bg-primary-fixed rounded-full"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20"></div>
+            <div class="relative z-10 p-margin-page flex flex-col justify-end h-full text-white">
+                <h2 class="font-display-lg text-display-lg mb-4 max-w-lg leading-tight drop-shadow-md">Mang trải nghiệm ẩm thực đỉnh cao đến khách hàng</h2>
+                <div class="h-1.5 w-16 bg-primary-fixed rounded-full shadow-sm"></div>
             </div>
         </div>
         
@@ -21,9 +21,9 @@
             <div class="w-full max-w-md bg-surface-container-lowest rounded-xl shadow-[0_8px_24px_rgba(18,28,42,0.08)] p-8 md:p-10 flex flex-col gap-6">
                 <!-- Header -->
                 <div class="flex flex-col items-center gap-4 mb-2 text-center">
-                    <img alt="Mozzarella &amp; Basil Logo" class="h-16 object-contain" src="/logo.png"/>
+                    <img alt="Pizza Conner Logo" class="h-16 object-contain" src="/logo.png"/>
                     <h1 class="font-headline-md text-headline-md text-primary">Đăng nhập hệ thống Quản trị</h1>
-                    <p class="font-body-md text-body-md text-on-surface-variant">BOH Administration Portal</p>
+                    <p class="font-body-md text-body-md text-on-surface-variant">Pizza Conner - BOH Administration</p>
                 </div>
 
                 @if (!string.IsNullOrEmpty(ErrorMessage))

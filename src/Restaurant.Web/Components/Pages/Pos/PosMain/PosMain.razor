@@ -32,8 +32,10 @@ else
                 <span class="text-xs text-on-surface-variant font-mono">@CurrentOrderCode</span>
                 @if (SelectedMember != null)
                 {
-                    <span class="px-2 py-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px] rounded-full border border-amber-500/30 flex items-center gap-1">
-                        ⭐ @SelectedMember.FullName (@SelectedMember.TierName)
+                    <span class="px-2.5 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px] rounded-full border border-amber-500/30 flex items-center gap-1.5 shadow-2xs">
+                        <span class="material-symbols-outlined text-[14px]">stars</span>
+                        <span>@SelectedMember.FullName (@SelectedMember.TierName@(SelectedMember.DiscountPercent > 0 ? $" - Giảm {SelectedMember.DiscountPercent:G29}% món lẻ" : ""))</span>
+                        <span class="font-extrabold text-primary border-l border-amber-500/30 pl-1.5">@SelectedMember.AvailablePoints.ToString("N0") điểm</span>
                     </span>
                 }
             </div>
@@ -105,6 +107,8 @@ else
                 TableName="@CurrentTableName"
                 OrderCode="@CurrentOrderCode"
                 IsTakeaway="IsTakeaway"
+                MemberDiscountPercent="@(SelectedMember?.DiscountPercent ?? 0m)"
+                MemberTierName="@(SelectedMember?.TierName ?? string.Empty)"
                 AppliedDiscount="AppliedDiscountAmount"
                 OnQuantityChanged="HandleCartQuantityChanged"
                 OnItemRemoved="HandleCartItemRemoved"
@@ -179,7 +183,12 @@ else
                                 @foreach (var cat in Categories)
                                 {
                                     bool isCatActive = ActiveCategoryId == cat.Id;
-                                    <button class="w-full py-2.5 px-3 rounded-xl text-xs md:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-2 shadow-2xs truncate text-center @(isCatActive ? "bg-primary text-on-primary ring-2 ring-primary/40 shadow-sm scale-[1.02]" : "bg-surface-high text-on-surface hover:bg-surface-high/80 border border-outline-variant/60")"
+                                    bool isRewardCat = cat.Name.Contains("Đổi Điểm", StringComparison.OrdinalIgnoreCase);
+                                    string btnClasses = isCatActive 
+                                        ? (isRewardCat ? "bg-amber-500 text-white ring-2 ring-amber-500/40 shadow-sm scale-[1.02]" : "bg-primary text-on-primary ring-2 ring-primary/40 shadow-sm scale-[1.02]")
+                                        : (isRewardCat ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30" : "bg-surface-high text-on-surface hover:bg-surface-high/80 border border-outline-variant/60");
+
+                                    <button class="w-full py-2.5 px-3 rounded-xl text-xs md:text-sm font-black transition-all cursor-pointer flex items-center justify-center gap-2 shadow-2xs truncate text-center @btnClasses"
                                             @onclick="() => HandleCategoryChanged(cat.Id)"
                                             title="@cat.DisplayName">
                                         <span class="material-symbols-outlined text-base md:text-lg shrink-0">@GetCategoryIcon(cat.Name)</span>

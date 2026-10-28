@@ -1,137 +1,758 @@
 @page "/admin/reconciliation"
+@rendermode InteractiveServer
 @layout Restaurant.Web.Components.Layout.AdminLayout
 @using System.Net.Http.Json
 @using Restaurant.Application.DTOs
+@using Microsoft.JSInterop
 @inject HttpClient Http
+@inject IJSRuntime JS
 
-<div class="p-6 space-y-6 bg-background min-h-screen text-on-surface">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-4">
+<div class="p-4 sm:p-6 space-y-6 bg-background min-h-screen text-on-surface">
+    <!-- Header with Breadcrumbs & Action Toolbar -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-outline-variant pb-4">
         <div>
-            <h1 class="text-2xl font-black text-primary tracking-wide flex items-center gap-2 m-0">
-                <span class="material-symbols-outlined text-3xl">fact_check</span>
+            <div class="flex items-center gap-2 text-xs text-primary font-bold mb-1">
+                <span class="material-symbols-outlined text-sm">storefront</span>
+                <span>QUẢN TRỊ BOH</span>
+                <span>/</span>
+                <span class="text-on-surface-variant font-medium">Báo cáo & Kiểm kê</span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-black text-primary tracking-tight flex items-center gap-2 m-0">
+                <span class="material-symbols-outlined text-2xl sm:text-3xl text-primary">fact_check</span>
                 ĐỐI SOÁT THANH TOÁN & BÁO CÁO SALES (RECONCILIATION)
             </h1>
-            <p class="text-xs text-on-surface-variant mt-1">Đối soát tiền mặt & chuyển khoản thực tế với hệ thống, báo cáo doanh thu toàn cửa hàng</p>
+            <p class="text-xs text-on-surface-variant mt-1 m-0">
+                Đối soát tiền mặt, chuyển khoản ngân hàng thực tế so với hệ thống và kiểm kê doanh thu ca làm việc.
+            </p>
         </div>
 
-        <button class="px-4 py-2 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-                @onclick="LoadDataAsync">
-            <span class="material-symbols-outlined text-base">refresh</span>
-            <span>Tải Lại</span>
-        </button>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Shift Selector Dropdown -->
+            <div class="flex items-center gap-1.5 bg-surface border border-outline-variant rounded-xl px-3 py-1.5 shadow-2xs">
+                <span class="material-symbols-outlined text-base text-primary">schedule</span>
+                <span class="text-xs font-bold text-on-surface-variant">Ca:</span>
+                <select class="bg-transparent text-xs font-black text-on-surface focus:outline-none cursor-pointer pr-2"
+                        value="@_selectedShiftId"
+                        @onchange="OnShiftChangedAsync">
+                    @if (!_allShifts.Any())
+                    {
+                        <option value="1">Ca #1 (Mặc định)</option>
+                    }
+                    else
+                    {
+                        @foreach (var s in _allShifts)
+                        {
+                            <option value="@s.ShiftId">
+                                #@s.ShiftId - @s.StaffName (@(s.Status == 0 ? "Đang mở" : "Đã đóng") • @s.StartTime.ToString("dd/MM HH:mm"))
+                            </option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <!-- Print Slip Button -->
+            <button class="px-3.5 py-2 bg-surface hover:bg-surface-high border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    @onclick="() => _showPrintModal = true"
+                    title="In biên bản đối soát ca">
+                <span class="material-symbols-outlined text-base text-primary">print</span>
+                <span>In Biên Bản</span>
+            </button>
+
+            <!-- Export CSV Button -->
+            <button class="px-3.5 py-2 bg-surface hover:bg-surface-high border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    @onclick="ExportCsvAsync"
+                    title="Xuất file báo cáo đối soát dạng CSV">
+                <span class="material-symbols-outlined text-base text-emerald-600">download</span>
+                <span>Xuất CSV</span>
+            </button>
+
+            <!-- Refresh Button -->
+            <button class="px-3.5 py-2 bg-surface-high hover:bg-outline-variant/30 border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    @onclick="LoadDataAsync"
+                    title="Tải lại toàn bộ dữ liệu">
+                <span class="material-symbols-outlined text-base">refresh</span>
+                <span>Tải Lại</span>
+            </button>
+        </div>
     </div>
 
+    <!-- Alert Notifications -->
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
-        <div class="bg-rose-500/10 border border-rose-500/30 text-rose-700 p-4 rounded-xl flex items-center justify-between">
+        <div class="bg-rose-500/10 border border-rose-500/30 text-rose-700 p-3.5 rounded-xl flex items-center justify-between text-xs animate-fade-in">
             <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined">error</span>
-                <span class="text-sm font-medium">@ErrorMessage</span>
+                <span class="material-symbols-outlined text-base">error</span>
+                <span class="font-medium">@ErrorMessage</span>
             </div>
-            <button class="hover:bg-rose-500/20 p-1 rounded-full transition-colors" @onclick="() => ErrorMessage = null">
+            <button class="hover:bg-rose-500/20 p-1 rounded-full transition-colors cursor-pointer" @onclick="() => ErrorMessage = null">
                 <span class="material-symbols-outlined text-sm">close</span>
             </button>
         </div>
     }
 
-    <!-- Top KPI Sales Cards -->
-    @if (SalesSummary != null)
+    @if (!string.IsNullOrEmpty(SuccessMessage))
     {
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
-                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Tổng Doanh Thu Gốc (Gross)</span>
-                <span class="text-2xl font-black text-primary">@SalesSummary.GrossSales.ToString("N0") đ</span>
+        <div class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 p-3.5 rounded-xl flex items-center justify-between text-xs animate-fade-in">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">check_circle</span>
+                <span class="font-bold">@SuccessMessage</span>
             </div>
-            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
-                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Tổng Giảm Giá / Voucher</span>
-                <span class="text-2xl font-black text-rose-600">-@SalesSummary.TotalDiscounts.ToString("N0") đ</span>
-            </div>
-            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
-                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Doanh Thu Thu Thực (Net)</span>
-                <span class="text-2xl font-black text-emerald-600">@SalesSummary.NetSales.ToString("N0") đ</span>
-            </div>
-            <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-sm">
-                <span class="text-xs font-bold uppercase text-on-surface-variant block mb-1">Số Đơn Hàng / Giá Trị TB</span>
-                <span class="text-2xl font-black text-blue-600">@SalesSummary.TotalOrders đơn (@SalesSummary.AverageOrderValue.ToString("N0")đ/đơn)</span>
+            <button class="hover:bg-emerald-500/20 p-1 rounded-full transition-colors cursor-pointer" @onclick="() => SuccessMessage = null">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+    }
+
+    <!-- Shift Overview Status Banner -->
+    @if (_shiftDetail != null)
+    {
+        <div class="bg-surface rounded-2xl border border-outline-variant p-4 shadow-2xs">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                <div>
+                    <span class="text-on-surface-variant font-medium text-[11px] block">Ca làm việc:</span>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                        <span class="font-black text-on-surface">Ca #@_shiftDetail.ShiftId</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black @(_shiftDetail.Status == 0 ? "bg-emerald-500/15 text-emerald-700 border border-emerald-500/30" : "bg-gray-500/15 text-gray-700 border border-gray-500/30")">
+                            @_shiftDetail.StatusName
+                        </span>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="text-on-surface-variant font-medium text-[11px] block">Thu ngân phụ trách:</span>
+                    <span class="font-bold text-on-surface mt-0.5 block truncate">@_shiftDetail.StaffName</span>
+                </div>
+
+                <div>
+                    <span class="text-on-surface-variant font-medium text-[11px] block">Thời gian ca:</span>
+                    <span class="font-bold text-on-surface mt-0.5 block truncate">
+                        @_shiftDetail.StartTime.ToString("HH:mm dd/MM") - @(_shiftDetail.EndTime?.ToString("HH:mm dd/MM") ?? "Hiện tại")
+                    </span>
+                </div>
+
+                <div>
+                    <span class="text-on-surface-variant font-medium text-[11px] block">Tiền két đầu ca:</span>
+                    <span class="font-mono font-black text-on-surface mt-0.5 block text-primary">@_shiftDetail.OpeningBalance.ToString("N0") đ</span>
+                </div>
+
+                <div>
+                    <span class="text-on-surface-variant font-medium text-[11px] block">Nộp / Rút két ca:</span>
+                    <span class="font-mono font-bold mt-0.5 block">
+                        +@_shiftDetail.TotalTillIn.ToString("N0")đ / -@_shiftDetail.TotalTillOut.ToString("N0")đ
+                    </span>
+                </div>
+
+                <div>
+                    <span class="text-on-surface-variant font-medium text-[11px] block">Kỳ vọng trong két:</span>
+                    <span class="font-mono font-black text-emerald-600 mt-0.5 block text-sm">@_shiftDetail.ExpectedCash.ToString("N0") đ</span>
+                </div>
             </div>
         </div>
     }
 
-    <!-- Payment Reconciliation Table -->
-    <div class="bg-surface rounded-2xl border border-outline-variant p-6 shadow-sm space-y-4 max-w-4xl">
-        <h3 class="font-extrabold text-base text-primary pb-2 border-b border-outline-variant flex items-center gap-2 m-0">
-            <span class="material-symbols-outlined">balance</span>
-            ĐỐI SOÁT PHƯƠNG THỨC THANH TOÁN HỆ THỐNG VS THỰC TẾ
-        </h3>
-
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-                <thead>
-                    <tr class="bg-surface-high border-b border-outline-variant text-on-surface-variant uppercase font-bold text-[11px]">
-                        <th class="p-3">Phương Thức</th>
-                        <th class="p-3">Hệ Thống Tính</th>
-                        <th class="p-3">Thực Tế Đếm Được</th>
-                        <th class="p-3">Chênh Lệch</th>
-                        <th class="p-3">Ghi Chú Đối Soát</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-outline-variant/60">
-                    @foreach (var item in ReconciliationItems)
-                    {
-                        <tr>
-                            <td class="p-3 font-extrabold text-sm">@item.PaymentMethodName</td>
-                            <td class="p-3 font-bold text-primary text-sm">@item.SystemAmount.ToString("N0")đ</td>
-                            <td class="p-3">
-                                <input type="number" class="w-36 p-2 rounded-lg border border-outline-variant font-bold text-sm bg-surface-high"
-                                       @bind="item.ActualAmount" step="10000" />
-                            </td>
-                            <td class="p-3 font-black text-sm @(item.Difference == 0 ? "text-emerald-600" : "text-rose-600")">
-                                @(item.Difference > 0 ? $"+{item.Difference:N0}đ" : $"{item.Difference:N0}đ")
-                            </td>
-                            <td class="p-3">
-                                <input type="text" class="w-full p-2 rounded-lg border border-outline-variant text-xs bg-surface-high"
-                                       placeholder="Ghi chú chênh lệch..." @bind="item.Note" />
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+    <!-- 4 Top KPI Metric Cards (Rich, Vibrant, Well-Proportioned) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 1. Gross Sales -->
+        <div class="bg-surface rounded-2xl border border-outline-variant p-4.5 shadow-2xs hover:shadow-md transition-all flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant block mb-1">
+                    Tổng Doanh Thu Gốc (Gross)
+                </span>
+                <div class="text-2xl font-black text-amber-600 font-mono tracking-tight">
+                    @EffectiveSalesSummary.GrossSales.ToString("N0") <span class="text-sm font-bold">đ</span>
+                </div>
+                <span class="text-[10px] text-on-surface-variant/80 mt-0.5 block">Trước giảm giá & voucher</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">payments</span>
+            </div>
         </div>
 
-        <div class="flex justify-end pt-3">
-            <button class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
-                    @onclick="SaveReconciliationAsync">
-                <span class="material-symbols-outlined text-base">save</span>
-                LƯU ĐỐI SOÁT THANH TOÁN
-            </button>
+        <!-- 2. Discounts -->
+        <div class="bg-surface rounded-2xl border border-outline-variant p-4.5 shadow-2xs hover:shadow-md transition-all flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant block mb-1">
+                    Tổng Giảm Giá / Voucher
+                </span>
+                <div class="text-2xl font-black text-rose-600 font-mono tracking-tight">
+                    @(EffectiveSalesSummary.TotalDiscounts > 0 ? $"-{EffectiveSalesSummary.TotalDiscounts:N0}" : "0") <span class="text-sm font-bold">đ</span>
+                </div>
+                <span class="text-[10px] text-on-surface-variant/80 mt-0.5 block">Khuyến mãi & chiết khấu</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">sell</span>
+            </div>
+        </div>
+
+        <!-- 3. Net Sales -->
+        <div class="bg-surface rounded-2xl border border-outline-variant p-4.5 shadow-2xs hover:shadow-md transition-all flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant block mb-1">
+                    Doanh Thu Thực Thu (Net)
+                </span>
+                <div class="text-2xl font-black text-emerald-600 font-mono tracking-tight">
+                    @EffectiveSalesSummary.NetSales.ToString("N0") <span class="text-sm font-bold">đ</span>
+                </div>
+                <span class="text-[10px] text-emerald-600 font-bold mt-0.5 block">Doanh thu chốt thực tế</span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">account_balance_wallet</span>
+            </div>
+        </div>
+
+        <!-- 4. Total Orders & AOV -->
+        <div class="bg-surface rounded-2xl border border-outline-variant p-4.5 shadow-2xs hover:shadow-md transition-all flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant block mb-1">
+                    Số Đơn Hàng & Giá Trị TB
+                </span>
+                <div class="text-2xl font-black text-blue-600 font-mono tracking-tight">
+                    @EffectiveSalesSummary.TotalOrders <span class="text-sm font-bold">đơn</span>
+                </div>
+                <span class="text-[11px] text-blue-600 font-bold mt-0.5 block font-mono">
+                    TB: @EffectiveSalesSummary.AverageOrderValue.ToString("N0") đ/đơn
+                </span>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-2xl">receipt_long</span>
+            </div>
         </div>
     </div>
+
+    <!-- Main Workspace: 2-Column Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Column 1 (Left, 7 Cols): Bảng Đối Soát Phương Thức Thanh Toán -->
+        <div class="lg:col-span-7 bg-surface rounded-2xl border border-outline-variant p-5 sm:p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-outline-variant">
+                <h3 class="font-black text-base text-primary flex items-center gap-2 m-0">
+                    <span class="material-symbols-outlined text-xl">balance</span>
+                    ĐỐI SOÁT PHƯƠNG THỨC THANH TOÁN (HỆ THỐNG VS THỰC TẾ)
+                </h3>
+                <span class="text-xs text-on-surface-variant font-medium">Đơn vị: VNĐ</span>
+            </div>
+
+            <!-- Reconciliation Table -->
+            <div class="overflow-x-auto rounded-xl border border-outline-variant">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="bg-surface-high border-b border-outline-variant text-on-surface-variant uppercase font-bold text-[11px]">
+                            <th class="p-3">Phương Thức</th>
+                            <th class="p-3 text-right">Hệ Thống Tính</th>
+                            <th class="p-3 text-right">Thực Tế Kiểm Đếm</th>
+                            <th class="p-3 text-center">Chênh Lệch</th>
+                            <th class="p-3">Ghi Chú Giải Trình</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant/60">
+                        @if (!ReconciliationItems.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="p-6 text-center text-on-surface-variant opacity-70">
+                                    Đang tải dữ liệu đối soát ca...
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in ReconciliationItems)
+                            {
+                                <tr class="hover:bg-surface-high/40 transition-colors">
+                                    <!-- Method Name & Icon -->
+                                    <td class="p-3 font-extrabold text-sm text-on-surface">
+                                        <div class="flex items-center gap-2">
+                                            @if (item.PaymentMethod == 0)
+                                            {
+                                                <span class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                                                    <span class="material-symbols-outlined text-base">local_atm</span>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                                                    <span class="material-symbols-outlined text-base">qr_code_2</span>
+                                                </span>
+                                            }
+                                            <span>@item.PaymentMethodName</span>
+                                        </div>
+                                    </td>
+
+                                    <!-- System Amount -->
+                                    <td class="p-3 text-right font-black text-primary font-mono text-sm">
+                                        @item.SystemAmount.ToString("N0") đ
+                                    </td>
+
+                                    <!-- Actual Amount Input + Quick Match Button -->
+                                    <td class="p-3 text-right">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <input type="number"
+                                                   class="w-32 px-2.5 py-1.5 rounded-lg border border-outline-variant font-mono font-black text-sm bg-surface-high focus:bg-surface focus:outline-none focus:ring-1 focus:ring-primary text-right"
+                                                   @bind="item.ActualAmount"
+                                                   step="1000" />
+                                            <button type="button"
+                                                    class="px-2 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
+                                                    @onclick="() => MatchSystemAmount(item)"
+                                                    title="Gán số thực tế khớp 100% với hệ thống">
+                                                Khớp
+                                            </button>
+                                        </div>
+                                    </td>
+
+                                    <!-- Difference Badge -->
+                                    <td class="p-3 text-center">
+                                        @if (item.Difference == 0)
+                                        {
+                                            <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 inline-flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-xs">check</span>
+                                                0 đ
+                                            </span>
+                                        }
+                                        else if (item.Difference > 0)
+                                        {
+                                            <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-500/15 text-amber-800 border border-amber-500/30 inline-flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-xs">arrow_upward</span>
+                                                +@item.Difference.ToString("N0") đ
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-500/15 text-rose-700 border border-rose-500/30 inline-flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-xs">arrow_downward</span>
+                                                @item.Difference.ToString("N0") đ
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <!-- Note Input -->
+                                    <td class="p-3">
+                                        <input type="text"
+                                               class="w-full px-2.5 py-1.5 rounded-lg border border-outline-variant text-xs bg-surface-high focus:bg-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                                               placeholder="Ghi chú chênh lệch (nếu có)..."
+                                               @bind="item.Note" />
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <!-- Totals Footer -->
+                    <tfoot>
+                        <tr class="bg-surface-high/80 font-black text-xs border-t-2 border-outline-variant">
+                            <td class="p-3 uppercase text-on-surface">TỔNG CỘNG:</td>
+                            <td class="p-3 text-right font-mono text-primary text-sm">@TotalSystemAmount.ToString("N0") đ</td>
+                            <td class="p-3 text-right font-mono text-on-surface text-sm">@TotalActualAmount.ToString("N0") đ</td>
+                            <td class="p-3 text-center">
+                                @if (TotalDifference == 0)
+                                {
+                                    <span class="text-emerald-600 font-mono font-black text-sm">0 đ (Cân khớp)</span>
+                                }
+                                else
+                                {
+                                    <span class="text-rose-600 font-mono font-black text-sm">
+                                        @(TotalDifference > 0 ? $"+{TotalDifference:N0}" : $"{TotalDifference:N0}") đ
+                                    </span>
+                                }
+                            </td>
+                            <td class="p-3 text-right">
+                                <button type="button"
+                                        class="px-3 py-1 bg-surface border border-outline-variant hover:bg-surface-high text-primary rounded-lg text-xs font-bold cursor-pointer"
+                                        @onclick="MatchAllSystemAmounts">
+                                    Khớp Tất Cả 100%
+                                </button>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Validation Status Indicator -->
+            <div class="p-3 rounded-xl border text-xs flex items-center justify-between @(TotalDifference == 0 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800" : "bg-amber-500/10 border-amber-500/30 text-amber-900")">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">@(TotalDifference == 0 ? "verified" : "warning")</span>
+                    @if (TotalDifference == 0)
+                    {
+                        <span class="font-bold">Số liệu đối soát thực tế hoàn toàn trùng khớp với hệ thống.</span>
+                    }
+                    else
+                    {
+                        <span class="font-bold">Phát hiện chênh lệch @(TotalDifference > 0 ? $"+{TotalDifference:N0}" : $"{TotalDifference:N0}") đ. Vui lòng kiểm tra và ghi chú lý do giải trình.</span>
+                    }
+                </div>
+                <span class="font-black text-[11px] uppercase">
+                    @(TotalDifference == 0 ? "CÂN KHỚP 100%" : "CẦN GIẢI TRÌNH")
+                </span>
+            </div>
+
+            <!-- Save Action Button -->
+            <div class="flex justify-end pt-2">
+                <button class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all active:scale-95"
+                        disabled="@_isSaving"
+                        @onclick="SaveReconciliationAsync">
+                    @if (_isSaving)
+                    {
+                        <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                        <span>Đang lưu dữ liệu...</span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined text-lg">save</span>
+                        <span>LƯU ĐỐI SOÁT THANH TOÁN</span>
+                    }
+                </button>
+            </div>
+        </div>
+
+        <!-- Column 2 (Right, 5 Cols): Tỷ Trọng Doanh Thu & Kiểm Quỹ Tiền Mặt -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Card 1: Payment Method Proportion Breakdown -->
+            <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-4">
+                <h4 class="font-black text-sm text-primary flex items-center gap-2 m-0 pb-2 border-b border-outline-variant">
+                    <span class="material-symbols-outlined text-base">pie_chart</span>
+                    TỶ TRỌNG THANH TOÁN THEO PHƯƠNG THỨC
+                </h4>
+
+                <!-- Segmented Proportion Bar -->
+                <div class="space-y-1.5">
+                    <div class="w-full h-4 rounded-full bg-surface-high overflow-hidden flex shadow-inner">
+                        <div class="bg-emerald-500 h-full transition-all duration-500"
+                             style="width: @(CashPercentage)%"
+                             title="Tiền mặt: @(CashPercentage.ToString("F1"))%"></div>
+                        <div class="bg-blue-500 h-full transition-all duration-500"
+                             style="width: @(TransferPercentage)%"
+                             title="Chuyển khoản: @(TransferPercentage.ToString("F1"))%"></div>
+                    </div>
+                </div>
+
+                <!-- Legend & Detailed Values -->
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                        <div class="flex items-center gap-1.5 font-bold text-emerald-700">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                            <span>Tiền Mặt: @(CashPercentage.ToString("F1"))%</span>
+                        </div>
+                        <div class="font-mono font-black text-on-surface text-sm mt-1">
+                            @CashSystemAmount.ToString("N0") đ
+                        </div>
+                    </div>
+
+                    <div class="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                        <div class="flex items-center gap-1.5 font-bold text-blue-700">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                            <span>VietQR: @(TransferPercentage.ToString("F1"))%</span>
+                        </div>
+                        <div class="font-mono font-black text-on-surface text-sm mt-1">
+                            @TransferSystemAmount.ToString("N0") đ
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Cash Drawer Audit Formula (Kiểm Quỹ Két Tiền) -->
+            <div class="bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm space-y-3">
+                <h4 class="font-black text-sm text-primary flex items-center gap-2 m-0 pb-2 border-b border-outline-variant">
+                    <span class="material-symbols-outlined text-base">point_of_sale</span>
+                    CÔNG THỨC KIỂM QUỸ KÉT TIỀN MẶT
+                </h4>
+
+                <div class="space-y-2 text-xs divide-y divide-outline-variant/50">
+                    <div class="flex justify-between items-center pt-1.5 text-on-surface-variant">
+                        <span>(+) Tiền mặt đầu ca (Float):</span>
+                        <span class="font-mono font-bold text-on-surface">@(_shiftDetail?.OpeningBalance.ToString("N0") ?? "0") đ</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1.5 text-on-surface-variant">
+                        <span>(+) Doanh thu tiền mặt bán hàng:</span>
+                        <span class="font-mono font-bold text-emerald-600">+@CashSystemAmount.ToString("N0") đ</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1.5 text-on-surface-variant">
+                        <span>(+) Nộp thêm tiền két (Till In):</span>
+                        <span class="font-mono font-bold text-on-surface">+@(_shiftDetail?.TotalTillIn.ToString("N0") ?? "0") đ</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1.5 text-on-surface-variant">
+                        <span>(-) Rút tiền két (Till Out):</span>
+                        <span class="font-mono font-bold text-rose-600">-@(_shiftDetail?.TotalTillOut.ToString("N0") ?? "0") đ</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1.5 text-on-surface-variant">
+                        <span>(-) Hoàn tiền mặt đơn hủy:</span>
+                        <span class="font-mono font-bold text-rose-600">-@(_shiftDetail?.TotalRefunds.ToString("N0") ?? "0") đ</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 font-black text-sm text-on-surface">
+                        <span>(=) Tiền mặt lý thuyết trong két:</span>
+                        <span class="font-mono text-primary text-base">@ExpectedCashAmount.ToString("N0") đ</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 text-xs text-on-surface-variant">
+                        <span>(vs) Tiền mặt thực tế đếm được:</span>
+                        <span class="font-mono font-black text-on-surface text-sm">@CashActualAmount.ToString("N0") đ</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 font-black text-xs">
+                        <span>(=>) Chênh lệch quỹ két tiền mặt:</span>
+                        <span class="font-mono text-sm @(CashDrawerDifference == 0 ? "text-emerald-600 font-black" : "text-rose-600 font-black")">
+                            @(CashDrawerDifference > 0 ? $"+{CashDrawerDifference:N0}" : $"{CashDrawerDifference:N0}") đ
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Orders Audit Table in this Shift -->
+    @if (_shiftDetail?.Orders != null && _shiftDetail.Orders.Any())
+    {
+        <div class="bg-surface rounded-2xl border border-outline-variant p-5 sm:p-6 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-outline-variant">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-xl text-primary">receipt_long</span>
+                    <h3 class="font-black text-base text-primary m-0">
+                        DANH SÁCH ĐƠN HÀNG TRONG CA (@_filteredOrders.Count đơn)
+                    </h3>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <span class="material-symbols-outlined text-base absolute left-2.5 top-2 text-on-surface-variant">search</span>
+                        <input type="text"
+                               class="pl-8 pr-3 py-1.5 text-xs bg-surface-high border border-outline-variant rounded-xl focus:bg-surface focus:outline-none focus:ring-1 focus:ring-primary w-48 sm:w-60"
+                               placeholder="Tìm mã đơn, tên bàn..."
+                               @bind="_orderSearchQuery"
+                               @bind:event="oninput" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Table -->
+            <div class="overflow-x-auto rounded-xl border border-outline-variant max-h-80 overflow-y-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="sticky top-0 bg-surface-high border-b border-outline-variant z-10">
+                        <tr class="text-on-surface-variant uppercase font-bold text-[11px]">
+                            <th class="p-3">Mã Đơn</th>
+                            <th class="p-3">Bàn / Kênh</th>
+                            <th class="p-3">Thời Gian</th>
+                            <th class="p-3">Phương Thức</th>
+                            <th class="p-3 text-right">Tạm Tính</th>
+                            <th class="p-3 text-right">Giảm Giá</th>
+                            <th class="p-3 text-right">Thực Thu</th>
+                            <th class="p-3 text-center">Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant/60">
+                        @foreach (var o in _filteredOrders)
+                        {
+                            <tr class="hover:bg-surface-high/30 transition-colors">
+                                <td class="p-3 font-mono font-bold text-primary">@o.OrderCode</td>
+                                <td class="p-3 font-semibold text-on-surface">@o.TableName</td>
+                                <td class="p-3 text-on-surface-variant">@o.CreatedAt.ToString("HH:mm:ss")</td>
+                                <td class="p-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold @(o.PaymentMethodName.Contains("VietQR") ? "bg-blue-500/10 text-blue-700" : "bg-emerald-500/10 text-emerald-700")">
+                                        @o.PaymentMethodName
+                                    </span>
+                                </td>
+                                <td class="p-3 text-right font-mono text-on-surface">@o.SubTotal.ToString("N0") đ</td>
+                                <td class="p-3 text-right font-mono text-rose-600">@(o.DiscountAmount > 0 ? $"-{o.DiscountAmount:N0} đ" : "-")</td>
+                                <td class="p-3 text-right font-mono font-black text-on-surface">@o.TotalAmount.ToString("N0") đ</td>
+                                <td class="p-3 text-center">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700">
+                                        @o.StatusName
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
 </div>
 
-@code {
-    protected StoreSalesSummaryDto? SalesSummary { get; set; }
-    protected List<PaymentReconciliationItemDto> ReconciliationItems { get; set; } = new();
+<!-- Modal: In Biên Bản Đối Soát Thanh Toán -->
+@if (_showPrintModal && _shiftDetail != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-2xl shadow-2xl w-full max-w-lg border border-outline-variant overflow-hidden flex flex-col p-6 space-y-4">
+            
+            <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+                <h3 class="font-black text-base text-primary flex items-center gap-2 m-0">
+                    <span class="material-symbols-outlined text-xl">print</span>
+                    BIÊN BẢN ĐỐI SOÁT DOANH THU & QUỸ TIỀN CA
+                </h3>
+                <button class="p-1 rounded-lg hover:bg-surface-high text-on-surface-variant cursor-pointer"
+                        @onclick="() => _showPrintModal = false">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
 
-    protected string? ErrorMessage { get; set; }
+            <!-- Printable Slip Content -->
+            <div id="printSlipArea" class="bg-surface-high/40 p-4 rounded-xl border border-outline-variant space-y-3 text-xs font-mono">
+                <div class="text-center space-y-0.5 border-b border-dashed border-outline-variant pb-2">
+                    <h4 class="font-black text-sm uppercase m-0 text-on-surface">NHÀ HÀNG PIZZA CONNER</h4>
+                    <p class="text-[11px] text-on-surface-variant m-0">Biên Bản Kiểm Kê Đối Soát Ca #@_shiftDetail.ShiftId</p>
+                    <p class="text-[10px] text-on-surface-variant m-0">In lúc: @DateTime.Now.ToString("HH:mm dd/MM/yyyy")</p>
+                </div>
+
+                <div class="space-y-1 text-[11px]">
+                    <div class="flex justify-between"><span>Thu ngân:</span><strong>@_shiftDetail.StaffName</strong></div>
+                    <div class="flex justify-between"><span>Thời gian:</span><span>@_shiftDetail.StartTime.ToString("HH:mm dd/MM") - @(_shiftDetail.EndTime?.ToString("HH:mm dd/MM") ?? "Hiện tại")</span></div>
+                    <div class="flex justify-between"><span>Trạng thái:</span><span>@_shiftDetail.StatusName</span></div>
+                </div>
+
+                <div class="border-t border-dashed border-outline-variant pt-2 space-y-1 text-[11px]">
+                    <div class="flex justify-between"><span>Tổng Doanh Thu Gốc:</span><strong>@EffectiveSalesSummary.GrossSales.ToString("N0") đ</strong></div>
+                    <div class="flex justify-between"><span>Tổng Giảm Giá:</span><span>-@EffectiveSalesSummary.TotalDiscounts.ToString("N0") đ</span></div>
+                    <div class="flex justify-between text-xs font-black text-primary"><span>Doanh Thu Thực Thu:</span><span>@EffectiveSalesSummary.NetSales.ToString("N0") đ</span></div>
+                    <div class="flex justify-between"><span>Tổng số đơn:</span><span>@EffectiveSalesSummary.TotalOrders đơn</span></div>
+                </div>
+
+                <div class="border-t border-dashed border-outline-variant pt-2 space-y-1 text-[11px]">
+                    <div class="font-bold text-on-surface mb-1">Chi tiết phương thức thanh toán:</div>
+                    @foreach (var itm in ReconciliationItems)
+                    {
+                        <div class="flex justify-between">
+                            <span>@itm.PaymentMethodName (HT: @itm.SystemAmount.ToString("N0")đ):</span>
+                            <strong>@itm.ActualAmount.ToString("N0") đ</strong>
+                        </div>
+                    }
+                    <div class="flex justify-between font-black pt-1 border-t border-outline-variant/60">
+                        <span>Chênh lệch đối soát:</span>
+                        <span class="@(TotalDifference == 0 ? "text-emerald-600" : "text-rose-600")">
+                            @(TotalDifference > 0 ? $"+{TotalDifference:N0}" : $"{TotalDifference:N0}") đ
+                        </span>
+                    </div>
+                </div>
+
+                <div class="border-t border-dashed border-outline-variant pt-3 flex justify-between text-center text-[10px] text-on-surface-variant">
+                    <div>
+                        <p class="font-bold m-0">Thu Ngân Ca</p>
+                        <p class="italic text-[9px] mt-6">(Ký & ghi rõ họ tên)</p>
+                    </div>
+                    <div>
+                        <p class="font-bold m-0">Quản Lý / Kế Toán</p>
+                        <p class="italic text-[9px] mt-6">(Ký & xác nhận)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="flex justify-end gap-2 pt-2 border-t border-outline-variant">
+                <button class="px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold hover:bg-surface-high cursor-pointer"
+                        @onclick="() => _showPrintModal = false">
+                    Đóng
+                </button>
+                <button class="px-5 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        @onclick="TriggerBrowserPrintAsync">
+                    <span class="material-symbols-outlined text-base">print</span>
+                    <span>In Ngay</span>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private int _selectedShiftId = 1;
+    private List<ShiftReportDto> _allShifts = new();
+    private ShiftReconciliationDetailDto? _shiftDetail;
+    private StoreSalesSummaryDto? _salesSummary;
+    private List<PaymentReconciliationItemDto> ReconciliationItems { get; set; } = new();
+
+    private string? ErrorMessage { get; set; }
+    private string? SuccessMessage { get; set; }
+    private bool _isSaving = false;
+    private bool _showPrintModal = false;
+    private string _orderSearchQuery = string.Empty;
+
+    // Computed Properties
+    private decimal TotalSystemAmount => ReconciliationItems.Sum(i => i.SystemAmount);
+    private decimal TotalActualAmount => ReconciliationItems.Sum(i => i.ActualAmount);
+    private decimal TotalDifference => TotalActualAmount - TotalSystemAmount;
+
+    private decimal CashSystemAmount => ReconciliationItems.FirstOrDefault(i => i.PaymentMethod == 0)?.SystemAmount ?? 0m;
+    private decimal TransferSystemAmount => ReconciliationItems.FirstOrDefault(i => i.PaymentMethod == 1)?.SystemAmount ?? 0m;
+
+    private decimal CashActualAmount => ReconciliationItems.FirstOrDefault(i => i.PaymentMethod == 0)?.ActualAmount ?? CashSystemAmount;
+    private decimal ExpectedCashAmount => _shiftDetail?.ExpectedCash ?? (CashSystemAmount + (_shiftDetail?.OpeningBalance ?? 0m));
+    private decimal CashDrawerDifference => CashActualAmount - ExpectedCashAmount;
+
+    private decimal CashPercentage => TotalSystemAmount > 0 ? (CashSystemAmount / TotalSystemAmount) * 100m : 50m;
+    private decimal TransferPercentage => TotalSystemAmount > 0 ? (TransferSystemAmount / TotalSystemAmount) * 100m : 50m;
+
+    private StoreSalesSummaryDto EffectiveSalesSummary =>
+        _shiftDetail?.SalesSummary ?? _salesSummary ?? new StoreSalesSummaryDto
+        {
+            GrossSales = TotalSystemAmount,
+            TotalDiscounts = 0,
+            CashSales = CashSystemAmount,
+            TransferSales = TransferSystemAmount,
+            TotalOrders = _shiftDetail?.Orders.Count ?? 0
+        };
+
+    private List<ReconciliationOrderDto> _filteredOrders =>
+        string.IsNullOrWhiteSpace(_orderSearchQuery)
+            ? (_shiftDetail?.Orders ?? new())
+            : (_shiftDetail?.Orders.Where(o =>
+                o.OrderCode.Contains(_orderSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                o.TableName.Contains(_orderSearchQuery, StringComparison.OrdinalIgnoreCase)).ToList() ?? new());
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadAllShiftsAsync();
         await LoadDataAsync();
+    }
+
+    private async Task LoadAllShiftsAsync()
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<ApiResponseWrapper<List<ShiftReportDto>>>("api/v1/shifts/all");
+            if (res?.Success == true && res.Data != null && res.Data.Any())
+            {
+                _allShifts = res.Data.OrderByDescending(s => s.ShiftId).ToList();
+                // Select active or latest shift
+                var active = _allShifts.FirstOrDefault(s => s.Status == 0);
+                _selectedShiftId = active?.ShiftId ?? _allShifts.First().ShiftId;
+            }
+        }
+        catch { }
+    }
+
+    private async Task OnShiftChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int shiftId))
+        {
+            _selectedShiftId = shiftId;
+            await LoadDataAsync();
+        }
     }
 
     private async Task LoadDataAsync()
     {
         ErrorMessage = null;
+        SuccessMessage = null;
         try
         {
-            var summaryTask = Http.GetFromJsonAsync<ApiResponseWrapper<StoreSalesSummaryDto>>("api/v1/reconciliation/sales-summary");
-            var reconTask = Http.GetFromJsonAsync<ApiResponseWrapper<List<PaymentReconciliationItemDto>>>("api/v1/reconciliation/preview/1");
+            // Call detail endpoint for selected shift
+            var detailTask = Http.GetFromJsonAsync<ApiResponseWrapper<ShiftReconciliationDetailDto>>($"api/v1/reconciliation/details/{_selectedShiftId}");
+            var summaryTask = Http.GetFromJsonAsync<ApiResponseWrapper<StoreSalesSummaryDto>>($"api/v1/reconciliation/sales-summary?shiftId={_selectedShiftId}");
 
-            await Task.WhenAll(summaryTask, reconTask);
+            await Task.WhenAll(detailTask, summaryTask);
 
-            SalesSummary = (await summaryTask)?.Data;
-            ReconciliationItems = (await reconTask)?.Data ?? new List<PaymentReconciliationItemDto>();
+            var detailRes = await detailTask;
+            var summaryRes = await summaryTask;
+
+            if (detailRes?.Success == true && detailRes.Data != null)
+            {
+                _shiftDetail = detailRes.Data;
+                ReconciliationItems = _shiftDetail.ReconciliationItems ?? new();
+            }
+            else
+            {
+                // Fallback to legacy preview endpoint if details is not returned
+                var reconRes = await Http.GetFromJsonAsync<ApiResponseWrapper<List<PaymentReconciliationItemDto>>>($"api/v1/reconciliation/preview/{_selectedShiftId}");
+                ReconciliationItems = reconRes?.Data ?? new();
+            }
+
+            if (summaryRes?.Success == true && summaryRes.Data != null)
+            {
+                _salesSummary = summaryRes.Data;
+            }
         }
         catch (Exception ex)
         {
@@ -139,15 +760,38 @@
         }
     }
 
+    private void MatchSystemAmount(PaymentReconciliationItemDto item)
+    {
+        item.ActualAmount = item.SystemAmount;
+    }
+
+    private void MatchAllSystemAmounts()
+    {
+        foreach (var itm in ReconciliationItems)
+        {
+            itm.ActualAmount = itm.SystemAmount;
+        }
+    }
+
     private async Task SaveReconciliationAsync()
     {
         ErrorMessage = null;
+        SuccessMessage = null;
+        _isSaving = true;
+
         try
         {
-            var req = new SaveReconciliationRequest { ShiftId = 1, Items = ReconciliationItems };
+            var req = new SaveReconciliationRequest
+            {
+                ShiftId = _selectedShiftId,
+                Items = ReconciliationItems,
+                Note = TotalDifference == 0 ? "Cân khớp 100%" : $"Lệch {TotalDifference:N0}đ"
+            };
+
             var res = await Http.PostAsJsonAsync("api/v1/reconciliation/save", req);
             if (res.IsSuccessStatusCode)
             {
+                SuccessMessage = "✓ Đã lưu kết quả đối soát thanh toán thành công!";
                 await LoadDataAsync();
             }
             else
@@ -159,6 +803,58 @@
         catch (Exception ex)
         {
             ErrorMessage = $"Lỗi hệ thống: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task TriggerBrowserPrintAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("window.print");
+        }
+        catch { }
+    }
+
+    private async Task ExportCsvAsync()
+    {
+        try
+        {
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("BÁO CÁO ĐỐI SOÁT THANH TOÁN CA - PIZZA CONNER");
+            csv.AppendLine($"Ca làm việc,#{_shiftDetail?.ShiftId ?? _selectedShiftId}");
+            csv.AppendLine($"Thu ngân,{_shiftDetail?.StaffName ?? "N/A"}");
+            csv.AppendLine($"Thời gian,{_shiftDetail?.StartTime:dd/MM/yyyy HH:mm} - {_shiftDetail?.EndTime:dd/MM/yyyy HH:mm}");
+            csv.AppendLine();
+            csv.AppendLine("Phương thức,Hệ thống tính (VNĐ),Thực tế đếm (VNĐ),Chênh lệch (VNĐ),Ghi chú");
+            foreach (var itm in ReconciliationItems)
+            {
+                csv.AppendLine($"\"{itm.PaymentMethodName}\",{itm.SystemAmount},{itm.ActualAmount},{itm.Difference},\"{itm.Note}\"");
+            }
+            csv.AppendLine($"\"TỔNG CỘNG\",{TotalSystemAmount},{TotalActualAmount},{TotalDifference},\"\"");
+            csv.AppendLine();
+            csv.AppendLine("DANH SÁCH ĐƠN HÀNG TRONG CA");
+            csv.AppendLine("Mã đơn,Bàn/Kênh,Thời gian,Phương thức,Tạm tính (VNĐ),Giảm giá (VNĐ),Thực thu (VNĐ),Trạng thái");
+            if (_shiftDetail?.Orders != null)
+            {
+                foreach (var ord in _shiftDetail.Orders)
+                {
+                    csv.AppendLine($"\"{ord.OrderCode}\",\"{ord.TableName}\",\"{ord.CreatedAt:HH:mm:ss}\",\"{ord.PaymentMethodName}\",{ord.SubTotal},{ord.DiscountAmount},{ord.TotalAmount},\"{ord.StatusName}\"");
+                }
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            var filename = $"DoiSoat_Ca_{_selectedShiftId}_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+            await JS.InvokeVoidAsync("eval", $"const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8;base64,{base64}'; a.download = '{filename}'; a.click();");
+            SuccessMessage = $"✓ Đã xuất file {filename} thành công!";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Lỗi xuất CSV: {ex.Message}";
         }
     }
 

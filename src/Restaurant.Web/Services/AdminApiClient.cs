@@ -239,13 +239,13 @@ public class AdminApiClient
         try
         {
             var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<MaterialDto>>>($"api/v1/inventory/suppliers/{supplierId}/materials");
-            if (res?.Data != null && res.Data.Any()) return res.Data;
+            if (res?.Data != null) return res.Data;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error fetching supplier materials: {ex.Message}");
         }
-        return await GetMaterialsAsync();
+        return new List<MaterialDto>();
     }
 
     public async Task<bool> CreateBlindStocktakeAsync(CreateBlindStocktakeRequest request)
@@ -267,13 +267,18 @@ public class AdminApiClient
         await SetAuthorizationHeaderAsync();
         try
         {
-            var url = "api/v1/inventory/reports/loss";
-            if (fromDate.HasValue && toDate.HasValue)
-            {
-                url += $"?fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}";
-            }
+            var query = new List<string>();
+            if (fromDate.HasValue) query.Add($"fromDate={fromDate.Value:yyyy-MM-dd}");
+            if (toDate.HasValue) query.Add($"toDate={toDate.Value:yyyy-MM-dd}");
+            var qs = query.Count > 0 ? "?" + string.Join("&", query) : "";
+
+            var url = $"api/v1/reports/loss{qs}";
             var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<InventoryLossSummaryDto>>(url);
             if (res?.Data != null) return res.Data;
+
+            // Fallback to legacy endpoint
+            var legacyRes = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<InventoryLossSummaryDto>>($"api/v1/inventory/reports/loss{qs}");
+            if (legacyRes?.Data != null) return legacyRes.Data;
         }
         catch (Exception ex)
         {
@@ -286,6 +291,50 @@ public class AdminApiClient
             TotalWasteAmount = 0,
             DiscrepancyCount = 0
         };
+    }
+
+    public async Task<RevenueReportDto> GetRevenueReportAsync(DateTime? fromDate = null, DateTime? toDate = null)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var query = new List<string>();
+            if (fromDate.HasValue) query.Add($"fromDate={fromDate.Value:yyyy-MM-dd}");
+            if (toDate.HasValue) query.Add($"toDate={toDate.Value:yyyy-MM-dd}");
+            var qs = query.Count > 0 ? "?" + string.Join("&", query) : "";
+
+            var url = $"api/v1/reports/revenue{qs}";
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<RevenueReportDto>>(url);
+            if (res?.Data != null) return res.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching revenue report: {ex.Message}");
+        }
+
+        return new RevenueReportDto();
+    }
+
+    public async Task<TopSellingReportDto> GetTopMoversReportAsync(DateTime? fromDate = null, DateTime? toDate = null, int limit = 50)
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var query = new List<string> { $"limit={limit}" };
+            if (fromDate.HasValue) query.Add($"fromDate={fromDate.Value:yyyy-MM-dd}");
+            if (toDate.HasValue) query.Add($"toDate={toDate.Value:yyyy-MM-dd}");
+            var qs = "?" + string.Join("&", query);
+
+            var url = $"api/v1/reports/top-movers{qs}";
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<TopSellingReportDto>>(url);
+            if (res?.Data != null) return res.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching top movers report: {ex.Message}");
+        }
+
+        return new TopSellingReportDto();
     }
 
     // ==========================================
@@ -687,9 +736,9 @@ public class AdminApiClient
 
     private List<CustomerDto> GetMockCustomers() => new()
     {
-        new CustomerDto { Id = 1, FullName = "Nguyễn Văn An", PhoneNumber = "0909123456", TierName = "Vàng (Gold)", TotalPoints = 1250, AvailablePoints = 450 },
-        new CustomerDto { Id = 2, FullName = "Trần Thị Bích", PhoneNumber = "0918234567", TierName = "Bạc (Silver)", TotalPoints = 620, AvailablePoints = 220 },
-        new CustomerDto { Id = 3, FullName = "Hoàng Minh Trí", PhoneNumber = "0933345678", TierName = "Kim Cương (Diamond)", TotalPoints = 3400, AvailablePoints = 1100 }
+        new CustomerDto { Id = 1, FullName = "Nguyễn Văn An", PhoneNumber = "0909123456", TierName = "Vàng (Gold)", DiscountPercent = 10, TotalPoints = 1250, AvailablePoints = 450 },
+        new CustomerDto { Id = 2, FullName = "Trần Thị Bích", PhoneNumber = "0918234567", TierName = "Bạc (Silver)", DiscountPercent = 5, TotalPoints = 620, AvailablePoints = 220 },
+        new CustomerDto { Id = 3, FullName = "Hoàng Minh Trí", PhoneNumber = "0933345678", TierName = "Kim Cương (Diamond)", DiscountPercent = 15, TotalPoints = 3400, AvailablePoints = 1100 }
     };
 
     private List<VoucherDto> GetMockVouchers() => new()

@@ -62,9 +62,83 @@
 
     <!-- Bảng danh sách phiếu nhập kho -->
     <div class="bg-surface rounded-2xl shadow-sm border border-outline-variant/30 overflow-hidden">
-        <div class="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container/30">
-            <h3 class="font-bold text-on-surface text-base m-0">Lịch Sử Phiếu Nhập Kho</h3>
-            <span class="text-xs text-on-surface-variant font-medium">Hiển thị @_receipts.Count phiếu</span>
+        <!-- Header & Counter -->
+        <div class="p-4 border-b border-outline-variant/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-surface-container/30">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-2xl">history</span>
+                <div>
+                    <h3 class="font-bold text-on-surface text-base m-0">Lịch Sử Phiếu Nhập Kho</h3>
+                    <p class="text-xs text-on-surface-variant m-0">Tìm kiếm và lọc theo thời gian hoặc nhà phân phối</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-on-surface-variant font-medium bg-surface px-3 py-1 rounded-full border border-outline-variant/40">
+                    Hiển thị <strong class="text-primary">@FilteredReceipts.Count()</strong> / @_receipts.Count phiếu
+                </span>
+            </div>
+        </div>
+
+        <!-- Bộ Lọc (Date & Supplier Filter Toolbar) -->
+        <div class="p-4 border-b border-outline-variant/20 bg-surface-container/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+                <!-- Lọc Nhà Cung Cấp -->
+                <div class="flex items-center gap-1.5 min-w-[200px]">
+                    <span class="font-bold text-on-surface-variant uppercase tracking-wider text-[11px] shrink-0">Nhà cung cấp:</span>
+                    <select class="px-3 py-1.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary font-medium text-xs cursor-pointer w-full md:w-auto"
+                            @bind="_filterSupplierId">
+                        <option value="0">-- Tất cả Nhà Cung Cấp --</option>
+                        @foreach (var sup in _suppliers)
+                        {
+                            <option value="@sup.Id">@sup.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <!-- Lọc Theo Ngày -->
+                <div class="flex items-center gap-1.5">
+                    <span class="font-bold text-on-surface-variant uppercase tracking-wider text-[11px] shrink-0">Từ ngày:</span>
+                    <input type="date" class="px-2.5 py-1.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-xs font-mono"
+                           @bind="_filterFromDate" />
+                    <span class="text-on-surface-variant">-</span>
+                    <span class="font-bold text-on-surface-variant uppercase tracking-wider text-[11px] shrink-0">Đến:</span>
+                    <input type="date" class="px-2.5 py-1.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-xs font-mono"
+                           @bind="_filterToDate" />
+                </div>
+
+                <!-- Quick date presets -->
+                <div class="flex items-center gap-1 shrink-0">
+                    <button class="px-2.5 py-1 rounded-lg border border-outline-variant/30 text-on-surface hover:bg-surface-container font-medium text-[11px] cursor-pointer"
+                            @onclick='() => SetDateFilterQuick("today")'>
+                        Hôm nay
+                    </button>
+                    <button class="px-2.5 py-1 rounded-lg border border-outline-variant/30 text-on-surface hover:bg-surface-container font-medium text-[11px] cursor-pointer"
+                            @onclick='() => SetDateFilterQuick("7days")'>
+                        7 ngày
+                    </button>
+                    <button class="px-2.5 py-1 rounded-lg border border-outline-variant/30 text-on-surface hover:bg-surface-container font-medium text-[11px] cursor-pointer"
+                            @onclick='() => SetDateFilterQuick("thisMonth")'>
+                        Tháng này
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tìm kiếm mã phiếu & Reset -->
+            <div class="flex items-center gap-2">
+                <div class="relative">
+                    <span class="material-symbols-outlined text-outline absolute left-2.5 top-1.5 text-base pointer-events-none">search</span>
+                    <input type="text" placeholder="Tìm mã phiếu..." 
+                           class="pl-8 pr-3 py-1.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-xs w-40"
+                           @bind="_filterSearchTerm" @bind:event="oninput" />
+                </div>
+                @if (_filterSupplierId > 0 || _filterFromDate.HasValue || _filterToDate.HasValue || !string.IsNullOrEmpty(_filterSearchTerm))
+                {
+                    <button class="px-2.5 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-200 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                            @onclick="ResetFilters" title="Đặt lại bộ lọc">
+                        <span class="material-symbols-outlined text-sm">restart_alt</span>
+                        <span>Xóa lọc</span>
+                    </button>
+                }
+            </div>
         </div>
 
         @if (_isLoading)
@@ -89,15 +163,28 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-outline-variant/20 text-sm">
-                        @if (!_receipts.Any())
+                        @if (!FilteredReceipts.Any())
                         {
                             <tr>
                                 <td colspan="7" class="p-10 text-center text-on-surface-variant">
-                                    Chưa có phiếu nhập kho nào. Nhấn <strong>"Tạo Phiếu Nhập Kho Mới"</strong> để bắt đầu.
+                                    @if (_filterSupplierId > 0 || _filterFromDate.HasValue || _filterToDate.HasValue || !string.IsNullOrEmpty(_filterSearchTerm))
+                                    {
+                                        <div>
+                                            <p class="font-bold text-sm mb-1">Không tìm thấy phiếu nhập nào phù hợp với bộ lọc.</p>
+                                            <button class="mt-2 px-3 py-1 rounded-lg bg-surface border border-outline-variant text-xs font-bold cursor-pointer hover:bg-surface-container"
+                                                    @onclick="ResetFilters">
+                                                Xóa bộ lọc để hiển thị tất cả
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span>Chưa có phiếu nhập kho nào. Nhấn <strong>"Tạo Phiếu Nhập Kho Mới"</strong> để bắt đầu.</span>
+                                    }
                                 </td>
                             </tr>
                         }
-                        @foreach (var r in _receipts)
+                        @foreach (var r in FilteredReceipts)
                         {
                             <tr class="hover:bg-surface-container/20 transition-colors">
                                 <td class="py-4 px-6 font-mono font-bold text-primary">@r.ReceiptCode</td>
@@ -195,9 +282,19 @@ else if (_currentView == ViewMode.Create)
                         <option value="@sup.Id">@sup.Name (@(string.IsNullOrEmpty(sup.PhoneNumber) ? "Đối tác" : sup.PhoneNumber))</option>
                     }
                 </select>
-                <p class="text-xs text-on-surface-variant mt-1.5">
-                    Hệ thống sẽ lọc danh sách mặt hàng tương ứng theo nhà cung cấp này.
-                </p>
+                @if (_selectedSupplierId > 0)
+                {
+                    <p class="text-xs text-primary font-bold mt-1.5 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">filter_alt</span>
+                        <span>Đã lọc @_supplierMaterials.Count mặt hàng chuyên biệt từ nhà cung cấp này.</span>
+                    </p>
+                }
+                else
+                {
+                    <p class="text-xs text-on-surface-variant mt-1.5">
+                        Hệ thống sẽ lọc danh sách mặt hàng tương ứng theo nhà cung cấp này.
+                    </p>
+                }
             </div>
 
             <div>
@@ -451,6 +548,78 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
 
     // Detail view fields
     private GoodsReceiptDto? _selectedReceiptForDetail;
+
+    // Filter fields for ViewMode.List
+    private DateTime? _filterFromDate;
+    private DateTime? _filterToDate;
+    private int _filterSupplierId = 0;
+    private string _filterSearchTerm = string.Empty;
+
+    private IEnumerable<GoodsReceiptDto> FilteredReceipts
+    {
+        get
+        {
+            var query = _receipts.AsEnumerable();
+
+            if (_filterSupplierId > 0)
+            {
+                query = query.Where(r => r.SupplierId == _filterSupplierId);
+            }
+
+            if (_filterFromDate.HasValue)
+            {
+                query = query.Where(r => r.CreatedAt.Date >= _filterFromDate.Value.Date);
+            }
+
+            if (_filterToDate.HasValue)
+            {
+                query = query.Where(r => r.CreatedAt.Date <= _filterToDate.Value.Date);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_filterSearchTerm))
+            {
+                var term = _filterSearchTerm.Trim().ToLowerInvariant();
+                query = query.Where(r => 
+                    r.ReceiptCode.ToLowerInvariant().Contains(term) || 
+                    r.SupplierName.ToLowerInvariant().Contains(term) ||
+                    (!string.IsNullOrEmpty(r.ReceivedByUserName) && r.ReceivedByUserName.ToLowerInvariant().Contains(term)));
+            }
+
+            return query;
+        }
+    }
+
+    private void SetDateFilterQuick(string range)
+    {
+        var now = DateTime.Today;
+        switch (range)
+        {
+            case "all":
+                _filterFromDate = null;
+                _filterToDate = null;
+                break;
+            case "today":
+                _filterFromDate = now;
+                _filterToDate = now;
+                break;
+            case "7days":
+                _filterFromDate = now.AddDays(-7);
+                _filterToDate = now;
+                break;
+            case "thisMonth":
+                _filterFromDate = new DateTime(now.Year, now.Month, 1);
+                _filterToDate = now;
+                break;
+        }
+    }
+
+    private void ResetFilters()
+    {
+        _filterFromDate = null;
+        _filterToDate = null;
+        _filterSupplierId = 0;
+        _filterSearchTerm = string.Empty;
+    }
 
     public class ReceiptRowModel
     {

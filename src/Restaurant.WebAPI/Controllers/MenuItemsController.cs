@@ -17,10 +17,14 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Manager,Cashier,Chef")]
-    public async Task<IActionResult> GetAll()
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAll([FromQuery] int? categoryId = null)
     {
         var items = await _menuItemService.GetAllAsync();
+        if (categoryId.HasValue)
+        {
+            items = items.Where(i => i.CategoryId == categoryId.Value).ToList();
+        }
         return Ok(items);
     }
 

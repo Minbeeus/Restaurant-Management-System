@@ -58,7 +58,7 @@ public class AuditLogDto
 
 public class SystemSettingsDto
 {
-    public string RestaurantName { get; set; } = "Mozzarella & Basil Italian Bistro";
+    public string RestaurantName { get; set; } = "Pizza Conner";
     public string Address { get; set; } = "123 Đường Pasteur, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh";
     public string Phone { get; set; } = "028 3822 9999";
     public string TaxNumber { get; set; } = "0312345678";

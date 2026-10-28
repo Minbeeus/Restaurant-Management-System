@@ -7,6 +7,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/dashboard")]
 [Authorize(Roles = "Admin,Manager")]
 public class DashboardController : ControllerBase
 {

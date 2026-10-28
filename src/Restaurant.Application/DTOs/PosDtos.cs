@@ -102,6 +102,7 @@ public class TakeawayOrderDto
 {
     public int OrderId { get; set; }
     public string OrderCode { get; set; } = string.Empty;
+    public int? CustomerId { get; set; }
     public string CustomerName { get; set; } = "Khách mang về";
     public string CustomerPhone { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
@@ -152,10 +153,10 @@ public class VoucherValidationResponseDto
 public class K80ReceiptDto
 {
     // Restaurant Metadata
-    public string RestaurantName { get; set; } = "NHÀ HÀNG MINBEEUS";
+    public string RestaurantName { get; set; } = "NHÀ HÀNG PIZZA CONNER";
     public string RestaurantAddress { get; set; } = "123 Nguyễn Văn Linh, Q.7, TP.HCM";
     public string RestaurantPhone { get; set; } = "0901.234.567";
-    public string WifiInfo { get; set; } = "Wifi: Minbeeus_Guest / Pass: 88888888";
+    public string WifiInfo { get; set; } = "Wifi: PizzaConner_Guest / Pass: 88888888";
     public string ReceiptTitle { get; set; } = "HÓA ĐƠN THANH TOÁN";
 
     // Order Information

@@ -18,6 +18,9 @@ public class OrderCartItemLocal
     public string? Note { get; set; }
     public bool IsSentToKitchen { get; set; } = false;
     public bool NeedsConfiguration { get; set; } = false;
+    public bool IsCombo { get; set; } = false;
+    public bool IsRedemption { get; set; } = false;
+    public int PointsCost { get; set; } = 0;
 }
 
 public partial class OrderCart
@@ -27,6 +30,8 @@ public partial class OrderCart
     [Parameter] public List<OrderCartItemLocal> Items { get; set; } = new();
     [Parameter] public string? SelectedItemId { get; set; }
     [Parameter] public bool IsTakeaway { get; set; } = false;
+    [Parameter] public decimal MemberDiscountPercent { get; set; } = 0m;
+    [Parameter] public string MemberTierName { get; set; } = string.Empty;
     [Parameter] public decimal AppliedDiscount { get; set; } = 0m;
     
     [Parameter] public EventCallback<OrderCartItemLocal> OnQuantityChanged { get; set; }
@@ -40,9 +45,26 @@ public partial class OrderCart
     [Parameter] public EventCallback OnPrintPreBill { get; set; }
     
     private decimal Subtotal => Items.Sum(i => i.Price * i.Quantity);
+    private decimal MemberEligibleSubtotal => Items
+        .Where(i => !i.IsCombo && (i.SelectedComboItems == null || !i.SelectedComboItems.Any()) && !i.IsRedemption)
+        .Sum(i => i.Price * i.Quantity);
+    private decimal MemberDiscount => MemberDiscountPercent > 0 ? Math.Round(MemberEligibleSubtotal * (MemberDiscountPercent / 100m)) : 0m;
     private decimal Discount => AppliedDiscount;
-    private decimal Total => Math.Max(0, Subtotal - Discount);
+    private decimal Total => Math.Max(0, Subtotal - MemberDiscount - Discount);
     private decimal Tax => Math.Round(Total - (Total / 1.08m), 0); // 8% VAT bóc tách từ tổng tiền đã bao gồm thuế
+    public int TotalRedeemedPoints => Items.Where(i => i.IsRedemption).Sum(i => i.PointsCost * i.Quantity);
+
+    private string GetShortTierName(string? tierName)
+    {
+        if (string.IsNullOrWhiteSpace(tierName)) return "Thành viên";
+        var name = tierName.Replace("Thành viên", "", StringComparison.OrdinalIgnoreCase).Trim();
+        var parenIndex = name.IndexOf('(');
+        if (parenIndex > 0)
+        {
+            name = name.Substring(0, parenIndex).Trim();
+        }
+        return string.IsNullOrWhiteSpace(name) ? tierName : name;
+    }
 
     private int UnsentItemsCount => Items.Count(i => !i.IsSentToKitchen);
     
