@@ -38,15 +38,29 @@ public class PosOrderService : IPosOrderService
             .OrderBy(t => t.SortOrder)
             .ToListAsync();
 
-        var activeOrders = await _context.Orders
-            .AsNoTracking()
-            .Where(o => o.TableId != null && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
-            .ToListAsync();
+        var currentShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+
+        List<Order> activeOrders;
+        if (currentShift == null)
+        {
+            activeOrders = new List<Order>();
+        }
+        else
+        {
+            activeOrders = await _context.Orders
+                .AsNoTracking()
+                .Where(o => o.ShiftId == currentShift.Id && o.TableId != null && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
+                .ToListAsync();
+        }
 
         var result = new List<TableStatusOverviewDto>();
         foreach (var t in tables)
         {
             var activeOrd = activeOrders.FirstOrDefault(o => o.TableId == t.Id);
+            var displayStatus = (currentShift == null || activeOrd == null)
+                ? (int)TableStatus.Available
+                : t.Status;
+
             result.Add(new TableStatusOverviewDto
             {
                 TableId = t.Id,
@@ -54,8 +68,8 @@ public class PosOrderService : IPosOrderService
                 AreaId = t.AreaId,
                 AreaName = t.Area?.Name ?? string.Empty,
                 Capacity = t.Capacity,
-                Status = t.Status,
-                StatusName = GetTableStatusName(t.Status),
+                Status = displayStatus,
+                StatusName = GetTableStatusName(displayStatus),
                 CurrentOrderId = activeOrd?.Id,
                 CurrentOrderCode = activeOrd?.OrderCode,
                 TotalAmount = activeOrd?.TotalAmount ?? 0,
@@ -295,6 +309,12 @@ public class PosOrderService : IPosOrderService
 
     public async Task<SubmitPosOrderResponse> SubmitPosOrderAsync(SubmitPosOrderRequest request)
     {
+        var hasActiveShift = await _context.Shifts.AnyAsync(s => s.Status == (int)ShiftStatus.Open);
+        if (!hasActiveShift)
+        {
+            throw new InvalidOperationException("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi nhận order hoặc gửi đơn hàng.");
+        }
+
         if (request.Items == null || !request.Items.Any() || request.Items.All(i => i.Quantity <= 0))
         {
             throw new InvalidOperationException("Giỏ hàng đang trống hoặc số lượng món không hợp lệ.");
@@ -432,9 +452,10 @@ public class PosOrderService : IPosOrderService
             Order? activeOrder = null;
             if (table != null)
             {
+                var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
                 activeOrder = await _context.Orders
                     .Include(o => o.OrderItems)
-                    .FirstOrDefaultAsync(o => o.TableId == table.Id && (o.Status == (int)OrderStatus.Draft || o.Status == (int)OrderStatus.Pending || o.Status == (int)OrderStatus.InPreparation || o.Status == (int)OrderStatus.Ready));
+                    .FirstOrDefaultAsync(o => (activeShift == null || o.ShiftId == activeShift.Id) && o.TableId == table.Id && (o.Status == (int)OrderStatus.Draft || o.Status == (int)OrderStatus.Pending || o.Status == (int)OrderStatus.InPreparation || o.Status == (int)OrderStatus.Ready));
             }
 
             Order targetOrder;
@@ -860,6 +881,12 @@ public class PosOrderService : IPosOrderService
 
     public async Task<List<TakeawayOrderDto>> GetTakeawayOrdersAsync()
     {
+        var currentShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+        if (currentShift == null)
+        {
+            return new List<TakeawayOrderDto>();
+        }
+
         var orders = await _context.Orders
             .AsNoTracking()
             .Include(o => o.Customer)
@@ -867,7 +894,7 @@ public class PosOrderService : IPosOrderService
             .Include(o => o.Payments)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemModifiers)
-            .Where(o => o.OrderType == (int)OrderType.Pickup || o.TableId == null)
+            .Where(o => o.ShiftId == currentShift.Id && (o.OrderType == (int)OrderType.Pickup || o.TableId == null))
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
 
@@ -890,6 +917,9 @@ public class PosOrderService : IPosOrderService
 
     public async Task<TakeawayOrderDto?> GetActiveOrderForTableAsync(int tableId)
     {
+        var currentShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+        if (currentShift == null) return null;
+
         var order = await _context.Orders
             .AsNoTracking()
             .Include(o => o.Customer)
@@ -897,7 +927,7 @@ public class PosOrderService : IPosOrderService
             .Include(o => o.Payments)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemModifiers)
-            .FirstOrDefaultAsync(o => o.TableId == tableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled);
+            .FirstOrDefaultAsync(o => o.ShiftId == currentShift.Id && o.TableId == tableId && o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled);
 
         return order == null ? null : MapToTakeawayDto(order);
     }

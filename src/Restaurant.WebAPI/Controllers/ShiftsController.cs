@@ -12,11 +12,21 @@ public class ShiftsController : ControllerBase
 {
     private readonly IShiftService _shiftService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IIdentityService _identityService;
 
-    public ShiftsController(IShiftService shiftService, ICurrentUserService currentUserService)
+    public ShiftsController(IShiftService shiftService, ICurrentUserService currentUserService, IIdentityService identityService)
     {
         _shiftService = shiftService;
         _currentUserService = currentUserService;
+        _identityService = identityService;
+    }
+
+    [HttpGet("has-active")]
+    [AllowAnonymous]
+    public async Task<IActionResult> HasActiveShift()
+    {
+        var hasActive = await _shiftService.HasActiveShiftAsync(_currentUserService.UserId ?? 1);
+        return Ok(new { success = true, hasActive });
     }
 
     [HttpGet("current")]
@@ -83,6 +93,55 @@ public class ShiftsController : ControllerBase
         }
 
         var userId = _currentUserService.UserId.Value;
+
+        // Bắt buộc xác nhận mã PIN Quản lý khi mở ca làm việc
+        if (string.IsNullOrWhiteSpace(request?.ManagerPin))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "MANAGER_PIN_REQUIRED",
+                    message = "Bắt buộc nhập mã PIN Quản lý để xác nhận mở ca làm việc."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        try
+        {
+            var isPinValid = await _identityService.VerifyManagerPinAsync(request.ManagerPin);
+            if (!isPinValid)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "INVALID_MANAGER_PIN",
+                        message = "Mã PIN Quản lý không chính xác."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests, new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "PIN_LOCKED",
+                    message = ex.Message
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
 
         try
         {

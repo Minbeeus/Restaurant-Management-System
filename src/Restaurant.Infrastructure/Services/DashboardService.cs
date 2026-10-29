@@ -75,7 +75,7 @@ public class DashboardService : IDashboardService
 
         // 4. Low Stock
         var lowStock = await _context.Materials
-            .Where(m => m.IsActive && m.CurrentStock <= m.MinStockLevel)
+            .Where(m => m.IsActive && !m.IsDeleted && m.CurrentStock <= m.MinStockLevel)
             .CountAsync();
 
         return new DashboardSummaryDto

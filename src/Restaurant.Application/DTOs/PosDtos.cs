@@ -42,6 +42,7 @@ public class OpenShiftRequest
     public int? RegisterId { get; set; }
     public decimal InitialCash { get; set; }
     public string? Note { get; set; }
+    public string? ManagerPin { get; set; }
 }
 
 public class CloseShiftRequest
@@ -71,6 +72,12 @@ public class ShiftReportDto
     public decimal ActualCash { get; set; }
     public decimal Difference { get; set; }
     public string? Note { get; set; }
+
+    public int TotalOrders { get; set; }
+    public int DineInOrders { get; set; }
+    public int TakeawayOrders { get; set; }
+    public decimal TotalTillIn { get; set; }
+    public decimal TotalTillOut { get; set; }
 
     public decimal OpeningBalance { get => InitialCash; set => InitialCash = value; }
     public decimal ClosingBalance { get => ExpectedCash; set => ExpectedCash = value; }

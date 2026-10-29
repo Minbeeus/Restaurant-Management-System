@@ -241,101 +241,132 @@
             }
         </main>
 
-        <!-- SECTION RIGHT (Strict 15% Width): Strict Toolbar (Requirement 5) -->
-        <aside class="w-[15%] min-w-[140px] max-w-[200px] h-full bg-surface rounded-2xl border border-outline-variant p-2.5 shadow-sm flex flex-col justify-between shrink-0 overflow-hidden">
+        <!-- SECTION RIGHT (Strict 15% Width): Standardized Action Toolbar -->
+        <aside class="w-[15%] min-w-[150px] max-w-[200px] h-full bg-surface rounded-2xl border border-outline-variant p-2.5 shadow-sm flex flex-col justify-between shrink-0 overflow-hidden">
             
-            <!-- Requirement 5: Vertical Toolbar Buttons in Order -->
+            <!-- Vertical Toolbar Buttons -->
             <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-0.5">
                 
                 @if (IsDetailMode)
                 {
                     <!-- Toolbar for Detail View Mode -->
+                    @if (CanEditSelectedOrder)
+                    {
+                        <button class="flex flex-col items-center justify-center py-2 px-2 bg-blue-500/10 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-blue-700 dark:text-blue-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0"
+                                @onclick="EditInvoice"
+                                title="Sửa món đơn mang về">
+                            <span class="material-symbols-outlined text-xl text-blue-600 group-hover:text-white mb-0.5">edit_note</span>
+                            <span class="text-xs font-bold">Sửa Đơn</span>
+                        </button>
+                    }
+
+                    @if (CanPaySelectedOrder)
+                    {
+                        <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0"
+                                @onclick="OpenPaymentModal"
+                                title="Thanh toán đơn mang về">
+                            <span class="material-symbols-outlined text-xl text-emerald-600 group-hover:text-white mb-0.5">payments</span>
+                            <span class="text-xs font-extrabold">Thanh Toán</span>
+                        </button>
+                    }
+
+                    <!-- In Hoá Đơn trong Detail Mode -->
                     <button class="flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0"
-                            @onclick="PrintInvoiceAsync">
+                            @onclick="PrintInvoiceAsync"
+                            title="In hóa đơn đơn mang về">
                         <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">print</span>
                         <span class="text-xs font-bold">In Hoá Đơn</span>
                     </button>
 
                     <!-- Nút Hoàn thành trong Detail Mode -->
-                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCompleteSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-teal-500/10 hover:bg-teal-600 hover:text-white border border-teal-500/30 text-teal-700 dark:text-teal-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCompleteSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
                             disabled="@(!CanCompleteSelectedOrder)"
-                            @onclick="CompleteOrderAsync">
-                        <span class="material-symbols-outlined text-xl text-emerald-600 group-hover:text-white mb-0.5">task_alt</span>
+                            @onclick="CompleteOrderAsync"
+                            title="Xác nhận hoàn thành giao khách">
+                        <span class="material-symbols-outlined text-xl text-teal-600 group-hover:text-white mb-0.5">task_alt</span>
                         <span class="text-xs font-bold">Hoàn Thành</span>
                     </button>
 
                     <!-- Nút Huỷ Đơn / Hoàn Tiền trong Detail Mode -->
                     <button class="flex flex-col items-center justify-center py-2 px-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-700 dark:text-rose-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCancelOrRefundSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
                             disabled="@(!CanCancelOrRefundSelectedOrder)"
-                            @onclick="OpenCancelModal">
+                            @onclick="OpenCancelModal"
+                            title="Gửi yêu cầu hủy đơn tới phê duyệt">
                         <span class="material-symbols-outlined text-xl text-rose-600 group-hover:text-white mb-0.5">cancel</span>
-                        <span class="text-xs font-bold">@(SelectedOrder?.IsPaid == true ? "Hoàn Tiền ($)" : "Huỷ Đơn")</span>
+                        <span class="text-xs font-bold">@(SelectedOrder?.IsPaid == true ? "Hoàn Tiền ($)" : "Hủy Đơn")</span>
                     </button>
                 }
                 else
                 {
-                    <!-- Requirement 5: Main Toolbar Buttons -->
+                    <!-- Standardized Main Toolbar Buttons -->
 
-                    <!-- 1. Nút Tạo đơn (Requirement 6) -->
+                    <!-- 1. Nút Tạo đơn -->
                     <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-primary text-on-primary hover:bg-primary/90 border border-primary/20 rounded-xl transition-all cursor-pointer text-center group shadow-xs shrink-0"
-                            @onclick="CreateNewTakeawayOrder">
+                            @onclick="CreateNewTakeawayOrder"
+                            title="Tạo đơn mang về mới">
                         <span class="material-symbols-outlined text-xl mb-0.5">add_shopping_cart</span>
-                        <span class="text-xs font-extrabold">Tạo Đơn</span>
+                        <span class="text-xs font-extrabold leading-tight">Tạo Đơn</span>
                     </button>
 
-                    <!-- 2. Nút Xem chi tiết (Requirement 7) -->
-                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedOrder == null ? "opacity-50 cursor-not-allowed" : "")"
+                    <!-- 2. Nút Xem chi tiết -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-sky-500/10 hover:bg-sky-600 hover:text-white border border-sky-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 text-sky-700 dark:text-sky-300 @(SelectedOrder == null ? "opacity-50 cursor-not-allowed" : "")"
                             disabled="@(SelectedOrder == null)"
-                            @onclick="() => OpenDetailView(SelectedOrder)">
-                        <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">visibility</span>
+                            @onclick="() => OpenDetailView(SelectedOrder)"
+                            title="Xem chi tiết đơn mang về">
+                        <span class="material-symbols-outlined text-xl text-sky-600 group-hover:text-white mb-0.5">receipt_long</span>
                         <span class="text-xs font-bold">Xem Chi Tiết</span>
                     </button>
 
-                    <!-- 3. Nút Thanh toán (Requirement 10) -->
+                    <!-- 3. Nút Thanh toán -->
                     <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanPaySelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
                             disabled="@(!CanPaySelectedOrder)"
-                            @onclick="OpenPaymentModal">
+                            @onclick="OpenPaymentModal"
+                            title="Thanh toán đơn mang về">
                         <span class="material-symbols-outlined text-xl text-emerald-600 group-hover:text-white mb-0.5">payments</span>
                         <span class="text-xs font-extrabold">Thanh Toán</span>
                     </button>
 
-                    <!-- 4. Nút Hoàn thành (Chuyển sang Hoàn thành khi bếp đã xong/giao khách) -->
-                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCompleteSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
-                            disabled="@(!CanCompleteSelectedOrder)"
-                            @onclick="CompleteOrderAsync">
-                        <span class="material-symbols-outlined text-xl mb-0.5">task_alt</span>
-                        <span class="text-xs font-extrabold">Hoàn Thành</span>
-                    </button>
-
-                    <!-- 5. Nút Huỷ Đơn / Hoàn Tiền (Yêu cầu mã PIN Quản lý) -->
-                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-700 dark:text-rose-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCancelOrRefundSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
-                            disabled="@(!CanCancelOrRefundSelectedOrder)"
-                            @onclick="OpenCancelModal">
-                        <span class="material-symbols-outlined text-xl text-rose-600 group-hover:text-white mb-0.5">cancel</span>
-                        <span class="text-xs font-bold">@(SelectedOrder?.IsPaid == true ? "Hoàn Tiền ($)" : "Huỷ Đơn")</span>
-                    </button>
-
-                    <!-- 6. Nút In hoá đơn (Requirement 8) -->
+                    <!-- 4. Nút In hoá đơn -->
                     <button class="flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedOrder == null ? "opacity-50 cursor-not-allowed" : "")"
                             disabled="@(SelectedOrder == null)"
-                            @onclick="PrintInvoiceAsync">
+                            @onclick="PrintInvoiceAsync"
+                            title="In hóa đơn đơn mang về">
                         <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">print</span>
                         <span class="text-xs font-bold">In Hoá Đơn</span>
                     </button>
 
-                    <!-- 7. Nút Sửa hoá đơn (Requirement 9: Only allowed when Status = Chờ xác nhận & Unpaid) -->
+                    <!-- 5. Nút Hoàn thành -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-teal-500/10 hover:bg-teal-600 hover:text-white border border-teal-500/30 text-teal-700 dark:text-teal-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCompleteSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                            disabled="@(!CanCompleteSelectedOrder)"
+                            @onclick="CompleteOrderAsync"
+                            title="Xác nhận hoàn thành giao khách">
+                        <span class="material-symbols-outlined text-xl text-teal-600 group-hover:text-white mb-0.5">task_alt</span>
+                        <span class="text-xs font-bold">Hoàn Thành</span>
+                    </button>
+
+                    <!-- 6. Nút Sửa Đơn -->
                     <button class="flex flex-col items-center justify-center py-2 px-2 bg-blue-500/10 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-blue-700 dark:text-blue-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanEditSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
                             disabled="@(!CanEditSelectedOrder)"
-                            @onclick="EditInvoice">
-                        <span class="material-symbols-outlined text-xl text-blue-600 group-hover:text-white mb-0.5">edit</span>
-                        <span class="text-xs font-bold">Sửa Hoá Đơn</span>
+                            @onclick="EditInvoice"
+                            title="Sửa món đơn mang về">
+                        <span class="material-symbols-outlined text-xl text-blue-600 group-hover:text-white mb-0.5">edit_note</span>
+                        <span class="text-xs font-bold">Sửa Đơn</span>
+                    </button>
+
+                    <!-- 7. Nút Huỷ Đơn / Hoàn Tiền -->
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-700 dark:text-rose-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(CanCancelOrRefundSelectedOrder ? "" : "opacity-40 cursor-not-allowed")"
+                            disabled="@(!CanCancelOrRefundSelectedOrder)"
+                            @onclick="OpenCancelModal"
+                            title="Gửi yêu cầu hủy đơn tới phê duyệt">
+                        <span class="material-symbols-outlined text-xl text-rose-600 group-hover:text-white mb-0.5">cancel</span>
+                        <span class="text-xs font-bold">@(SelectedOrder?.IsPaid == true ? "Hoàn Tiền ($)" : "Hủy Đơn")</span>
                     </button>
                 }
             </div>
 
-            <!-- Bottom Nút "Quay lại" (Requirement 16) - Always Visible -->
+            <!-- Bottom Nút "Quay lại" - Always Visible -->
             <div class="pt-2 border-t border-outline-variant shrink-0 mt-auto">
-                <button class="w-full flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-error hover:text-on-error border border-outline-variant rounded-xl transition-all cursor-pointer text-center group"
+                <button class="w-full flex flex-col items-center justify-center py-2.5 px-2 bg-surface-high hover:bg-error hover:text-on-error border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs"
                         @onclick="HandleBackAction">
                     <span class="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-on-error mb-0.5">arrow_back</span>
                     <span class="text-xs font-bold">Quay Lại</span>
@@ -363,7 +394,7 @@
         OrderData="ReceiptData" />
 }
 
-<!-- Cancel / Refund Order Modal with Manager PIN requirement -->
+<!-- Cancel / Refund Order Modal -->
 @if (ShowCancelModal && SelectedOrder != null)
 {
     <PosCancelOrderModal 
@@ -371,10 +402,33 @@
         IsOpenChanged="val => ShowCancelModal = val"
         TableName="@SelectedOrder.OrderCode"
         OrderId="@SelectedOrder.OrderId"
+        OrderAmount="@SelectedOrder.TotalAmount"
         OnOrderCancelled="HandleOrderCancelledWithPinAsync" />
 }
 
+@if (_showCashierToolsModal)
+{
+    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
+        IsOpen="_showCashierToolsModal" 
+        IsOpenChanged="val => _showCashierToolsModal = val"
+        OnShiftChanged="HandleShiftChangedAsync" />
+}
+
+<!-- Toast Notification -->
+@if (!string.IsNullOrEmpty(ToastMessage))
+{
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-gray-900/95 backdrop-blur-sm text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in-up border border-gray-800"
+         @onclick="() => ToastMessage = string.Empty">
+        <span class="material-symbols-outlined text-amber-400 text-2xl">warning</span>
+        <span class="font-bold text-sm tracking-wide">@ToastMessage</span>
+        <button class="ml-2 text-gray-400 hover:text-white transition-colors" @onclick:stopPropagation="true" @onclick="() => ToastMessage = string.Empty">
+            <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+    </div>
+}
+
 @code {
+    protected string ToastMessage { get; set; } = string.Empty;
     protected List<TakeawayOrderDto> TakeawayOrders { get; set; } = new();
     protected TakeawayOrderDto? SelectedOrder { get; set; }
     protected int SelectedStatusFilter { get; set; } = -1; // -1: All
@@ -383,6 +437,7 @@
     protected bool ShowPaymentModalState { get; set; } = false;
     protected bool ShowCancelModal { get; set; } = false;
     protected bool ShowK80Modal { get; set; } = false;
+    protected bool _showCashierToolsModal { get; set; } = false;
     protected K80ReceiptDto? ReceiptData { get; set; }
 
     private HubConnection? _hubConnection;
@@ -456,9 +511,47 @@
         SelectedOrder = order;
     }
 
-    private void CreateNewTakeawayOrder()
+    private async Task CreateNewTakeawayOrder()
     {
+        var isShiftOpen = await EnsureShiftOpenAsync();
+        if (!isShiftOpen)
+        {
+            _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi tạo đơn mang về.");
+            _showCashierToolsModal = true;
+            return;
+        }
+
         Navigation.NavigateTo("/pos/order?isTakeaway=true");
+    }
+
+    private async Task<bool> EnsureShiftOpenAsync()
+    {
+        try
+        {
+            var res = await Http.GetAsync("api/v1/shifts/current");
+            return res.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task HandleShiftChangedAsync()
+    {
+        await LoadOrdersAsync();
+    }
+
+    private async Task ShowToastAsync(string message)
+    {
+        ToastMessage = message;
+        StateHasChanged();
+        await Task.Delay(3000);
+        if (ToastMessage == message)
+        {
+            ToastMessage = string.Empty;
+            StateHasChanged();
+        }
     }
 
     private void OpenDetailView(TakeawayOrderDto? order)
@@ -520,27 +613,9 @@
     private async Task HandleOrderCancelledWithPinAsync((string Reason, string ManagerPin) args)
     {
         if (SelectedOrder == null) return;
-
-        try
-        {
-            var req = new CancelOrderRequest
-            {
-                OrderId = SelectedOrder.OrderId,
-                Reason = args.Reason,
-                ManagerPin = args.ManagerPin
-            };
-            var res = await Http.PostAsJsonAsync($"api/v1/pos/orders/{SelectedOrder.OrderId}/cancel", req);
-            if (res.IsSuccessStatusCode)
-            {
-                await LoadOrdersAsync();
-                IsDetailMode = false;
-                ShowCancelModal = false;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error cancelling order: {ex.Message}");
-        }
+        ShowCancelModal = false;
+        await LoadOrdersAsync();
+        IsDetailMode = false;
     }
 
     private async Task CompleteOrderAsync()

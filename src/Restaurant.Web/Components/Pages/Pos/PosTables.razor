@@ -15,11 +15,11 @@
     <!-- Top Nav Bar -->
     <PosHeader />
 
-    <!-- Main Workspace: 90% / 10% Layout -->
+    <!-- Main Workspace: Strict 85% / 15% Unified Layout -->
     <div class="flex flex-1 overflow-hidden bg-surface-low p-4 gap-4">
         
-        <!-- Left Section (~90% width): Areas & Table Floorplan Canvas / Grid -->
-        <main class="w-full lg:w-[90%] flex flex-col bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm overflow-hidden">
+        <!-- Left Section (85% width): Areas & Table Floorplan Canvas / Grid -->
+        <main class="w-[85%] flex flex-col bg-surface rounded-2xl border border-outline-variant p-5 shadow-sm overflow-hidden">
             <!-- Area Tabs & View Switcher -->
             <div class="flex items-center justify-between gap-2 overflow-x-auto pb-3 mb-4 border-b border-outline-variant shrink-0">
                 <div class="flex items-center gap-2 overflow-x-auto">
@@ -168,12 +168,26 @@
             </div>
         </main>
 
-        <!-- Right Section (~10% width): Action Buttons & Back Button -->
-        <aside class="w-full lg:w-[10%] min-w-[120px] bg-surface rounded-2xl border border-outline-variant p-3 shadow-sm flex flex-col justify-between shrink-0">
-            <!-- Top Action Buttons -->
-            <div class="flex flex-col gap-2.5">
-                <!-- 1. Xem Hóa Đơn -->
-                <button class="flex flex-col items-center justify-center p-2.5 bg-sky-500/10 hover:bg-sky-600 hover:text-white border border-sky-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-sky-700 dark:text-sky-300 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+        <!-- Right Section (15% width): Standardized Action Toolbar -->
+        <aside class="w-[15%] min-w-[150px] max-w-[200px] h-full bg-surface rounded-2xl border border-outline-variant p-2.5 shadow-sm flex flex-col justify-between shrink-0 overflow-hidden">
+            <!-- Scrollable Button Container -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-0.5">
+                <!-- 1. Đặt Món / Chỉnh Sửa Đơn -->
+                @{
+                    var hasTable = SelectedTable != null;
+                    var hasOrder = hasTable && SelectedTable!.CurrentOrderId != null && SelectedTable.Status != 0;
+                    var canOrder = hasTable && SelectedTable!.Status != 4;
+                }
+                <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-primary text-on-primary hover:bg-primary/90 border border-primary/20 rounded-xl transition-all cursor-pointer text-center group shadow-xs shrink-0 @(!canOrder ? "opacity-50 cursor-not-allowed" : "")"
+                        disabled="@(!canOrder)"
+                        @onclick="() => { if (SelectedTable != null) OpenTableOrder(SelectedTable); }"
+                        title="@(hasTable ? (hasOrder ? $"Chỉnh sửa đơn của {SelectedTable!.TableName}" : $"Đặt món cho {SelectedTable!.TableName}") : "Vui lòng chọn bàn")">
+                    <span class="material-symbols-outlined text-xl mb-0.5">@(hasOrder ? "edit_note" : "restaurant_menu")</span>
+                    <span class="text-xs font-extrabold leading-tight">@(hasOrder ? "Sửa Đơn" : "Đặt Món")</span>
+                </button>
+
+                <!-- 2. Xem Hóa Đơn -->
+                <button class="flex flex-col items-center justify-center py-2 px-2 bg-sky-500/10 hover:bg-sky-600 hover:text-white border border-sky-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 text-sky-700 dark:text-sky-300 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
                         disabled="@(SelectedTable?.CurrentOrderId == null)"
                         @onclick="() => ShowReceiptForOrderAsync(SelectedTable!.CurrentOrderId!.Value)"
                         title="Xem chi tiết hóa đơn của bàn đang chọn">
@@ -181,63 +195,68 @@
                     <span class="text-xs font-bold">Xem Hóa Đơn</span>
                 </button>
 
-                <!-- 2. In Hóa Đơn -->
-                <button class="flex flex-col items-center justify-center p-2.5 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
-                        disabled="@(SelectedTable?.CurrentOrderId == null)"
-                        @onclick="PrintPreBillAsync">
-                    <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">print</span>
-                    <span class="text-xs font-bold">In Hóa Đơn</span>
-                </button>
-
                 <!-- 3. Thanh Toán -->
-                <button class="flex flex-col items-center justify-center p-2.5 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-emerald-700 dark:text-emerald-400 @(SelectedTable?.Status != 3 ? "opacity-50" : "")"
-                        @onclick="OpenPaymentModal">
+                <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-emerald-500/10 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedTable?.Status != 3 ? "opacity-40 cursor-not-allowed" : "")"
+                        disabled="@(SelectedTable?.Status != 3)"
+                        @onclick="OpenPaymentModal"
+                        title="Thanh toán đơn hàng (sau khi in tạm tính)">
                     <span class="material-symbols-outlined text-xl text-emerald-600 group-hover:text-white mb-0.5">payments</span>
-                    <span class="text-xs font-bold">Thanh Toán</span>
+                    <span class="text-xs font-extrabold">Thanh Toán</span>
                 </button>
 
-                <!-- 4. Chuyển Bàn -->
-                <button class="flex flex-col items-center justify-center p-2 bg-blue-500/10 hover:bg-blue-600 hover:text-white border border-blue-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-blue-700 dark:text-blue-400 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+                <!-- 4. In Tạm Tính -->
+                <button class="flex flex-col items-center justify-center py-2 px-2 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
                         disabled="@(SelectedTable?.CurrentOrderId == null)"
-                        @onclick="OpenMoveModal">
-                    <span class="material-symbols-outlined text-lg text-blue-600 group-hover:text-white mb-0.5">move_up</span>
-                    <span class="text-[11px] font-bold">Chuyển Bàn</span>
+                        @onclick="PrintPreBillAsync"
+                        title="In phiếu tạm tính cho khách">
+                    <span class="material-symbols-outlined text-xl text-primary group-hover:text-on-primary mb-0.5">print</span>
+                    <span class="text-xs font-bold">In Tạm Tính</span>
                 </button>
 
-                <!-- 5. Gộp Bàn -->
-                <button class="flex flex-col items-center justify-center p-2 bg-amber-500/10 hover:bg-amber-600 hover:text-white border border-amber-500/30 rounded-xl transition-all cursor-pointer text-center group shadow-2xs text-amber-800 dark:text-amber-300 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+                <!-- 5. Chuyển Bàn -->
+                <button class="flex flex-col items-center justify-center py-2 px-2 bg-blue-500/10 hover:bg-blue-600 hover:text-white border border-blue-500/30 text-blue-700 dark:text-blue-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
                         disabled="@(SelectedTable?.CurrentOrderId == null)"
-                        @onclick="OpenMergeModal">
-                    <span class="material-symbols-outlined text-lg text-amber-600 group-hover:text-white mb-0.5">merge</span>
-                    <span class="text-[11px] font-bold">Gộp Bàn</span>
+                        @onclick="OpenMoveModal"
+                        title="Chuyển đơn hàng sang bàn khác">
+                    <span class="material-symbols-outlined text-xl text-blue-600 group-hover:text-white mb-0.5">move_up</span>
+                    <span class="text-xs font-bold">Chuyển Bàn</span>
                 </button>
 
-                @if (SelectedTable != null)
+                <!-- 6. Gộp Bàn -->
+                <button class="flex flex-col items-center justify-center py-2 px-2 bg-amber-500/10 hover:bg-amber-600 hover:text-white border border-amber-500/30 text-amber-800 dark:text-amber-300 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedTable?.CurrentOrderId == null ? "opacity-50 cursor-not-allowed" : "")"
+                        disabled="@(SelectedTable?.CurrentOrderId == null)"
+                        @onclick="OpenMergeModal"
+                        title="Gộp các bàn khác vào bàn này">
+                    <span class="material-symbols-outlined text-xl text-amber-600 group-hover:text-white mb-0.5">merge</span>
+                    <span class="text-xs font-bold">Gộp Bàn</span>
+                </button>
+
+                <!-- 7. Hủy Đơn -->
+                <button class="flex flex-col items-center justify-center py-2 px-2 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-700 dark:text-rose-400 rounded-xl transition-all cursor-pointer text-center group shadow-2xs shrink-0 @(SelectedTable?.CurrentOrderId == null || SelectedTable.Status == 4 ? "opacity-40 cursor-not-allowed" : "")"
+                        disabled="@(SelectedTable?.CurrentOrderId == null || SelectedTable.Status == 4)"
+                        @onclick="OpenCancelModal"
+                        title="Gửi yêu cầu hủy đơn tới phê duyệt">
+                    <span class="material-symbols-outlined text-xl text-rose-600 group-hover:text-white mb-0.5">cancel</span>
+                    <span class="text-xs font-bold">Hủy Đơn</span>
+                </button>
+
+                <!-- 8. Dọn Bàn (Khi Status == 4) -->
+                @if (SelectedTable?.Status == 4)
                 {
-                    var hasOrder = SelectedTable.CurrentOrderId != null && SelectedTable.Status != 0;
-                    <!-- 6. Đặt Món / Chỉnh Sửa Đơn -->
-                    <button class="flex flex-col items-center justify-center p-3 bg-primary text-on-primary hover:bg-primary/90 rounded-xl transition-all cursor-pointer text-center group shadow-xs mt-1"
-                            @onclick="() => OpenTableOrder(SelectedTable)">
-                        <span class="material-symbols-outlined text-2xl mb-1">@(hasOrder ? "edit_note" : "restaurant_menu")</span>
-                        <span class="text-xs font-bold leading-tight">@(hasOrder ? $"Chỉnh Sửa Đơn ({SelectedTable.TableName})" : $"Đặt Món ({SelectedTable.TableName})")</span>
+                    <button class="flex flex-col items-center justify-center py-2 px-2 bg-blue-500 text-white hover:bg-blue-600 rounded-xl transition-all cursor-pointer text-center group shadow-xs shrink-0 ring-2 ring-blue-300 animate-pulse"
+                            @onclick="ClearTableAsync"
+                            title="Xác nhận đã dọn xong bàn để đón khách mới">
+                        <span class="material-symbols-outlined text-xl mb-0.5">cleaning_services</span>
+                        <span class="text-xs font-bold">Dọn Bàn</span>
                     </button>
-                    
-                    @if (SelectedTable.Status == 4)
-                    {
-                        <button class="flex flex-col items-center justify-center p-2.5 bg-blue-500 text-white hover:bg-blue-600 rounded-xl transition-all cursor-pointer text-center group shadow-xs mt-1"
-                                @onclick="ClearTableAsync">
-                            <span class="material-symbols-outlined text-xl mb-0.5">cleaning_services</span>
-                            <span class="text-xs font-bold">Dọn Bàn</span>
-                        </button>
-                    }
                 }
             </div>
 
-            <!-- Bottom Back Button -->
-            <div class="pt-3 border-t border-outline-variant">
-                <button class="w-full flex flex-col items-center justify-center p-3 bg-surface-high hover:bg-error hover:text-on-error border border-outline-variant rounded-xl transition-all cursor-pointer text-center group"
+            <!-- Bottom Back Button - Always Visible -->
+            <div class="pt-2 border-t border-outline-variant shrink-0 mt-auto">
+                <button class="w-full flex flex-col items-center justify-center py-2.5 px-2 bg-surface-high hover:bg-error hover:text-on-error border border-outline-variant rounded-xl transition-all cursor-pointer text-center group shadow-2xs"
                         @onclick='() => Navigation.NavigateTo("/pos")'>
-                    <span class="material-symbols-outlined text-2xl text-on-surface-variant group-hover:text-on-error mb-1">arrow_back</span>
+                    <span class="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-on-error mb-0.5">arrow_back</span>
                     <span class="text-xs font-bold">Quay Lại</span>
                 </button>
             </div>
@@ -457,12 +476,34 @@
     </div>
 }
 
+<!-- Cancel Order Modal -->
+@if (ShowCancelModal && SelectedTable != null && SelectedTable.CurrentOrderId != null)
+{
+    <PosCancelOrderModal 
+        IsOpen="ShowCancelModal"
+        IsOpenChanged="val => ShowCancelModal = val"
+        TableName="@SelectedTable.TableName"
+        OrderId="@SelectedTable.CurrentOrderId.Value"
+        OrderAmount="@SelectedTable.TotalAmount"
+        OnOrderCancelled="HandleOrderCancelledAsync" />
+}
+
 <K80ReceiptModal IsOpen="ShowK80Modal" IsOpenChanged="val => ShowK80Modal = val" OrderData="ReceiptData" />
+
+@if (_showCashierToolsModal)
+{
+    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
+        IsOpen="_showCashierToolsModal" 
+        IsOpenChanged="val => _showCashierToolsModal = val"
+        OnShiftChanged="HandleShiftChangedAsync" />
+}
 
 @code {
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "printOrderId")] public int? PrintOrderId { get; set; }
 
+    protected bool _showCashierToolsModal { get; set; } = false;
+    protected bool ShowCancelModal { get; set; } = false;
     protected bool ShowK80Modal { get; set; } = false;
     protected K80ReceiptDto? ReceiptData { get; set; }
 
@@ -687,14 +728,46 @@
         SelectedTable = table;
     }
 
-    private void OpenTableOrder(TableStatusOverviewDto table)
+    private async Task OpenTableOrder(TableStatusOverviewDto table)
     {
         if (table.Status == 1) // Occupied
         {
             _ = ShowToastAsync("Bàn này đang được thao tác. Vui lòng chọn bàn khác.");
             return;
         }
+        if (table.Status == 4) // Paid - Chờ dọn bàn
+        {
+            _ = ShowToastAsync($"Bàn '{table.TableName}' đang chờ dọn bàn sau thanh toán. Vui lòng bấm 'Dọn Bàn' trước khi nhận khách mới!");
+            return;
+        }
+
+        var isShiftOpen = await EnsureShiftOpenAsync();
+        if (!isShiftOpen)
+        {
+            _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi nhận order bàn.");
+            _showCashierToolsModal = true;
+            return;
+        }
+
         Navigation.NavigateTo($"/pos/order?tableId={table.TableId}");
+    }
+
+    private async Task<bool> EnsureShiftOpenAsync()
+    {
+        try
+        {
+            var res = await Http.GetAsync("api/v1/shifts/current");
+            return res.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task HandleShiftChangedAsync()
+    {
+        await LoadTablesAsync();
     }
 
     private async Task PrintPreBillAsync()
@@ -747,6 +820,20 @@
             ToastMessage = string.Empty;
             StateHasChanged();
         }
+    }
+
+    private void OpenCancelModal()
+    {
+        if (SelectedTable == null || SelectedTable.CurrentOrderId == null || SelectedTable.Status == 4) return;
+        ShowCancelModal = true;
+    }
+
+    private async Task HandleOrderCancelledAsync((string Reason, string ManagerPin) args)
+    {
+        ShowCancelModal = false;
+        SelectedTable = null;
+        await LoadTablesAsync();
+        _ = ShowToastAsync("Đã gửi yêu cầu hủy đơn thành công!");
     }
 
     private async Task OpenPaymentModal()

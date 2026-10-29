@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
 using Restaurant.Application.DTOs;
+using Restaurant.Domain.Enums;
 using Restaurant.Web.Components.Pages.Pos.Components;
 using Restaurant.Web.Components.Pages.Pos.Components.OrderCart;
 
@@ -119,6 +120,7 @@ public partial class PosMain : IAsyncDisposable
     protected bool ShowDiscountModal { get; set; } = false;
     protected bool ShowCancelOrderModal { get; set; } = false;
     protected bool ShowEmptyOrderCancelModal { get; set; } = false;
+    protected int TableInitialStatus { get; set; } = 0;
     
     protected bool ShowVoidItemModal { get; set; } = false;
     protected OrderCartItemLocal? VoidingItem { get; set; }
@@ -179,8 +181,29 @@ public partial class PosMain : IAsyncDisposable
     }
 
     protected bool IsProcessing { get; set; } = false;
+    protected bool IsShiftOpen { get; set; } = true;
+    protected bool ShowCashierToolsModal { get; set; } = false;
 
     private HubConnection? _hubConnection;
+
+    protected async Task CheckShiftStatusAsync()
+    {
+        try
+        {
+            var res = await Http.GetAsync("api/v1/shifts/current");
+            IsShiftOpen = res.IsSuccessStatusCode;
+        }
+        catch
+        {
+            IsShiftOpen = false;
+        }
+    }
+
+    protected async Task HandleShiftChangedAsync()
+    {
+        await CheckShiftStatusAsync();
+        StateHasChanged();
+    }
 
     protected List<MenuItemDto> FilteredMenuItems =>
         AllMenuItems
@@ -192,6 +215,8 @@ public partial class PosMain : IAsyncDisposable
 
     protected override async Task OnInitializedAsync()
     {
+        await CheckShiftStatusAsync();
+
         if (!string.IsNullOrEmpty(OrderId) && int.TryParse(OrderId, out int parsedOrderId))
         {
             IsTakeaway = true;
@@ -294,6 +319,7 @@ public partial class PosMain : IAsyncDisposable
                 var matchingTable = tablesResult?.Data?.FirstOrDefault(t => t.TableId == parsedTableId);
                 if (matchingTable != null)
                 {
+                    TableInitialStatus = matchingTable.Status;
                     CurrentTableName = matchingTable.TableName;
                     if (matchingTable.CurrentOrderId.HasValue && matchingTable.CurrentOrderId.Value > 0)
                     {
@@ -474,6 +500,13 @@ public partial class PosMain : IAsyncDisposable
 
     protected void HandleMenuItemClicked(MenuItemDto item)
     {
+        if (!IsShiftOpen)
+        {
+            _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi order món.");
+            ShowCashierToolsModal = true;
+            return;
+        }
+
         // Check if item is a loyalty point redemption item
         if (item.PointsCost > 0 || item.IsRewardItem)
         {
@@ -982,51 +1015,11 @@ public partial class PosMain : IAsyncDisposable
         ShowVoidItemModal = true;
     }
 
-    protected async Task HandleVoidCompleted((bool Success, string Reason, string ManagerPin) voidArgs)
+    protected void HandleVoidCompleted((bool Success, string Reason, string ManagerPin) voidArgs)
     {
         if (voidArgs.Success && VoidingItem != null)
         {
-            if (VoidingItem.IsSentToKitchen && VoidingItem.OrderItemId.HasValue && ActiveOrderId > 0)
-            {
-                try
-                {
-                    var request = new VoidOrderItemRequest 
-                    { 
-                        Reason = string.IsNullOrWhiteSpace(voidArgs.Reason) ? "Yêu cầu hủy từ POS" : voidArgs.Reason,
-                        ManagerPin = voidArgs.ManagerPin
-                    };
-
-                    var response = await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/items/{VoidingItem.OrderItemId.Value}/void", request);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        _ = ShowToastAsync($"Đã hủy món {VoidingItem.Name} trên hệ thống thành công!");
-                        // Reload order items to reflect current status
-                        if (int.TryParse(TableId, out _))
-                        {
-                            await CheckExistingTableOrderAsync();
-                        }
-                        else
-                        {
-                            await LoadExistingTakeawayOrderAsync(ActiveOrderId);
-                        }
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        _ = ShowToastAsync($"Không thể hủy món {VoidingItem.Name} trên server: {response.StatusCode}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error voiding item: {ex.Message}");
-                    _ = ShowToastAsync($"Lỗi khi hủy món: {ex.Message}");
-                }
-            }
-            else
-            {
-                CartItems.Remove(VoidingItem);
-                _ = ShowToastAsync($"Đã hủy món {VoidingItem.Name} khỏi giỏ hàng thành công!");
-            }
+            _ = ShowToastAsync($"Đã gửi yêu cầu hủy món '{VoidingItem.Name}' tới Trung tâm phê duyệt!");
         }
         VoidingItem = null;
     }
@@ -1169,39 +1162,13 @@ public partial class PosMain : IAsyncDisposable
     {
         try
         {
-            if (ActiveOrderId > 0)
-            {
-                var request = new CancelOrderRequest 
-                { 
-                    OrderId = ActiveOrderId, 
-                    Reason = cancelArgs.Reason,
-                    ManagerPin = cancelArgs.ManagerPin
-                };
-
-                var response = await Http.PostAsJsonAsync($"api/v1/pos/orders/{ActiveOrderId}/cancel", request);
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorMsg = await response.Content.ReadAsStringAsync();
-                    _ = ShowToastAsync($"Không thể hủy đơn trên server: {response.StatusCode}");
-                    return; // DO NOT clear cart or navigate back on failure!
-                }
-
-                if (string.IsNullOrWhiteSpace(cancelArgs.ManagerPin))
-                {
-                    _ = ShowToastAsync("Đã gửi yêu cầu hủy đơn tới Trung tâm phê duyệt!");
-                    await Task.Delay(1000);
-                    HandleHeaderBackNav();
-                    return;
-                }
-            }
-            CartItems.Clear();
-            _ = ShowToastAsync("Đã hủy đơn hàng thành công!");
+            _ = ShowToastAsync("Đã gửi yêu cầu hủy đơn tới Trung tâm phê duyệt!");
             await Task.Delay(1000);
             HandleHeaderBackNav();
         }
         catch (Exception ex)
         {
-            _ = ShowToastAsync("Không thể hủy đơn: " + ex.Message);
+            _ = ShowToastAsync("Lỗi: " + ex.Message);
         }
     }
 
@@ -1210,10 +1177,25 @@ public partial class PosMain : IAsyncDisposable
     {
         if (IsProcessing) return;
 
-        // If cart is completely empty, show confirmation modal to cancel order and release table
+        if (!IsShiftOpen)
+        {
+            _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi hoàn tất order.");
+            ShowCashierToolsModal = true;
+            return;
+        }
+
+        // If cart is completely empty:
         if (CartItems == null || !CartItems.Any())
         {
-            ShowEmptyOrderCancelModal = true;
+            // Only prompt cancellation modal if there was already an active order with items that were all removed
+            if (ActiveOrderId > 0)
+            {
+                ShowEmptyOrderCancelModal = true;
+                return;
+            }
+
+            // If there is no active order and cart is empty, do NOT clear table or cancel anything!
+            _ = ShowToastAsync("Giỏ hàng đang trống! Vui lòng chọn món trước khi bấm Hoàn thành.");
             return;
         }
 
@@ -1270,13 +1252,17 @@ public partial class PosMain : IAsyncDisposable
 
             if (!IsTakeaway && !string.IsNullOrEmpty(TableId) && int.TryParse(TableId, out int tId))
             {
-                try
+                // Only clear the table if it was not in Paid (waiting for cleaning) status
+                if (TableInitialStatus != (int)TableStatus.Paid)
                 {
-                    await Http.PostAsync($"api/v1/pos/tables/{tId}/clear", null);
-                }
-                catch
-                {
-                    // Ignore if already cleared
+                    try
+                    {
+                        await Http.PostAsync($"api/v1/pos/tables/{tId}/clear", null);
+                    }
+                    catch
+                    {
+                        // Ignore if already cleared
+                    }
                 }
             }
 

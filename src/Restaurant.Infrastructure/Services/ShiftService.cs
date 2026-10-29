@@ -33,7 +33,7 @@ public class ShiftService : IShiftService
 
     public async Task<bool> HasActiveShiftAsync(int userId)
     {
-        return await _context.Shifts.AnyAsync(s => s.UserId == userId && s.Status == (int)ShiftStatus.Open);
+        return await _context.Shifts.AnyAsync(s => s.Status == (int)ShiftStatus.Open);
     }
 
     public async Task<ShiftReportDto?> GetCurrentShiftAsync(int userId)
@@ -43,6 +43,17 @@ public class ShiftService : IShiftService
             .Include(s => s.User)
             .Include(s => s.Register)
             .FirstOrDefaultAsync(s => s.UserId == userId && s.Status == (int)ShiftStatus.Open);
+
+        // Fallback: If no shift specifically recorded for this user, return the currently active store shift
+        if (shift == null)
+        {
+            shift = await _context.Shifts
+                .AsNoTracking()
+                .Include(s => s.User)
+                .Include(s => s.Register)
+                .OrderByDescending(s => s.OpenedAt)
+                .FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+        }
 
         if (shift == null) return null;
 
@@ -126,7 +137,29 @@ public class ShiftService : IShiftService
 
             if (shift == null)
             {
+                // Fallback: allow closing any active open shift in the restaurant
+                shift = await _context.Shifts
+                    .Include(s => s.User)
+                    .Include(s => s.Payments)
+                    .OrderByDescending(s => s.OpenedAt)
+                    .FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+            }
+
+            if (shift == null)
+            {
                 throw new InvalidOperationException(_localizer["NO_ACTIVE_SHIFT"] ?? "Không tìm thấy ca làm việc đang mở.");
+            }
+
+            // Bắt buộc thanh toán và hoàn tất toàn bộ đơn hàng trước khi đóng ca
+            var pendingOrders = await _context.Orders
+                .Where(o => (o.ShiftId == shift.Id || o.ShiftId == 0) && o.Status != (int)OrderStatus.Cancelled)
+                .Where(o => o.Status != (int)OrderStatus.Completed || o.PaymentStatus != (int)PaymentStatus.Paid)
+                .ToListAsync();
+
+            if (pendingOrders.Any())
+            {
+                var sampleList = string.Join(", ", pendingOrders.Take(5).Select(o => $"{o.OrderCode} ({(o.TableId.HasValue ? $"Bàn {o.TableId}" : "Mang đi")})"));
+                throw new InvalidOperationException($"Không thể đóng ca! Còn {pendingOrders.Count} đơn hàng chưa thanh toán hoặc chưa hoàn tất ({sampleList}). Bắt buộc phải thanh toán và hoàn tất toàn bộ đơn hàng trước khi đóng ca.");
             }
 
             var utcNow = DateTime.UtcNow;
@@ -273,6 +306,13 @@ public class ShiftService : IShiftService
 
         var expectedCash = shift.OpeningBalance + cashRevenue + totalTillIn - totalTillOut - totalRefunds + totalAdjustments;
 
+        var shiftOrders = await _context.Orders
+            .Where(o => o.ShiftId == shift.Id)
+            .ToListAsync();
+
+        var dineInCount = shiftOrders.Count(o => o.OrderType == (int)OrderType.DineIn);
+        var takeawayCount = shiftOrders.Count(o => o.OrderType == (int)OrderType.Pickup);
+
         var statusName = ((ShiftStatus)shift.Status) switch
         {
             ShiftStatus.Open => "Mở (Open)",
@@ -299,7 +339,12 @@ public class ShiftService : IShiftService
             ExpectedCash = expectedCash,
             ActualCash = shift.ActualCashCounted ?? expectedCash,
             Difference = shift.Difference ?? (shift.ActualCashCounted.HasValue ? shift.ActualCashCounted.Value - expectedCash : 0),
-            Note = shift.Note
+            Note = shift.Note,
+            TotalOrders = shiftOrders.Count,
+            DineInOrders = dineInCount,
+            TakeawayOrders = takeawayCount,
+            TotalTillIn = totalTillIn,
+            TotalTillOut = totalTillOut
         };
     }
 }

@@ -1,6 +1,9 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Globalization
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
 @inject NavigationManager Navigation
+@inject HttpClient Http
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -49,6 +52,25 @@
             </span>
             <span>@(IsKdsConnected ? (IsVietnamese ? "Bếp: Đã kết nối" : "KDS: Connected") : (IsVietnamese ? "Bếp: Mất kết nối" : "KDS: Offline"))</span>
         </div>
+
+        <!-- Shift Status Indicator Button -->
+        <button class="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer @(IsShiftOpen ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20" : "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20")"
+                @onclick="() => _showCashierToolsModal = true"
+                title="Quản lý ca làm việc (Click để mở công cụ thu ngân)">
+            <span class="relative flex h-2 w-2">
+                @if (IsShiftOpen)
+                {
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                }
+                else
+                {
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                }
+            </span>
+            <span>@(IsShiftOpen ? (CurrentShiftId.HasValue ? $"Ca #{CurrentShiftId}" : "Đã mở ca") : "Chưa mở ca")</span>
+            <span class="material-symbols-outlined text-[15px] opacity-70">point_of_sale</span>
+        </button>
     </div>
 
     <!-- Right Section: Notification Bell & User Profile -->
@@ -141,8 +163,24 @@
     </div>
 </header>
 
+@if (_showCashierToolsModal)
+{
+    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
+        IsOpen="_showCashierToolsModal" 
+        IsOpenChanged="val => _showCashierToolsModal = val"
+        OnShiftChanged="RefreshShiftStatusAsync" />
+}
+
 @code {
     [Parameter] public Action? OnNotificationClick { get; set; }
+
+    public static bool GlobalIsShiftOpen { get; private set; } = false;
+    public static int? GlobalCurrentShiftId { get; private set; } = null;
+    public static event Action? OnShiftGlobalChanged;
+
+    public bool IsShiftOpen => GlobalIsShiftOpen;
+    public int? CurrentShiftId => GlobalCurrentShiftId;
+    private bool _showCashierToolsModal = false;
 
     private DateTime _currentTime = DateTime.Now;
     private System.Threading.Timer? _timer;
@@ -299,6 +337,41 @@
             await _hubConnection.StartAsync();
         }
         catch { }
+
+        await RefreshShiftStatusAsync();
+    }
+
+    public async Task RefreshShiftStatusAsync()
+    {
+        try
+        {
+            var res = await Http.GetAsync("api/v1/shifts/current");
+            if (res.IsSuccessStatusCode)
+            {
+                var wrapper = await res.Content.ReadFromJsonAsync<HeaderShiftResponseWrapper>();
+                GlobalIsShiftOpen = wrapper?.Data != null;
+                GlobalCurrentShiftId = wrapper?.Data?.ShiftId;
+            }
+            else
+            {
+                GlobalIsShiftOpen = false;
+                GlobalCurrentShiftId = null;
+            }
+        }
+        catch
+        {
+            GlobalIsShiftOpen = false;
+            GlobalCurrentShiftId = null;
+        }
+
+        await InvokeAsync(StateHasChanged);
+        OnShiftGlobalChanged?.Invoke();
+    }
+
+    private class HeaderShiftResponseWrapper
+    {
+        public bool Success { get; set; }
+        public ShiftReportDto? Data { get; set; }
     }
 
     private void ToggleNotificationDrawer()

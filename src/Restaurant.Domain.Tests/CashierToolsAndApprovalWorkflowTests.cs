@@ -505,4 +505,202 @@ public class CashierToolsAndApprovalWorkflowTests
             });
         });
     }
+
+    [Fact]
+    public async Task ShiftsController_OpenShift_RequiresManagerPin_ReturnsBadRequest_WhenMissing()
+    {
+        var db = GetDbContext(nameof(ShiftsController_OpenShift_RequiresManagerPin_ReturnsBadRequest_WhenMissing));
+        var (cashier, manager, reg) = SeedUsersAndRegister(db);
+
+        var permService = new PermissionService(db);
+        var config = new Mock<IConfiguration>();
+        var identityService = new IdentityService(db, config.Object);
+        var auditService = new Mock<IAuditService>();
+        var localizer = new Mock<IStringLocalizer<SharedResources>>();
+        var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+
+        var currentUserService = new Mock<ICurrentUserService>();
+        currentUserService.Setup(c => c.UserId).Returns(cashier.Id);
+
+        var controller = new Restaurant.WebAPI.Controllers.ShiftsController(shiftService, currentUserService.Object, identityService);
+
+        var result = await controller.OpenShift(new OpenShiftRequest
+        {
+            RegisterId = reg.Id,
+            InitialCash = 2000000,
+            ManagerPin = null
+        });
+
+        var badReq = Assert.IsType<Microsoft.AspNetCore.Mvc.BadRequestObjectResult>(result);
+        Assert.NotNull(badReq.Value);
+    }
+
+    [Fact]
+    public async Task ShiftsController_OpenShift_WithValidManagerPin_Succeeds()
+    {
+        var db = GetDbContext(nameof(ShiftsController_OpenShift_WithValidManagerPin_Succeeds));
+        var (cashier, manager, reg) = SeedUsersAndRegister(db);
+
+        // Set manager's PIN
+        manager.PinCodeHash = BCrypt.Net.BCrypt.HashPassword("654321");
+        db.SaveChanges();
+
+        var permService = new PermissionService(db);
+        var config = new Mock<IConfiguration>();
+        var identityService = new IdentityService(db, config.Object);
+        var auditService = new Mock<IAuditService>();
+        var localizer = new Mock<IStringLocalizer<SharedResources>>();
+        var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+
+        var currentUserService = new Mock<ICurrentUserService>();
+        currentUserService.Setup(c => c.UserId).Returns(cashier.Id);
+
+        var controller = new Restaurant.WebAPI.Controllers.ShiftsController(shiftService, currentUserService.Object, identityService);
+
+        var result = await controller.OpenShift(new OpenShiftRequest
+        {
+            RegisterId = reg.Id,
+            InitialCash = 2000000,
+            ManagerPin = "654321"
+        });
+
+        var okResult = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+    }
+
+    [Fact]
+    public async Task CloseShift_WithUnsettledOrders_ThrowsInvalidOperationException()
+    {
+        var db = GetDbContext(nameof(CloseShift_WithUnsettledOrders_ThrowsInvalidOperationException));
+        var (cashier, manager, reg) = SeedUsersAndRegister(db);
+
+        var permService = new PermissionService(db);
+        var config = new Mock<IConfiguration>();
+        var identityService = new IdentityService(db, config.Object);
+        var auditService = new Mock<IAuditService>();
+        var localizer = new Mock<IStringLocalizer<SharedResources>>();
+        var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+
+        // Open shift
+        var shiftDto = await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest
+        {
+            RegisterId = reg.Id,
+            InitialCash = 1000000,
+            ManagerPin = "123456"
+        });
+
+        // Create an unpaid, uncompleted order in this shift
+        var activeOrder = new Order
+        {
+            OrderCode = "ORD-TEST-001",
+            ShiftId = shiftDto.ShiftId,
+            CreatedByUserId = cashier.Id,
+            Status = (int)OrderStatus.InPreparation,
+            PaymentStatus = (int)PaymentStatus.Unpaid,
+            TotalAmount = 250000,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Orders.Add(activeOrder);
+        db.SaveChanges();
+
+        // Attempting to close shift while an order is unsettled MUST throw InvalidOperationException
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest
+            {
+                ActualCashCounted = 1000000,
+                Note = "Thử đóng ca khi còn đơn chưa thanh toán"
+            });
+        });
+
+        Assert.Contains("Không thể đóng ca", ex.Message);
+        Assert.Contains("ORD-TEST-001", ex.Message);
+
+        // Now settle the order (mark completed and paid)
+        activeOrder.Status = (int)OrderStatus.Completed;
+        activeOrder.PaymentStatus = (int)PaymentStatus.Paid;
+        db.SaveChanges();
+
+        // Now closing shift should succeed
+        var closedShift = await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest
+        {
+            ActualCashCounted = 1000000,
+            Note = "Đóng ca sau khi đã hoàn tất đơn hàng"
+        });
+        Assert.Equal("Đã Đóng (Closed)", closedShift.StatusName);
+    }
+
+    [Fact]
+    public async Task PosOrderService_GetTablesStatus_HidesOrders_WhenShiftClosed()
+    {
+        var db = GetDbContext(nameof(PosOrderService_GetTablesStatus_HidesOrders_WhenShiftClosed));
+        var (cashier, manager, reg) = SeedUsersAndRegister(db);
+
+        var area = new Area { Id = 1, Name = "Khu vực chính", IsActive = true };
+        var table = new Table { Id = 5, AreaId = 1, Name = "Bàn 5", Capacity = 4, Status = (int)TableStatus.Available, IsActive = true };
+        db.Areas.Add(area);
+        db.Tables.Add(table);
+        db.SaveChanges();
+
+        var localizer = new Mock<IStringLocalizer<SharedResources>>();
+        var permService = new PermissionService(db);
+        var config = new Mock<IConfiguration>();
+        var identityService = new IdentityService(db, config.Object);
+        var auditService = new Mock<IAuditService>();
+        var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var notificationService = new Mock<IRestaurantNotificationService>();
+
+        var posOrderService = new PosOrderService(db, notificationService.Object, localizer.Object);
+
+        // When NO shift is open, tables must return Available and have no active order
+        var tablesNoShift = await posOrderService.GetTablesStatusAsync();
+        var tableItem = Assert.Single(tablesNoShift, t => t.TableId == 5);
+        Assert.Null(tableItem.CurrentOrderId);
+        Assert.Equal((int)TableStatus.Available, tableItem.Status);
+
+        // Open shift 1
+        var shift1 = await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000 });
+
+        // Add order in Shift 1 on Table 5
+        var orderShift1 = new Order
+        {
+            OrderCode = "ORD-SHIFT1",
+            TableId = 5,
+            ShiftId = shift1.ShiftId,
+            CreatedByUserId = cashier.Id,
+            Status = (int)OrderStatus.InPreparation,
+            PaymentStatus = (int)PaymentStatus.Unpaid,
+            TotalAmount = 300000,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Orders.Add(orderShift1);
+        table.Status = (int)TableStatus.Occupied;
+        db.SaveChanges();
+
+        // Query during Shift 1 -> should show occupied with order
+        var tablesShift1 = await posOrderService.GetTablesStatusAsync();
+        var tableItem1 = Assert.Single(tablesShift1, t => t.TableId == 5);
+        Assert.Equal(orderShift1.Id, tableItem1.CurrentOrderId);
+        Assert.Equal((int)TableStatus.Occupied, tableItem1.Status);
+
+        // Complete & pay order and close shift 1
+        orderShift1.Status = (int)OrderStatus.Completed;
+        orderShift1.PaymentStatus = (int)PaymentStatus.Paid;
+        table.Status = (int)TableStatus.Available;
+        db.SaveChanges();
+        await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest { ActualCashCounted = 1000000 });
+
+        // Open shift 2
+        var shift2 = await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000 });
+
+        // In Shift 2, old order from Shift 1 must NOT be visible on Table 5
+        var tablesShift2 = await posOrderService.GetTablesStatusAsync();
+        var tableItem2 = Assert.Single(tablesShift2, t => t.TableId == 5);
+        Assert.Null(tableItem2.CurrentOrderId);
+        Assert.Equal((int)TableStatus.Available, tableItem2.Status);
+    }
 }

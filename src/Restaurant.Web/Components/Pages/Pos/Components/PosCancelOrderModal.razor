@@ -1,5 +1,6 @@
-@using Restaurant.Web.Services
-@inject IAuthApiClient AuthApiClient
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@inject HttpClient Http
 
 @if (IsOpen)
 {
@@ -12,12 +13,12 @@
                     Hủy Đơn Hàng @TableName
                 </h3>
                 <button class="p-1 rounded-lg hover:bg-surface-high text-on-surface-variant cursor-pointer"
-                        @onclick="Close">
+                        @onclick="Close" disabled="@IsCancelling">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
 
-            <!-- Reason & Manager PIN Step -->
+            <!-- Reason & Notice Step -->
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Lý do hủy đơn hàng (*)</label>
@@ -26,17 +27,9 @@
                               @bind="CancelReason"></textarea>
                 </div>
 
-                <div class="p-3 bg-error/10 border border-error/20 rounded-xl text-error text-xs font-medium flex items-center gap-2">
-                    <span class="material-symbols-outlined text-lg">admin_panel_settings</span>
-                    <span>Hủy đơn yêu cầu nhập mã PIN của Quản lý ca hoặc Nhà hàng để xác nhận.</span>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-on-surface-variant uppercase mb-1">Mã PIN Quản Lý (6 Chữ Số)</label>
-                    <input type="password" maxlength="6"
-                           class="w-full p-3 text-center tracking-widest text-lg font-bold bg-surface-high border border-outline-variant rounded-xl focus:outline-none focus:border-primary"
-                           placeholder="******"
-                           @bind="ManagerPin" @bind:event="oninput" @onkeyup="HandlePinKeyUp" />
+                <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-800 dark:text-amber-300 text-xs font-medium flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg text-amber-600">info</span>
+                    <span>Hủy đơn hàng bắt buộc phải gửi yêu cầu đến Trung tâm phê duyệt để Quản lý/Admin xem xét và phê duyệt.</span>
                 </div>
 
                 @if (!string.IsNullOrEmpty(ErrorMessage))
@@ -48,25 +41,22 @@
             <!-- Footer Actions -->
             <div class="flex items-center justify-between gap-3 pt-3 border-t border-outline-variant">
                 <button class="px-4 py-2 border border-outline-variant rounded-xl text-xs font-bold hover:bg-surface-high cursor-pointer"
-                        @onclick="Close">Quay Lại</button>
+                        @onclick="Close" disabled="@IsCancelling">Quay Lại</button>
 
-                <div class="flex items-center gap-2">
-                    <button class="px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl text-xs font-bold hover:bg-primary/20 cursor-pointer flex items-center gap-1.5"
-                            @onclick="SendForAdminApproval" disabled="@IsCancelling"
-                            title="Gửi yêu cầu đến Trung tâm phê duyệt để Quản lý duyệt trên Admin">
+                <button class="px-6 py-2.5 bg-error text-on-error rounded-xl text-xs font-black hover:bg-error/90 cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        @onclick="SendForAdminApproval" disabled="@(IsCancelling || string.IsNullOrWhiteSpace(CancelReason))"
+                        title="Gửi yêu cầu đến Trung tâm phê duyệt để Quản lý duyệt trên Admin">
+                    @if (IsCancelling)
+                    {
+                        <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-on-error"></span>
+                        <span>Đang gửi...</span>
+                    }
+                    else
+                    {
                         <span class="material-symbols-outlined text-sm">send</span>
-                        <span>Gửi Duyệt (Admin)</span>
-                    </button>
-
-                    <button class="px-5 py-2 bg-error text-on-error rounded-xl text-xs font-bold hover:bg-error/90 cursor-pointer flex items-center gap-2"
-                            @onclick="ConfirmCancelOrderWithPin" disabled="@IsCancelling">
-                        @if (IsCancelling)
-                        {
-                            <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-on-error"></span>
-                        }
-                        <span>Xác Nhận Bằng PIN</span>
-                    </button>
-                </div>
+                        <span>Gửi Yêu Cầu Duyệt</span>
+                    }
+                </button>
             </div>
         </div>
     </div>
@@ -77,59 +67,12 @@
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string TableName { get; set; } = string.Empty;
     [Parameter] public int OrderId { get; set; }
+    [Parameter] public decimal OrderAmount { get; set; } = 0;
     [Parameter] public EventCallback<(string Reason, string ManagerPin)> OnOrderCancelled { get; set; }
 
     private string CancelReason { get; set; } = string.Empty;
-    private string ManagerPin { get; set; } = string.Empty;
     private bool IsCancelling { get; set; } = false;
     private string ErrorMessage { get; set; } = string.Empty;
-
-    private async Task HandlePinKeyUp(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && ManagerPin.Length == 6)
-        {
-            await ConfirmCancelOrderWithPin();
-        }
-    }
-
-    private async Task ConfirmCancelOrderWithPin()
-    {
-        if (string.IsNullOrWhiteSpace(CancelReason))
-        {
-            ErrorMessage = "Vui lòng nhập lý do hủy đơn hàng.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(ManagerPin) || ManagerPin.Length != 6)
-        {
-            ErrorMessage = "Vui lòng nhập đủ 6 chữ số mã PIN Quản lý.";
-            return;
-        }
-
-        IsCancelling = true;
-        ErrorMessage = string.Empty;
-
-        try
-        {
-            var isValid = await AuthApiClient.VerifyManagerPinAsync(ManagerPin);
-            if (!isValid)
-            {
-                ErrorMessage = "Mã PIN Quản lý không chính xác.";
-                return;
-            }
-
-            await OnOrderCancelled.InvokeAsync((CancelReason, ManagerPin));
-            await Close();
-        }
-        catch
-        {
-            ErrorMessage = "Không thể hủy đơn hàng. Vui lòng thử lại.";
-        }
-        finally
-        {
-            IsCancelling = false;
-        }
-    }
 
     private async Task SendForAdminApproval()
     {
@@ -144,12 +87,30 @@
 
         try
         {
-            await OnOrderCancelled.InvokeAsync((CancelReason, string.Empty));
-            await Close();
+            var req = new CreateApprovalRequestDto
+            {
+                Type = 7, // ApprovalType.CancelOrder
+                ReferenceId = OrderId,
+                Amount = OrderAmount,
+                Reason = CancelReason.Trim(),
+                Note = $"Yêu cầu hủy đơn hàng {TableName} (Mã #{OrderId}) từ POS"
+            };
+
+            var res = await Http.PostAsJsonAsync("api/v1/approvals/create", req);
+            if (res.IsSuccessStatusCode)
+            {
+                await OnOrderCancelled.InvokeAsync((CancelReason, string.Empty));
+                await Close();
+            }
+            else
+            {
+                var body = await res.Content.ReadAsStringAsync();
+                ErrorMessage = $"Lỗi gửi yêu cầu phê duyệt: {res.StatusCode}";
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            ErrorMessage = "Không thể gửi yêu cầu phê duyệt. Vui lòng thử lại.";
+            ErrorMessage = $"Không thể gửi yêu cầu phê duyệt: {ex.Message}";
         }
         finally
         {
@@ -161,7 +122,6 @@
     {
         IsOpen = false;
         CancelReason = string.Empty;
-        ManagerPin = string.Empty;
         ErrorMessage = string.Empty;
         await IsOpenChanged.InvokeAsync(false);
     }

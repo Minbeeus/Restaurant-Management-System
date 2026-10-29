@@ -8,6 +8,7 @@
 @using Restaurant.Web.Services
 @inject DashboardApiClient ApiClient
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 @layout Restaurant.Web.Components.Layout.AdminLayout
 @using Microsoft.AspNetCore.SignalR.Client
 @implements IAsyncDisposable
@@ -117,6 +118,20 @@
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState?.User?.Identity?.IsAuthenticated != true)
+            {
+                Navigation.NavigateTo("/admin/login", forceLoad: true);
+                return;
+            }
+        }
+        catch
+        {
+            return;
+        }
+
         await LoadDashboardData();
 
         // 1. Periodic auto-refresh every 15 seconds

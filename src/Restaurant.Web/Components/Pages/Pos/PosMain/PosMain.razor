@@ -25,8 +25,14 @@ else
     <header class="h-14 bg-surface border-b border-outline-variant px-4 flex items-center justify-between shrink-0 shadow-xs z-30 select-none">
         <!-- Left: Table / Order Info -->
         <div class="flex items-center gap-3">
+            <button class="p-2 -ml-1 text-on-surface-variant hover:text-primary hover:bg-surface-high rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    title="@(IsTakeaway ? "Quay lại danh sách đơn mang về" : "Quay lại sơ đồ bàn")"
+                    @onclick="HandleHeaderBackNav">
+                <span class="material-symbols-outlined text-2xl">arrow_back</span>
+            </button>
             <div class="flex items-center gap-2">
-                <span class="px-2.5 py-1 bg-primary/10 text-primary font-bold text-xs rounded-lg">
+                <span class="px-2.5 py-1 bg-primary/10 text-primary font-bold text-xs rounded-lg inline-flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm">@(IsTakeaway ? "takeout_dining" : "table_restaurant")</span>
                     @CurrentTableName
                 </span>
                 <span class="text-xs text-on-surface-variant font-mono">@CurrentOrderCode</span>
@@ -364,6 +370,7 @@ else
     @bind-IsOpen="ShowCancelOrderModal"
     TableName="@CurrentTableName"
     OrderId="ActiveOrderId"
+    OrderAmount="@(CartItems?.Sum(i => i.Price * i.Quantity) ?? 0)"
     OnOrderCancelled="HandleOrderCancelledAsync" />
 
 <!-- K80 Receipt Modal -->
@@ -374,8 +381,11 @@ else
 
 <PosVoidItemModal
     @bind-IsOpen="ShowVoidItemModal"
+    OrderId="ActiveOrderId"
+    OrderItemId="@(VoidingItem?.OrderItemId ?? 0)"
     ItemId="@VoidingItem?.Id"
     ItemName="@VoidingItem?.Name"
+    ItemAmount="@((VoidingItem?.Price ?? 0) * (VoidingItem?.Quantity ?? 1))"
     OnVoidCompleted="HandleVoidCompleted" />
 
 <PosTableActionModal
@@ -400,7 +410,14 @@ else
             </div>
             
             <p class="text-sm text-on-surface">
-                Đơn hàng hiện chưa có món nào. Bạn có muốn hủy lượt order này, giải phóng bàn <strong>@CurrentTableName</strong> về trạng thái Trống và quay lại sơ đồ bàn?
+                @if (IsTakeaway)
+                {
+                    <span>Đơn hàng mang về hiện chưa có món nào. Bạn có muốn hủy lượt order này và quay lại danh sách đơn mang về?</span>
+                }
+                else
+                {
+                    <span>Đơn hàng hiện chưa có món nào. Bạn có muốn hủy lượt order này, giải phóng bàn <strong>@CurrentTableName</strong> về trạng thái Trống và quay lại sơ đồ bàn?</span>
+                }
             </p>
 
             <div class="flex items-center justify-end gap-3 pt-2 border-t border-outline-variant/60">
@@ -426,6 +443,42 @@ else
             </div>
         </div>
     </div>
+}
+
+<!-- Blocking Modal when Shift is not opened -->
+@if (!IsShiftOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in select-none">
+        <div class="bg-surface rounded-3xl p-8 max-w-md w-full border border-outline-variant shadow-2xl text-center space-y-4">
+            <div class="w-16 h-16 rounded-3xl bg-amber-500/15 border border-amber-500/30 text-amber-600 flex items-center justify-center mx-auto shadow-inner">
+                <span class="material-symbols-outlined text-3xl">lock_clock</span>
+            </div>
+            <h3 class="text-xl font-black text-on-surface">Chưa Mở Ca Làm Việc!</h3>
+            <p class="text-xs text-on-surface-variant leading-relaxed">
+                Hệ thống yêu cầu Thu ngân phải mở ca làm việc và xác nhận số tiền đầu ca trong két trước khi nhận order món hoặc tạo đơn hàng.
+            </p>
+            <div class="flex flex-col gap-2.5 pt-2">
+                <button class="w-full py-3.5 bg-primary text-on-primary rounded-2xl font-black text-sm shadow-md hover:bg-primary/90 cursor-pointer flex items-center justify-center gap-2"
+                        @onclick="() => ShowCashierToolsModal = true">
+                    <span class="material-symbols-outlined text-xl">play_circle</span>
+                    Mở Ca Làm Việc Ngay
+                </button>
+                <button class="w-full py-3 bg-surface-high hover:bg-surface-variant text-on-surface rounded-2xl font-bold text-xs border border-outline-variant cursor-pointer"
+                        @onclick="HandleHeaderBackNav">
+                    Quay Lại
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Cashier Tools Modal -->
+@if (ShowCashierToolsModal)
+{
+    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
+        IsOpen="ShowCashierToolsModal" 
+        IsOpenChanged="val => ShowCashierToolsModal = val"
+        OnShiftChanged="HandleShiftChangedAsync" />
 }
 
 <!-- Toast Notification -->

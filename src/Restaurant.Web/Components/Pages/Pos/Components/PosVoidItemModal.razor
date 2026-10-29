@@ -2,7 +2,6 @@
 @using Restaurant.Application.DTOs
 @using Restaurant.Web.Services
 @inject HttpClient Http
-@inject IAuthApiClient AuthApiClient
 
 @if (IsOpen)
 {
@@ -13,7 +12,7 @@
                 <span class="material-symbols-outlined text-3xl">remove_shopping_cart</span>
                 <div>
                     <h3 class="font-black text-lg text-on-surface m-0 tracking-wide">HỦY MÓN (VOID ITEM)</h3>
-                    <span class="text-xs text-on-surface-variant font-medium">Yêu cầu quyền Quản lý để hủy món đã gửi bếp</span>
+                    <span class="text-xs text-on-surface-variant font-medium">Bắt buộc gửi yêu cầu đến Trung tâm phê duyệt để Quản lý xét duyệt</span>
                 </div>
             </div>
 
@@ -23,11 +22,18 @@
                     <span>Món cần hủy:</span>
                     <span class="text-primary font-black">@ItemName</span>
                 </div>
+                @if (ItemAmount > 0)
+                {
+                    <div class="flex justify-between text-on-surface-variant">
+                        <span>Giá trị món:</span>
+                        <span class="font-bold text-on-surface font-mono">@ItemAmount.ToString("N0")đ</span>
+                    </div>
+                }
             </div>
 
             <!-- Void Reason -->
             <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Lý do hủy</label>
+                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Lý do hủy (*)</label>
                 <select class="w-full p-2.5 rounded-xl border border-outline-variant text-sm bg-surface-high mb-2"
                         @bind="VoidReason">
                     <option value="">-- Chọn lý do --</option>
@@ -44,11 +50,10 @@
                 }
             </div>
 
-            <!-- PIN Input -->
-            <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Mã PIN Quản Lý (6 Chữ Số)</label>
-                <input type="password" maxlength="6" class="w-full p-3 text-center tracking-[1em] text-2xl font-black rounded-xl border border-outline-variant bg-surface-high focus:ring-2 focus:ring-error"
-                       placeholder="••••••" @bind="ManagerPin" @onkeyup="HandleKeyUp" />
+            <!-- Notice Box -->
+            <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-800 dark:text-amber-300 text-xs font-medium flex items-center gap-2">
+                <span class="material-symbols-outlined text-lg text-amber-600">info</span>
+                <span>Món đã gửi bếp bắt buộc phải gửi duyệt. Món sẽ được hủy sau khi Quản lý phê duyệt tại Trung tâm phê duyệt.</span>
             </div>
 
             @if (!string.IsNullOrEmpty(ErrorMessage))
@@ -59,15 +64,23 @@
             }
 
             <!-- Action Buttons -->
-            <div class="flex justify-end gap-3 pt-2">
+            <div class="flex justify-end gap-3 pt-2 border-t border-outline-variant">
                 <button class="px-5 py-2.5 text-xs font-bold border border-outline-variant rounded-xl hover:bg-surface-high cursor-pointer"
-                        @onclick="CloseAsync">
+                        @onclick="CloseAsync" disabled="@IsProcessing">
                     HỦY BỎ
                 </button>
-                <button class="px-6 py-2.5 text-xs font-black bg-error hover:bg-error-container text-on-error rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
-                        disabled="@(IsProcessing || string.IsNullOrEmpty(ManagerPin))" @onclick="ConfirmVoidAsync">
-                    <span class="material-symbols-outlined text-lg">delete</span>
-                    XÁC NHẬN HỦY MÓN
+                <button class="px-6 py-2.5 text-xs font-black bg-primary hover:bg-primary/90 text-on-primary rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled="@(IsProcessing || string.IsNullOrWhiteSpace(FinalReason))" @onclick="SubmitVoidApprovalAsync">
+                    @if (IsProcessing)
+                    {
+                        <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                        <span>ĐANG GỬI...</span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined text-lg">send</span>
+                        <span>GỬI YÊU CẦU DUYỆT</span>
+                    }
                 </button>
             </div>
         </div>
@@ -77,11 +90,13 @@
 @code {
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public int OrderId { get; set; }
+    [Parameter] public int OrderItemId { get; set; }
     [Parameter] public string ItemId { get; set; } = string.Empty;
     [Parameter] public string ItemName { get; set; } = string.Empty;
+    [Parameter] public decimal ItemAmount { get; set; } = 0;
     [Parameter] public EventCallback<(bool Success, string Reason, string ManagerPin)> OnVoidCompleted { get; set; }
 
-    protected string ManagerPin { get; set; } = string.Empty;
     protected string VoidReason { get; set; } = string.Empty;
     protected string CustomVoidReason { get; set; } = string.Empty;
     protected bool IsProcessing { get; set; } = false;
@@ -89,21 +104,8 @@
 
     private string FinalReason => VoidReason == "Khác" ? CustomVoidReason : VoidReason;
 
-    private async Task HandleKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    private async Task SubmitVoidApprovalAsync()
     {
-        if (e.Key == "Enter" && ManagerPin.Length >= 6)
-        {
-            await ConfirmVoidAsync();
-        }
-    }
-
-    private async Task ConfirmVoidAsync()
-    {
-        if (string.IsNullOrWhiteSpace(ManagerPin))
-        {
-            ErrorMessage = "Vui lòng nhập đầy đủ mã PIN Quản lý.";
-            return;
-        }
         if (string.IsNullOrWhiteSpace(FinalReason))
         {
             ErrorMessage = "Vui lòng cung cấp lý do hủy món.";
@@ -115,19 +117,30 @@
 
         try
         {
-            var isValid = await AuthApiClient.VerifyManagerPinAsync(ManagerPin);
-            if (!isValid)
+            var req = new CreateApprovalRequestDto
             {
-                ErrorMessage = "Mã PIN Quản lý không chính xác.";
-                return;
-            }
+                Type = 1, // ApprovalType.Void
+                ReferenceId = OrderItemId,
+                Amount = ItemAmount,
+                Reason = FinalReason.Trim(),
+                Note = $"Yêu cầu hủy món '{ItemName}' (ID #{OrderItemId}) thuộc đơn #{OrderId} từ POS"
+            };
 
-            await CloseAsync();
-            await OnVoidCompleted.InvokeAsync((true, FinalReason, ManagerPin));
+            var res = await Http.PostAsJsonAsync("api/v1/approvals/create", req);
+            if (res.IsSuccessStatusCode)
+            {
+                await OnVoidCompleted.InvokeAsync((true, FinalReason, string.Empty));
+                await CloseAsync();
+            }
+            else
+            {
+                var body = await res.Content.ReadAsStringAsync();
+                ErrorMessage = $"Lỗi gửi yêu cầu duyệt: {res.StatusCode}";
+            }
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Lỗi xác thực: {ex.Message}";
+            ErrorMessage = $"Lỗi gửi duyệt: {ex.Message}";
         }
         finally
         {
@@ -138,7 +151,6 @@
     private async Task CloseAsync()
     {
         IsOpen = false;
-        ManagerPin = string.Empty;
         VoidReason = string.Empty;
         CustomVoidReason = string.Empty;
         ErrorMessage = string.Empty;

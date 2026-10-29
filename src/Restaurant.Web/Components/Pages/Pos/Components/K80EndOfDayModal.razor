@@ -1,0 +1,252 @@
+@using Restaurant.Application.DTOs
+@inject IJSRuntime JS
+
+@if (IsOpen && ReportData != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in no-print-bg select-none">
+        <div class="bg-surface rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-outline-variant flex flex-col max-h-[92vh]">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-amber-400 text-2xl">point_of_sale</span>
+                    <div>
+                        <h3 class="font-black text-sm tracking-wide text-white m-0 uppercase">Báo Cáo Kết Ca / End Of Day (K80)</h3>
+                        <span class="text-[11px] text-slate-400">Khổ in nhiệt 80mm • Lưu trữ kế toán & bàn giao</span>
+                    </div>
+                </div>
+                <button class="hover:bg-slate-800 text-slate-400 hover:text-white p-1.5 rounded-full transition-colors cursor-pointer" 
+                        @onclick="CloseAsync" title="Đóng">
+                    <span class="material-symbols-outlined text-xl">close</span>
+                </button>
+            </div>
+
+            <!-- Scrollable Preview Area -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-slate-900/60 flex flex-col items-center">
+                
+                <!-- Notice Badge -->
+                <div class="w-[80mm] max-w-full mb-3 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-[11px] text-emerald-800 dark:text-emerald-300 flex items-start gap-2 shadow-2xs">
+                    <span class="material-symbols-outlined text-base shrink-0 text-emerald-600">check_circle</span>
+                    <div>
+                        <span class="font-bold">Đã chốt ca thành công!</span>
+                        <span> Toàn bộ đơn hàng trong ca đã hoàn thành. Nhấn <b>In Báo Cáo K80</b> để in phiếu bàn giao két tiền.</span>
+                    </div>
+                </div>
+
+                <!-- Printable K80 Receipt Container (80mm width) -->
+                <div id="k80-eod-report" class="k80-print-container bg-white text-black p-4 rounded-md shadow-md text-xs font-mono leading-tight w-[80mm] max-w-[80mm] box-border select-text">
+                    
+                    <!-- Restaurant Header -->
+                    <div class="text-center pb-2 border-b border-dashed border-black/40 mb-2">
+                        <div class="font-black text-base uppercase tracking-wider text-black">
+                            NHÀ HÀNG PIZZA CONNER
+                        </div>
+                        <div class="text-[11px] mt-0.5 text-gray-800">123 Nguyễn Văn Linh, Quận 7, TP.HCM</div>
+                        <div class="text-[11px] text-gray-800">Hotline: 0901.234.567</div>
+                    </div>
+
+                    <!-- Title -->
+                    <div class="text-center my-2">
+                        <div class="font-black text-sm uppercase tracking-wide text-black">BÁO CÁO KẾT CA BÁN HÀNG</div>
+                        <div class="text-[10px] uppercase font-bold text-gray-700 tracking-wider">(END OF DAY REPORT - K80)</div>
+                    </div>
+
+                    <!-- Shift Info -->
+                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-2">
+                        <div class="flex justify-between">
+                            <span>Mã Ca Làm Việc:</span>
+                            <strong class="font-bold">#@ReportData.ShiftId</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Thu ngân phụ trách:</span>
+                            <strong class="font-bold">@ReportData.StaffName</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Giờ Mở Ca:</span>
+                            <span>@ReportData.StartTime.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Giờ Đóng Ca:</span>
+                            <span>@(ReportData.EndTime?.ToString("dd/MM/yyyy HH:mm:ss") ?? DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"))</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Trạng thái ca:</span>
+                            <strong class="font-bold">@ReportData.StatusName</strong>
+                        </div>
+                    </div>
+
+                    <!-- Revenue Breakdown -->
+                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-2">
+                        <div class="font-black text-xs uppercase mb-1">1. DOANH THU & DÒNG TIỀN</div>
+                        
+                        <div class="flex justify-between">
+                            <span>Tiền mặt đầu ca:</span>
+                            <span class="font-bold">@ReportData.InitialCash.ToString("N0") đ</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>DT Tiền mặt (@ReportData.TotalCashOrders đơn):</span>
+                            <span class="font-bold">+@ReportData.CashRevenue.ToString("N0") đ</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>DT Chuyển khoản (@ReportData.TotalTransferOrders đơn):</span>
+                            <span class="font-bold">+@ReportData.BankingRevenue.ToString("N0") đ</span>
+                        </div>
+                        @if (ReportData.TotalTillIn > 0)
+                        {
+                            <div class="flex justify-between">
+                                <span>Nộp thêm vào két (Till In):</span>
+                                <span class="font-bold">+@ReportData.TotalTillIn.ToString("N0") đ</span>
+                            </div>
+                        }
+                        @if (ReportData.TotalTillOut > 0)
+                        {
+                            <div class="flex justify-between">
+                                <span>Rút bớt tiền két (Till Out):</span>
+                                <span class="font-bold">-@ReportData.TotalTillOut.ToString("N0") đ</span>
+                            </div>
+                        }
+                        <div class="flex justify-between pt-1 border-t border-dotted border-black/30 font-black text-xs">
+                            <span>TỔNG DOANH THU CA:</span>
+                            <span>@ReportData.TotalRevenue.ToString("N0") đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Cash Balance Reconciliation -->
+                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-2">
+                        <div class="font-black text-xs uppercase mb-1">2. KIỂM ĐẾM TIỀN MẶT KÉT</div>
+                        <div class="flex justify-between">
+                            <span>Tiền mặt kỳ vọng trong két:</span>
+                            <strong class="font-bold">@ReportData.ExpectedCash.ToString("N0") đ</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Tiền thực tế đếm được:</span>
+                            <strong class="font-bold">@ReportData.ActualCash.ToString("N0") đ</strong>
+                        </div>
+                        <div class="flex justify-between pt-1 border-t border-dotted border-black/30 font-black">
+                            <span>Chênh lệch (Thực tế - Kỳ vọng):</span>
+                            <span>
+                                @(ReportData.Difference == 0 ? "✓ 0 đ (Khớp tiền)" : ReportData.Difference > 0 ? $"+{ReportData.Difference:N0} đ (Thừa)" : $"{ReportData.Difference:N0} đ (Thiếu)")
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Order Counts -->
+                    <div class="space-y-1 text-[11px] pb-2 border-b border-dashed border-black/40 mb-2">
+                        <div class="font-black text-xs uppercase mb-1">3. THỐNG KÊ ĐƠN HÀNG</div>
+                        <div class="flex justify-between">
+                            <span>Tổng đơn hoàn thành:</span>
+                            <span class="font-bold">@(ReportData.TotalOrders > 0 ? ReportData.TotalOrders : (ReportData.TotalCashOrders + ReportData.TotalTransferOrders)) đơn</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>- Đơn ăn tại bàn (Dine-in):</span>
+                            <span>@ReportData.DineInOrders đơn</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>- Đơn mang về (Takeaway):</span>
+                            <span>@ReportData.TakeawayOrders đơn</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-700 italic">
+                            <span>Trạng thái xử lý:</span>
+                            <span class="font-bold text-black">Đã hoàn tất & thanh toán 100%</span>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(ReportData.Note))
+                    {
+                        <div class="text-[11px] pb-2 border-b border-dashed border-black/40 mb-2">
+                            <span class="font-bold">Ghi chú kết ca:</span>
+                            <p class="m-0 italic text-gray-800">@ReportData.Note</p>
+                        </div>
+                    }
+
+                    <!-- Signatures -->
+                    <div class="pt-2 text-center text-[10px]">
+                        <div class="grid grid-cols-2 gap-4 pb-12">
+                            <div>
+                                <strong class="uppercase">Thu Ngân Bàn Giao</strong>
+                                <div class="italic text-gray-600 mt-0.5">(Ký & ghi rõ họ tên)</div>
+                            </div>
+                            <div>
+                                <strong class="uppercase">Quản Lý Nhận Bàn Giao</strong>
+                                <div class="italic text-gray-600 mt-0.5">(Ký & ghi rõ họ tên)</div>
+                            </div>
+                        </div>
+
+                        <div class="text-[9px] text-gray-500 pt-2 border-t border-dashed border-black/30">
+                            In lúc: @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") • Hệ thống POS Pizza Conner
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="px-6 py-4 bg-surface border-t border-outline-variant flex justify-between items-center shrink-0">
+                <button class="px-5 py-2.5 bg-surface-high hover:bg-outline-variant/40 border border-outline-variant rounded-2xl font-bold text-xs cursor-pointer"
+                        @onclick="CloseAsync">
+                    ĐÓNG
+                </button>
+                <button class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-on-primary rounded-2xl font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+                        @onclick="PrintReceiptAsync">
+                    <span class="material-symbols-outlined text-lg">print</span>
+                    <span>IN BÁO CÁO K80</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thermal Print Styling for K80 (80mm) -->
+    <style>
+        @@media print {
+            body * {
+                visibility: hidden !important;
+            }
+            .no-print-bg {
+                background: transparent !important;
+                position: static !important;
+                padding: 0 !important;
+            }
+            #k80-eod-report, #k80-eod-report * {
+                visibility: visible !important;
+            }
+            #k80-eod-report {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 80mm !important;
+                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 2mm !important;
+                box-shadow: none !important;
+                border: none !important;
+                background-color: white !important;
+                color: black !important;
+            }
+            @@page {
+                size: 80mm auto;
+                margin: 0;
+            }
+        }
+    </style>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public ShiftReportDto? ReportData { get; set; }
+
+    private async Task PrintReceiptAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("window.print");
+        }
+        catch { }
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

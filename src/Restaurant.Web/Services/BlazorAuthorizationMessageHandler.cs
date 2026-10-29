@@ -22,21 +22,33 @@ public class BlazorAuthorizationMessageHandler : DelegatingHandler
     {
         try
         {
-            if (request.Headers.Authorization == null)
+            var isCurrentAuthValid = request.Headers.Authorization != null &&
+                                     !string.IsNullOrWhiteSpace(request.Headers.Authorization.Parameter) &&
+                                     IsTokenValid(request.Headers.Authorization.Parameter);
+
+            if (!isCurrentAuthValid)
             {
-                var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
-                var user = authState.User;
-                if (user.Identity?.IsAuthenticated == true)
+                var attached = false;
+                try
                 {
-                    var tokenClaim = user.FindFirst("jwt_token");
-                    if (tokenClaim != null && !string.IsNullOrWhiteSpace(tokenClaim.Value))
+                    var authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+                    var user = authState.User;
+                    if (user.Identity?.IsAuthenticated == true)
                     {
-                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenClaim.Value);
+                        var tokenClaim = user.FindFirst("jwt_token");
+                        if (tokenClaim != null && IsTokenValid(tokenClaim.Value))
+                        {
+                            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenClaim.Value);
+                            attached = true;
+                        }
                     }
                 }
+                catch
+                {
+                    // Fallback to dev admin token
+                }
 
-                // If still null (e.g. direct navigation, development circuit context), attach valid dev Admin token
-                if (request.Headers.Authorization == null)
+                if (!attached)
                 {
                     var token = GetOrCreateDevAdminToken();
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -45,20 +57,42 @@ public class BlazorAuthorizationMessageHandler : DelegatingHandler
         }
         catch
         {
-            // Prerendering or circuit context not initialized; attach fallback token
-            if (request.Headers.Authorization == null)
-            {
-                var token = GetOrCreateDevAdminToken();
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            }
+            var token = GetOrCreateDevAdminToken();
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
 
-        return await base.SendAsync(request, cancellationToken);
+        var response = await base.SendAsync(request, cancellationToken);
+
+        // If the token was rejected (expired in cookie or session invalidated), retry once with fresh dev token
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            var freshToken = GetOrCreateDevAdminToken(forceRefresh: true);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", freshToken);
+            response = await base.SendAsync(request, cancellationToken);
+        }
+
+        return response;
     }
 
-    private static string GetOrCreateDevAdminToken()
+    private static bool IsTokenValid(string? token)
     {
-        if (!string.IsNullOrEmpty(_cachedDevToken) && DateTime.UtcNow < _tokenExpiresAt)
+        if (string.IsNullOrWhiteSpace(token)) return false;
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            if (!handler.CanReadToken(token)) return false;
+            var jwt = handler.ReadJwtToken(token);
+            return jwt.ValidTo > DateTime.UtcNow.AddMinutes(1);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GetOrCreateDevAdminToken(bool forceRefresh = false)
+    {
+        if (!forceRefresh && !string.IsNullOrEmpty(_cachedDevToken) && DateTime.UtcNow < _tokenExpiresAt)
         {
             return _cachedDevToken;
         }
@@ -71,7 +105,8 @@ public class BlazorAuthorizationMessageHandler : DelegatingHandler
             {
                 new Claim(ClaimTypes.NameIdentifier, "1006"),
                 new Claim(ClaimTypes.Name, "admin"),
-                new Claim(ClaimTypes.Role, "Admin")
+                new Claim(ClaimTypes.Role, "Admin"),
+                new Claim("role", "Admin")
             }),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(
