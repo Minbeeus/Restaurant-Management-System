@@ -14,5 +14,6 @@ public interface IRestaurantHubClient
     Task ReceiveTableSessionMoved(int oldTableId, int newTableId, string newTableName);
     Task ReceiveLowStockWarning(int materialId, string materialName, decimal currentStock, decimal minStockLevel);
     Task ReceivePaymentCompleted(int orderId, string orderCode, decimal amountPaid, string paymentMethod);
+    Task OrderPaid(int orderId);
     Task ReceivePaymentAlert(int orderId, string orderCode, string message);
 }

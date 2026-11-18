@@ -83,7 +83,32 @@ public class AdminApiClient
     {
         await SetAuthorizationHeaderAsync();
         var response = await _httpClient.PutAsJsonAsync($"api/v1/inventory/materials/{id}", request);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("message", out var msgProp) && !string.IsNullOrWhiteSpace(msgProp.GetString()))
+                {
+                    throw new InvalidOperationException(msgProp.GetString());
+                }
+                if (doc.RootElement.TryGetProperty("error", out var errProp))
+                {
+                    if (errProp.ValueKind == System.Text.Json.JsonValueKind.Object && errProp.TryGetProperty("message", out var errMsg) && !string.IsNullOrWhiteSpace(errMsg.GetString()))
+                    {
+                        throw new InvalidOperationException(errMsg.GetString());
+                    }
+                    if (errProp.ValueKind == System.Text.Json.JsonValueKind.String && !string.IsNullOrWhiteSpace(errProp.GetString()))
+                    {
+                        throw new InvalidOperationException(errProp.GetString());
+                    }
+                }
+            }
+            catch (System.Text.Json.JsonException) { }
+
+            response.EnsureSuccessStatusCode();
+        }
     }
 
     public async Task DeleteMaterialAsync(int id)
@@ -91,6 +116,40 @@ public class AdminApiClient
         await SetAuthorizationHeaderAsync();
         var response = await _httpClient.DeleteAsync($"api/v1/inventory/materials/{id}");
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<List<UnitOfMeasureDto>> GetUnitsOfMeasureAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<ApiResponseWrapper<List<UnitOfMeasureDto>>>("api/v1/inventory/units-of-measure");
+            if (res?.Data != null && res.Data.Count > 0) return res.Data;
+
+            var raw = await _httpClient.GetFromJsonAsync<List<UnitOfMeasureDto>>("api/v1/inventory/units-of-measure");
+            if (raw != null && raw.Count > 0) return raw;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching units of measure: {ex.Message}");
+        }
+        return GetDefaultUnitsOfMeasure();
+    }
+
+    private static List<UnitOfMeasureDto> GetDefaultUnitsOfMeasure()
+    {
+        return new List<UnitOfMeasureDto>
+        {
+            new() { Id = 1, Name = "Kilogram", Abbreviation = "Kg" },
+            new() { Id = 2, Name = "Lít", Abbreviation = "L" },
+            new() { Id = 3, Name = "Hộp / Lon", Abbreviation = "Hộp" },
+            new() { Id = 4, Name = "Gram", Abbreviation = "g" },
+            new() { Id = 5, Name = "Mililít", Abbreviation = "ml" },
+            new() { Id = 6, Name = "Cái / Miếng", Abbreviation = "Pcs" },
+            new() { Id = 7, Name = "Gói / Bịch", Abbreviation = "Gói" },
+            new() { Id = 8, Name = "Lon", Abbreviation = "Lon" },
+            new() { Id = 9, Name = "Chai", Abbreviation = "Chai" }
+        };
     }
 
     // ==========================================
@@ -406,6 +465,14 @@ public class AdminApiClient
     {
         await SetAuthorizationHeaderAsync();
         var response = await _httpClient.PostAsJsonAsync("api/v1/auth/users", request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<UserDto>();
+    }
+
+    public async Task<UserDto?> UpdateUserAsync(int userId, UpdateUserRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await _httpClient.PutAsJsonAsync($"api/v1/auth/users/{userId}", request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<UserDto>();
     }

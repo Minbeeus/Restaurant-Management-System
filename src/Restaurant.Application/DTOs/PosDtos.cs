@@ -42,6 +42,7 @@ public class OpenShiftRequest
     public int? RegisterId { get; set; }
     public decimal InitialCash { get; set; }
     public string? Note { get; set; }
+    public string? CashCustodianPin { get; set; }
     public string? ManagerPin { get; set; }
 }
 
@@ -51,11 +52,56 @@ public class CloseShiftRequest
     public string? Note { get; set; }
 }
 
+public class ShiftEmployeeCashSummaryDto
+{
+    public int EmployeeId { get; set; }
+    public int UserId { get => EmployeeId; set => EmployeeId = value; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string StaffName { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public int PaidOrdersCount { get; set; }
+    public int CashOrdersCount { get; set; }
+    public int NonCashOrdersCount { get; set; }
+    public decimal CashCollected { get; set; }
+    public decimal NonCashCollected { get; set; }
+    public decimal CashRefunded { get; set; }
+    public decimal NonCashRefunded { get; set; }
+    private decimal? _totalRevenue;
+    public decimal TotalRevenue
+    {
+        get => _totalRevenue ?? (CashCollected + NonCashCollected - CashRefunded - NonCashRefunded);
+        set => _totalRevenue = value;
+    }
+}
+
+public class OutstandingOrderDto
+{
+    public int OrderId { get; set; }
+    public string OrderCode { get; set; } = string.Empty;
+    public int? TableId { get; set; }
+    public string? TableName { get; set; }
+    public decimal TotalAmount { get; set; }
+    public int Status { get; set; }
+    public string OrderStatus { get; set; } = string.Empty;
+    public int PaymentStatus { get; set; }
+    public string PaymentStatusName { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
 public class ShiftReportDto
 {
     public int ShiftId { get; set; }
+    public string? ShiftCode { get; set; }
     public int UserId { get; set; }
     public string StaffName { get; set; } = string.Empty;
+    public int? OpenedByUserId { get; set; }
+    public string? OpenedByStaffName { get; set; }
+    public int? CashCustodianUserId { get; set; }
+    public string? CashCustodianStaffName { get; set; }
+    public string? CashCustodianEmployeeCode { get; set; }
+    public int? ClosedByUserId { get; set; }
+    public string? ClosedByStaffName { get; set; }
     public int? RegisterId { get; set; }
     public string? RegisterName { get; set; }
     public DateTime StartTime { get; set; }
@@ -74,10 +120,25 @@ public class ShiftReportDto
     public string? Note { get; set; }
 
     public int TotalOrders { get; set; }
+    public int CompletedOrdersCount { get; set; }
+    public int CancelledOrdersCount { get; set; }
+    public int OutstandingOrdersCount { get; set; }
     public int DineInOrders { get; set; }
     public int TakeawayOrders { get; set; }
     public decimal TotalTillIn { get; set; }
     public decimal TotalTillOut { get; set; }
+    public decimal TotalCashRefunds { get; set; }
+    public decimal TotalCashAdjustments { get; set; }
+    private decimal? _remainingCashToTillOut;
+    public decimal RemainingCashToTillOut
+    {
+        get => _remainingCashToTillOut ?? Math.Max(0, ExpectedCash - TotalTillOut);
+        set => _remainingCashToTillOut = value;
+    }
+    public bool CanCloseShift { get; set; }
+
+    public List<ShiftEmployeeCashSummaryDto> EmployeeSummaries { get; set; } = new();
+    public List<OutstandingOrderDto> OutstandingOrders { get; set; } = new();
 
     public decimal OpeningBalance { get => InitialCash; set => InitialCash = value; }
     public decimal ClosingBalance { get => ExpectedCash; set => ExpectedCash = value; }

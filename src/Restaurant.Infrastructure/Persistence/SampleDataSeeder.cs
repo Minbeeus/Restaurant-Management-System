@@ -134,6 +134,40 @@ public static class SampleDataSeeder
         }
 
         // ============================================================
+        // 3.1 STANDARD UNIT CONVERSIONS (Kg <-> g, L <-> ml)
+        // ============================================================
+        var conversionsToSeed = new List<(string FromAbbr, string ToAbbr, decimal Factor)>
+        {
+            ("Kg", "g", 1000m),
+            ("g", "Kg", 0.001m),
+            ("L", "ml", 1000m),
+            ("ml", "L", 0.001m)
+        };
+
+        foreach (var conv in conversionsToSeed)
+        {
+            if (uomMap.TryGetValue(conv.FromAbbr, out var fromUom) && uomMap.TryGetValue(conv.ToAbbr, out var toUom))
+            {
+                var existingConv = await context.UnitConversions.FirstOrDefaultAsync(c => c.FromUnitId == fromUom.Id && c.ToUnitId == toUom.Id);
+                if (existingConv == null)
+                {
+                    context.UnitConversions.Add(new UnitConversion
+                    {
+                        FromUnitId = fromUom.Id,
+                        ToUnitId = toUom.Id,
+                        ConversionFactor = conv.Factor,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    existingConv.ConversionFactor = conv.Factor;
+                }
+            }
+        }
+        await context.SaveChangesAsync();
+
+        // ============================================================
         // 4. MATERIALS & INGREDIENTS (>= 60 Materials + 5 LOW STOCK)
         // ============================================================
         var materialsData = new List<(string Name, string NameEn, string Uom, decimal Stock, decimal MinStock, decimal Cost)>
@@ -235,7 +269,10 @@ public static class SampleDataSeeder
         foreach (var m in materialsData)
         {
             var uom = uomMap.ContainsKey(m.Uom) ? uomMap[m.Uom] : uomMap["Kg"];
-            var existing = await context.Materials.FirstOrDefaultAsync(mat => mat.Name == m.Name || mat.NameEn == m.NameEn);
+            var existing = await context.Materials.FirstOrDefaultAsync(mat => 
+                mat.Name == m.Name || 
+                mat.NameEn == m.NameEn ||
+                (m.Name.Contains("Basil") && (mat.Name.Contains("Basil") || mat.Name.Contains("húng tây"))));
             if (existing == null)
             {
                 existing = new Material
@@ -253,10 +290,25 @@ public static class SampleDataSeeder
             }
             else
             {
-                // Ensure stock is updated for test cases (e.g. Low Stock)
-                existing.CurrentStock = m.Stock;
-                existing.MinStockLevel = m.MinStock;
-                existing.CostPerUnit = m.Cost;
+                // If material in DB was switched to grams (e.g. Bắp ngọt hạt), scale stock and cost accordingly
+                if (existing.UnitOfMeasureId == uomMap["g"].Id && m.Uom == "Kg")
+                {
+                    existing.CurrentStock = m.Stock * 1000m;
+                    existing.MinStockLevel = m.MinStock * 1000m;
+                    existing.CostPerUnit = m.Cost / 1000m;
+                }
+                else
+                {
+                    // Ensure stock is updated for test cases (e.g. Low Stock)
+                    existing.CurrentStock = m.Stock;
+                    existing.MinStockLevel = m.MinStock;
+                    existing.CostPerUnit = m.Cost;
+                    // If material in DB was mismatched (e.g. previously saved as Lit=2 instead of Gram), sync to standard UoM
+                    if (existing.UnitOfMeasureId != uom.Id && (m.Uom == "g" || m.Uom == "ml" || m.Uom == "Pcs"))
+                    {
+                        existing.UnitOfMeasureId = uom.Id;
+                    }
+                }
             }
             matMap[m.Name] = existing;
             matMap[m.NameEn] = existing;

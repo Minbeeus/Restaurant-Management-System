@@ -136,7 +136,7 @@ public class E2ETestContext : IDisposable
         InventoryService = new InventoryService(Db, NotificationMock.Object, localizerMock.Object);
         PosOrderService = new PosOrderService(Db, NotificationMock.Object, localizerMock.Object);
         CancelOrderService = new CancelOrderService(Db, LoyaltyService, NotificationMock.Object, localizerMock.Object);
-        ShiftService = new ShiftService(Db, localizerMock.Object, ApprovalService, PermissionService, AuditServiceMock.Object);
+        ShiftService = new ShiftService(Db, localizerMock.Object, ApprovalService, PermissionService, AuditServiceMock.Object, IdentityService);
         CashMovementService = new CashMovementService(Db, PermissionService, ApprovalService, policyService, AuditServiceMock.Object);
         BillViewerService = new BillViewerService(Db);
         ReconciliationService = new ReconciliationService(Db, PermissionService);

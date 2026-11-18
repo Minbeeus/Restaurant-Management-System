@@ -1,0 +1,157 @@
+=== HEADINGS ===
+[Heading 1] Sec 3 | Pg 1 | MỞ ĐẦU
+[Heading 2] Sec 3 | Pg 1 | 1. Lý do chọn đề tài
+[Heading 2] Sec 3 | Pg 3 | 2. Mục đích nghiên cứu của đề tài
+[Heading 2] Sec 3 | Pg 4 | 3. Đối tượng và phạm vi nghiên cứu
+[Heading 2] Sec 3 | Pg 5 | 4. Ý nghĩa khoa học và thực tiễn của đề tài
+[Heading 2] Sec 3 | Pg 6 | 5. Bố cục của đồ án tốt nghiệp
+[Heading 1] Sec 3 | Pg 8 | CHƯƠNG 1: TỔNG QUAN TÀI LIỆU VÀ CƠ SỞ LÝ LUẬN VỀ HỆ THỐNG QUẢN LÝ NHÀ HÀNG
+[Heading 2] Sec 3 | Pg 8 | 1.1. Cơ sở lý luận về quy trình vận hành và quản lý nhà hàng F&B
+[Heading 3] Sec 3 | Pg 8 | 1.1.1. Đặc thù và chu trình vận hành nghiệp vụ nhà hàng ẩm thực
+[Heading 3] Sec 3 | Pg 9 | 1.1.2. Khái niệm và vai trò của các phân hệ chức năng trong nhà hàng
+[Heading 2] Sec 3 | Pg 11 | 1.2. Khảo sát thực trạng quy trình vận hành tại các mô hình nhà hàng ẩm thực
+[Heading 2] Sec 3 | Pg 12 | 1.3. Tổng quan các hướng nghiên cứu và giải pháp hiện có
+[Heading 3] Sec 3 | Pg 12 | 1.3.1. Phân tích các giải pháp thương mại phổ biến trên thị trường
+[Heading 3] Sec 3 | Pg 14 | 1.3.2. Những vấn đề tồn tại và bài toán nghiên cứu đặt ra
+[Heading 2] Sec 3 | Pg 15 | 1.4. Đặc tả yêu cầu hệ thống phần mềm (Software Requirements Specification - SRS)
+[Heading 3] Sec 3 | Pg 18 | 1.4.1. Ma trận Phân quyền và Trách nhiệm Người dùng (RACI Matrix)
+[Heading 2] Sec 3 | Pg 19 | 1.5. Cơ sở công nghệ và giải pháp kỹ thuật đề xuất
+[Heading 1] Sec 3 | Pg 21 | CHƯƠNG 2: PHƯƠNG PHÁP NGHIÊN CỨU VÀ THIẾT KẾ KIẾN TRÚC HỆ THỐNG
+[Heading 2] Sec 3 | Pg 21 | 2.1. Phương pháp nghiên cứu và quy trình phát triển phần mềm
+[Heading 3] Sec 3 | Pg 21 | 2.1.1. Phương pháp luận nghiên cứu và thực nghiệm
+[Heading 2] Sec 3 | Pg 22 | 2.2. Phân tích yêu cầu chức năng và phi chức năng
+[Heading 3] Sec 3 | Pg 22 | 2.2.1. Phân tích chi tiết 70 yêu cầu chức năng (Functional Requirements)
+[Heading 3] Sec 3 | Pg 23 | 2.2.2. Phân tích các yêu cầu phi chức năng (Non-Functional Requirements)
+[Heading 2] Sec 3 | Pg 24 | 2.3. Phân tích Ca sử dụng (Use Case Analysis)
+[Heading 3] Sec 3 | Pg 25 | 2.3.1. Biểu đồ Use Case Tổng thể Toàn Hệ thống
+[Heading 3] Sec 3 | Pg 27 | 2.3.2. Biểu đồ Use Case Phân rã theo từng Phân hệ Nghiệp vụ
+[Heading 3] Sec 3 | Pg 29 | 2.3.3. Bảng Đặc tả Chi tiết các Ca sử dụng Cốt lõi (Use Case Specifications)
+[Heading 2] Sec 3 | Pg 32 | 2.4. Thiết kế Hướng đối tượng và Biểu đồ Lớp (Class Diagrams)
+[Heading 3] Sec 3 | Pg 32 | 2.4.1. Biểu đồ Lớp Phân hệ Đơn hàng và Thanh toán (Orders & Payments Aggregate)
+[Heading 3] Sec 3 | Pg 34 | 2.4.2. Biểu đồ Lớp Phân hệ Thực đơn và Nhóm Tùy chọn (Menu & Modifiers Aggregate)
+[Heading 3] Sec 3 | Pg 36 | 2.4.3. Biểu đồ Lớp Phân hệ Kho hàng và Định mức BOM (Inventory & BOM Aggregate)
+[Heading 3] Sec 3 | Pg 37 | 2.4.4. Biểu đồ Lớp Phân hệ Ca làm việc và Quản lý Tiền két (Shifts & Cash Management)
+[Heading 2] Sec 3 | Pg 39 | 2.5. Thiết kế kiến trúc tổng thể hệ thống (Clean Architecture)
+[Heading 3] Sec 3 | Pg 39 | 2.5.1. Sơ đồ Kiến trúc Phân tầng Clean Architecture
+[Heading 3] Sec 3 | Pg 40 | 2.5.2. Sơ đồ Tuần tự Xử lý Yêu cầu (Request-Response Flow)
+[Heading 2] Sec 3 | Pg 42 | 2.6. Thiết kế các Sơ đồ Trạng thái và Luồng Nghiệp vụ Realtime
+[Heading 3] Sec 3 | Pg 42 | 2.6.1. Sơ đồ Tuần tự Luồng Đặt món và Đồng bộ Realtime
+[Heading 3] Sec 3 | Pg 43 | 2.6.2. Sơ đồ Chuyển đổi Trạng thái Bàn ăn (Table State Machine)
+[Heading 3] Sec 3 | Pg 44 | 2.6.3. Sơ đồ Chuyển đổi Trạng thái Đơn hàng và Món ăn
+[Heading 3] Sec 3 | Pg 45 | 2.6.4. Sơ đồ Trạng thái Thanh toán (Payment State Machine)
+[Heading 3] Sec 3 | Pg 46 | 2.6.5. Sơ đồ Trạng thái Ca làm việc và Đợt kiểm kê Kho
+[Heading 2] Sec 3 | Pg 47 | 2.7. Thiết kế Sơ đồ Thực thể Quan hệ ERD (Trích xuất từ CSDL)
+[Heading 3] Sec 3 | Pg 47 | 2.7.1. Sơ đồ ERD Phân hệ Người dùng, Phân quyền và Sơ đồ Sảnh
+[Heading 3] Sec 3 | Pg 48 | 2.7.2. Sơ đồ ERD Phân hệ Thực đơn và Tùy chọn Modifier
+[Heading 3] Sec 3 | Pg 48 | 2.7.3. Sơ đồ ERD Phân hệ Đơn hàng, Dòng món và Hủy món
+[Heading 3] Sec 3 | Pg 50 | 2.7.4. Sơ đồ ERD Phân hệ Thanh toán, SePay Webhook và Quản lý Ca Thu ngân
+[Heading 3] Sec 3 | Pg 51 | 2.7.5. Sơ đồ ERD Phân hệ Khách hàng Thân thiết (Loyalty & CRM)
+[Heading 3] Sec 3 | Pg 52 | 2.7.6. Sơ đồ ERD Phân hệ Kho hàng và Định mức BOM
+[Heading 3] Sec 3 | Pg 53 | 2.7.7. Sơ đồ Tổng thể Luồng Dữ liệu Liên module (System Architecture Flowchart)
+[Heading 2] Sec 3 | Pg 53 | 2.8. Thiết kế Cấu trúc Thành phần Giao diện (UI/UX Component Architecture)
+[Heading 2] Sec 3 | Pg 54 | 2.9. Đặc tả Kỹ thuật và Hiện thực hóa Chi tiết 70 Chức năng Hệ thống
+[Heading 3] Sec 3 | Pg 55 | 2.9.1. Đặc tả Nhóm Tính năng Bán hàng & Phục vụ Bàn (POS)
+[Heading 3] Sec 3 | Pg 56 | 2.9.2. Đặc tả Nhóm Tính năng Thanh toán, Quản trị Ca & Thu ngân (POS)
+[Heading 3] Sec 3 | Pg 59 | 2.9.3. Đặc tả Chi tiết 7 Chức năng Phân hệ Màn hình Nhà bếp (KDS)
+[Heading 3] Sec 3 | Pg 59 | 2.9.4. Đặc tả Nhóm Quản trị Thực đơn, Định lượng BOM & Kho bãi (BOH Admin)
+[Heading 3] Sec 3 | Pg 60 | 2.9.5. Đặc tả Nhóm Phê duyệt, Đối soát & Báo cáo Thống kê (BOH Admin)
+[Heading 3] Sec 3 | Pg 61 | 2.9.6. Đặc tả Nhóm Nhân sự, Phân quyền & Cấu hình Vận hành (BOH Admin)
+[Heading 3] Sec 3 | Pg 62 | 2.9.7. Đặc tả Chi tiết 8 Chức năng Phân hệ Khách hàng Tự gọi món (QR Ordering)
+[Heading 3] Sec 3 | Pg 63 | 2.9.8. Đặc tả Chi tiết 10 Chức năng Phân hệ Tài khoản & Khách hàng thân thiết (ACC)
+[Heading 2] Sec 3 | Pg 64 | 2.10. Đặc tả Chi tiết Lược đồ Thực thể Cơ sở Dữ liệu (42 DbSets)
+[Heading 3] Sec 3 | Pg 64 | 2.10.1. Bảng Đơn hàng (Orders) và Dòng món ăn (OrderItems)
+[Heading 3] Sec 3 | Pg 66 | 2.10.2. Bảng Ca làm việc (Shifts) và Biến động Két tiền (CashMovements)
+[Heading 3] Sec 3 | Pg 67 | 2.10.3. Bảng Nguyên vật liệu (Materials) và Công thức Định lượng (Recipes)
+[Heading 1] Sec 3 | Pg 67 | CHƯƠNG 3: HIỆN THỰC HÓA VÀ ĐÁNH GIÁ KẾT QUẢ ĐẠT ĐƯỢC
+[Heading 2] Sec 3 | Pg 67 | 3.1. Môi trường phát triển và cấu hình công nghệ
+[Heading 2] Sec 3 | Pg 68 | 3.2. Hiện thực hóa các thuật toán và logic nghiệp vụ cốt lõi
+[Heading 3] Sec 3 | Pg 68 | 3.2.1. Cơ chế Kiểm soát Tương tranh Lạc quan với RowVersion
+[Heading 3] Sec 3 | Pg 70 | 3.2.2. Xử lý Webhook SePay Idempotent và Đối soát Giao dịch VietQR Tự động
+[Heading 3] Sec 3 | Pg 71 | 3.2.3. Cơ chế Định tuyến Nhóm Kết nối SignalR Hub
+[Heading 3] Sec 3 | Pg 72 | 3.2.4. Thuật toán Tự động Khấu trừ Tồn kho Đa tầng theo Định mức BOM
+[Heading 3] Sec 3 | Pg 73 | 3.2.5. Cơ chế Bảo mật Mã PIN Quản lý với BCrypt và Giới hạn Đăng nhập Sai
+[Heading 2] Sec 3 | Pg 74 | 3.3. Hiện thực hóa các giao diện tương tác cốt lõi
+[Heading 3] Sec 3 | Pg 74 | 3.3.1. Phân hệ Bán hàng POS và Quản lý Ca làm việc
+[Heading 3] Sec 3 | Pg 75 | 3.3.2. Phân hệ Màn hình Nhà bếp KDS Thời gian thực
+[Heading 3] Sec 3 | Pg 75 | 3.3.3. Phân hệ Khách hàng Tự gọi món QR Ordering
+[Heading 3] Sec 3 | Pg 76 | 3.3.4. Phân hệ Quản trị Hậu sảnh BOH Admin
+[Heading 2] Sec 3 | Pg 76 | 3.4. Kiểm thử hệ thống và đánh giá hiệu năng toàn diện
+[Heading 3] Sec 3 | Pg 76 | 3.4.1. Kết quả Kiểm thử Tự động với Framework xUnit
+[Heading 3] Sec 3 | Pg 76 | 3.4.2. Bảng Kịch bản Kiểm thử Tích hợp Chi tiết (Integration Tests)
+[Heading 3] Sec 3 | Pg 78 | 3.4.3. Đánh giá Hiệu năng và Khả năng Chịu tải với k6
+[Heading 3] Sec 3 | Pg 79 | 3.4.4. Đo lường Độ trễ Giao tiếp Realtime SignalR Core
+[Heading 2] Sec 3 | Pg 79 | 3.5. Đánh giá kết quả đạt được so với mục tiêu ban đầu
+[Heading 1] Sec 3 | Pg 80 | KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+[Heading 2] Sec 3 | Pg 80 | 1. Các kết quả chính đã đạt được
+[Heading 2] Sec 3 | Pg 81 | 2. Những hạn chế của đề tài
+[Heading 2] Sec 3 | Pg 81 | 3. Hướng phát triển trong tương lai
+[Heading 2] Sec 3 | Pg 85 | A.1. Yêu cầu Môi trường Phần cứng và Phần mềm
+[Heading 2] Sec 3 | Pg 85 | A.2. Cấu hình Triển khai với Docker Compose (docker-compose.yml)
+[Heading 2] Sec 3 | Pg 86 | A.3. Các Bước Khởi tạo Cơ sở Dữ liệu và Seed Data Ban đầu
+[Heading 2] Sec 3 | Pg 86 | A.4. Khởi động Ứng dụng
+
+=== FIGURES ===
+Fig  1 | Pg 26 | Hình 2.1: Biểu đồ Use Case Tổng thể Toàn Hệ thống Quản lý Nhà hàng
+Fig  2 | Pg 27 | Hình 2.2a: Biểu đồ Use Case Phân rã Phân hệ Tự gọi món QR Ordering
+Fig  3 | Pg 28 | Hình 2.2b: Biểu đồ Use Case Phân rã Phân hệ Bán hàng POS tại Quầy
+Fig  4 | Pg 28 | Hình 2.2c: Biểu đồ Use Case Phân rã Phân hệ Màn hình Nhà bếp KDS
+Fig  5 | Pg 29 | Hình 2.2d: Biểu đồ Use Case Phân rã Phân hệ Quản trị Hậu sảnh BOH Admin
+Fig  6 | Pg 33 | Hình 2.3a: Biểu đồ lớp phân hệ Đơn hàng, Dòng món và Giao dịch Thanh toán
+Fig  7 | Pg 35 | Hình 2.3b: Biểu đồ lớp phân hệ Danh mục, Món ăn và Nhóm Tùy chọn Modifier
+Fig  8 | Pg 36 | Hình 2.3c: Biểu đồ lớp phân hệ Nguyên vật liệu, Công thức Định lượng BOM và Giao dịch Kho
+Fig  9 | Pg 38 | Hình 2.3d: Biểu đồ lớp phân hệ Ca làm việc, Dòng tiền két và Báo cáo Z-Report
+Fig 10 | Pg 39 | Hình 2.4: Sơ đồ kiến trúc Clean Architecture phân tầng phụ thuộc (Trích từ docs/ARCHITECTURE.md)
+Fig 11 | Pg 41 | Hình 2.5: Sơ đồ tuần tự xử lý yêu cầu hệ thống từ Client đến Database (Trích từ docs/ARCHITECTURE.md)
+Fig 12 | Pg 42 | Hình 2.6: Sơ đồ tuần tự luồng đặt món QR, duyệt POS và chế biến KDS qua SignalR
+Fig 13 | Pg 43 | Hình 2.7: Sơ đồ chuyển đổi trạng thái Bàn ăn Table State Machine
+Fig 14 | Pg 44 | Hình 2.8: Sơ đồ chuyển đổi trạng thái Đơn hàng Order State Machine dạng ngang thoáng
+Fig 15 | Pg 45 | Hình 2.9: Sơ đồ chuyển đổi trạng thái Món ăn trong Bếp OrderItem State Machine dạng ngang thoáng
+Fig 16 | Pg 45 | Hình 2.10: Sơ đồ máy trạng thái Thanh toán Payment State Machine
+Fig 17 | Pg 46 | Hình 2.11: Sơ đồ máy trạng thái Ca làm việc Shift State Machine
+Fig 18 | Pg 46 | Hình 2.12: Sơ đồ máy trạng thái Đợt kiểm kê Kho Stocktake State Machine
+Fig 19 | Pg 47 | Hình 2.13: Sơ đồ ERD phân hệ Người dùng, Phân quyền và Bàn ăn
+Fig 20 | Pg 48 | Hình 2.14a: ERD Danh mục & Món ăn
+Fig 21 | Pg 48 | Hình 2.14b: ERD Tùy chọn Modifiers & Topping
+Fig 22 | Pg 49 | Hình 2.15a: Sơ đồ ERD Đơn hàng, Dòng món chi tiết và Nhật ký Hủy món
+Fig 23 | Pg 50 | Hình 2.15b: ERD Thanh toán & Webhook SePay
+Fig 24 | Pg 50 | Hình 2.15c: ERD Ca làm việc & Dòng tiền két
+Fig 25 | Pg 51 | Hình 2.16: Sơ đồ ERD phân hệ Khách hàng Thân thiết và Tích điểm
+Fig 26 | Pg 52 | Hình 2.17: Sơ đồ ERD phân hệ Kho hàng và Định mức BOM
+Fig 27 | Pg 53 | Hình 2.18: Sơ đồ tổng thể luồng dữ liệu liên module
+
+=== TABLES ===
+Tbl  1 | Pg  1 | Chuyên ngành: Kỹ thuật Phần mềm / Công nghệ Thông tin
+Tbl  2 | Pg  2 | Ngành: Công nghệ Thông tinMã số ngành: 7480201
+Tbl  3 | Pg 11 | DANH MỤC CÁC TỪ VIẾT TẮT
+Tbl  4 | Pg 14 | Bảng 1.1: Ma trận so sánh chuyên sâu giữa các giải pháp thương mại và Hệ thống Đề tài
+Tbl  5 | Pg 16 | Bảng 1.2a: Bảng đặc tả Yêu cầu Chức năng Phân hệ QR Ordering và POS (FR-01 đến FR-13)
+Tbl  6 | Pg 17 | Bảng 1.2b: Bảng đặc tả Yêu cầu Chức năng Phân hệ KDS, BOM và Quản trị (FR-14 đến FR-25)
+Tbl  7 | Pg 18 | Bảng 1.3: Bảng đặc tả Yêu cầu Phi chức năng Hệ thống (Non-Functional Requirements - NFR)
+Tbl  8 | Pg 19 | Bảng 1.4: Ma trận Phân quyền và Trách nhiệm RACI trong Vận hành Nhà hàng
+Tbl  9 | Pg 29 | Bảng 2.1: Đặc tả Use Case UC-01: Đặt món tại bàn qua mã QR (QR Ordering)
+Tbl 10 | Pg 30 | Bảng 2.2: Đặc tả Use Case UC-02: Tiếp nhận và duyệt đơn hàng tại quầy POS
+Tbl 11 | Pg 30 | Bảng 2.3: Đặc tả Use Case UC-03: Điều phối và chế biến món ăn tại KDS
+Tbl 12 | Pg 31 | Bảng 2.4: Đặc tả Use Case UC-04: Thanh toán hóa đơn và đối soát tự động VietQR
+Tbl 13 | Pg 31 | Bảng 2.5: Đặc tả Use Case UC-05: Quản lý ca làm việc và chốt két thu ngân (Z-Report)
+Tbl 14 | Pg 32 | Bảng 2.6: Đặc tả Use Case UC-06: Cấu hình định mức BOM và trừ tồn tự động
+Tbl 17 | Pg 56 | Bảng 2.7: Đặc tả kỹ thuật tính năng Bán hàng & Phục vụ Bàn (POS-001 đến POS-010)
+Tbl 18 | Pg 58 | Bảng 2.8: Đặc tả kỹ thuật tính năng Thanh toán & Quản trị Ca (POS-011 đến POS-021)
+Tbl 19 | Pg 59 | Bảng 2.9: Đặc tả kỹ thuật 7 tính năng phân hệ Màn hình Nhà bếp (KDS)
+Tbl 20 | Pg 60 | Bảng 2.10: Đặc tả tính năng Thực đơn, Định lượng BOM & Quản lý Kho (BOH-001 đến BOH-010)
+Tbl 21 | Pg 61 | Bảng 2.11: Đặc tả tính năng Phê duyệt, Đối soát & Báo cáo (BOH-011 đến BOH-018)
+Tbl 22 | Pg 62 | Bảng 2.12: Đặc tả tính năng Nhân sự, Cấu hình & Kiểm toán (BOH-019 đến BOH-024)
+Tbl 23 | Pg 63 | Bảng 2.13: Đặc tả kỹ thuật 8 tính năng phân hệ Khách hàng Tự gọi món (QR Ordering)
+Tbl 24 | Pg 64 | Bảng 2.14: Đặc tả kỹ thuật 10 tính năng phân hệ Tài khoản & Loyalty (ACC)
+Tbl 25 | Pg 65 | Bảng 2.15: Cấu trúc trường chi tiết bảng Orders
+Tbl 26 | Pg 66 | Bảng 2.16: Cấu trúc trường chi tiết bảng OrderItems
+Tbl 27 | Pg 66 | Bảng 2.17: Cấu trúc trường chi tiết bảng Shifts
+Tbl 28 | Pg 67 | Bảng 2.18: Cấu trúc trường chi tiết bảng Materials và Recipes
+Tbl 29 | Pg 76 | Bảng 3.1: Bảng tổng hợp kết quả thực thi 85 test cases tự động
+Tbl 30 | Pg 77 | Bảng 3.2a: Bảng kịch bản kiểm thử tích hợp phân hệ POS và KDS (IT-01 đến IT-10)
+Tbl 31 | Pg 78 | Bảng 3.2b: Bảng kịch bản kiểm thử tích hợp Quản trị Ca, Kho BOM và Webhook (IT-11 đến IT-20)
+Tbl 32 | Pg 78 | Bảng 3.3: Bảng kết quả kiểm thử tải hệ thống bằng công cụ k6
+Tbl 33 | Pg 79 | Bảng 3.4: Bảng đo lường độ trễ truyền thông điệp thời gian thực SignalR Hub
+Tbl 34 | Pg 80 | Bảng 3.5: Ma trận đối chiếu mục tiêu nghiên cứu và kết quả thực tế
+Tbl 35 | Pg 88 | Bảng B.1a: Danh mục API Endpoints Phân hệ Xác thực, Bàn ăn, Thực đơn và KDS
+Tbl 36 | Pg 89 | Bảng B.1b: Danh mục API Endpoints Phân hệ Chế biến, Thanh toán, Ca thu ngân và BOH
+Tbl 37 | Pg 90 | Bảng C.1: Danh mục mã lỗi chuẩn hóa ProblemDetails RFC 7807

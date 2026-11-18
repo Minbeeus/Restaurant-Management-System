@@ -5,6 +5,8 @@ namespace Restaurant.Application.Interfaces;
 public interface IPosOrderService
 {
     Task<List<TableStatusOverviewDto>> GetTablesStatusAsync();
+    Task<bool> OccupyTableAsync(int tableId);
+    Task<bool> ReleaseTableAsync(int tableId);
     Task<bool> ApproveQrOrderAsync(int orderId, string? note = null);
     Task<bool> MoveTableAsync(MoveTableRequest request);
     Task<bool> MergeTablesAsync(MergeTableRequest request);

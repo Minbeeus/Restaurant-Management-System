@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
+using Restaurant.Domain.Common;
 
 namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/approvals")]
-[Authorize(Roles = "Admin,Manager,Cashier")]
+[Authorize(Roles = SystemConstants.Roles.AdminManagerOrCashier)]
 public class ApprovalCenterController : ControllerBase
 {
     private readonly IApprovalService _approvalService;
@@ -68,7 +69,7 @@ public class ApprovalCenterController : ControllerBase
     }
 
     [HttpPost("{id}/approve")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> ApproveRequest(int id, [FromBody] ProcessApprovalRequestDto request)
     {
         try
@@ -90,7 +91,7 @@ public class ApprovalCenterController : ControllerBase
     }
 
     [HttpPost("{id}/reject")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> RejectRequest(int id, [FromBody] ProcessApprovalRequestDto request)
     {
         try

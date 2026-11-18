@@ -32,6 +32,20 @@ public class ReportsController : ControllerBase
         });
     }
 
+    [HttpGet("daily-sales")]
+    public async Task<IActionResult> GetDailySalesReport([FromQuery] DateTime? date)
+    {
+        var targetDate = date ?? DateTime.Today;
+        var result = await _reportService.GetDailySalesReportAsync(targetDate);
+        return Ok(new
+        {
+            success = true,
+            data = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
     [HttpGet("top-movers")]
     public async Task<IActionResult> GetTopMoversReport([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int limit = 50)
     {

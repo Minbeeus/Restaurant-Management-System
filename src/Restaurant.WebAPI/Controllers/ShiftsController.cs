@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
@@ -7,7 +8,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/shifts")]
-[Authorize(Roles = "Admin,Manager,Cashier")]
+[Authorize(Roles = SystemConstants.Roles.AdminManagerOrCashier)]
 public class ShiftsController : ControllerBase
 {
     private readonly IShiftService _shiftService;
@@ -22,7 +23,7 @@ public class ShiftsController : ControllerBase
     }
 
     [HttpGet("has-active")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> HasActiveShift()
     {
         var hasActive = await _shiftService.HasActiveShiftAsync(_currentUserService.UserId ?? 1);
@@ -30,6 +31,7 @@ public class ShiftsController : ControllerBase
     }
 
     [HttpGet("current")]
+    [Authorize]
     public async Task<IActionResult> GetCurrentShift()
     {
         if (!_currentUserService.UserId.HasValue)
@@ -75,8 +77,24 @@ public class ShiftsController : ControllerBase
     }
 
     [HttpPost("open")]
-    public async Task<IActionResult> OpenShift([FromBody] OpenShiftRequest request)
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
+    public async Task<IActionResult> OpenShift([FromBody] OpenShiftRequest? request)
     {
+        if (request == null)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                data = (object?)null,
+                error = new
+                {
+                    code = "INVALID_REQUEST",
+                    message = "Dữ liệu yêu cầu mở ca không hợp lệ."
+                },
+                timestamp = DateTime.UtcNow
+            });
+        }
+
         if (!_currentUserService.UserId.HasValue)
         {
             return Unauthorized(new
@@ -94,8 +112,7 @@ public class ShiftsController : ControllerBase
 
         var userId = _currentUserService.UserId.Value;
 
-        // Bắt buộc xác nhận mã PIN Quản lý khi mở ca làm việc
-        if (string.IsNullOrWhiteSpace(request?.ManagerPin))
+        if (string.IsNullOrWhiteSpace(request.CashCustodianPin))
         {
             return BadRequest(new
             {
@@ -103,44 +120,47 @@ public class ShiftsController : ControllerBase
                 data = (object?)null,
                 error = new
                 {
-                    code = "MANAGER_PIN_REQUIRED",
-                    message = "Bắt buộc nhập mã PIN Quản lý để xác nhận mở ca làm việc."
+                    code = "CASH_CUSTODIAN_PIN_REQUIRED",
+                    message = "Bắt buộc nhập mã PIN 6 số của nhân viên thu ngân giữ két."
                 },
                 timestamp = DateTime.UtcNow
             });
         }
 
-        try
+        if (!string.IsNullOrWhiteSpace(request.ManagerPin))
         {
-            var isPinValid = await _identityService.VerifyManagerPinAsync(request.ManagerPin);
-            if (!isPinValid)
+            try
             {
-                return BadRequest(new
+                var isPinValid = await _identityService.VerifyManagerPinAsync(request.ManagerPin);
+                if (!isPinValid)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        data = (object?)null,
+                        error = new
+                        {
+                            code = "INVALID_MANAGER_PIN",
+                            message = "Mã PIN Quản lý không chính xác."
+                        },
+                        timestamp = DateTime.UtcNow
+                    });
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(StatusCodes.Status429TooManyRequests, new
                 {
                     success = false,
                     data = (object?)null,
                     error = new
                     {
-                        code = "INVALID_MANAGER_PIN",
-                        message = "Mã PIN Quản lý không chính xác."
+                        code = "PIN_LOCKED",
+                        message = ex.Message
                     },
                     timestamp = DateTime.UtcNow
                 });
             }
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(StatusCodes.Status429TooManyRequests, new
-            {
-                success = false,
-                data = (object?)null,
-                error = new
-                {
-                    code = "PIN_LOCKED",
-                    message = ex.Message
-                },
-                timestamp = DateTime.UtcNow
-            });
         }
 
         try
@@ -171,6 +191,7 @@ public class ShiftsController : ControllerBase
     }
 
     [HttpPost("close")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> CloseShift([FromBody] CloseShiftRequest request)
     {
         if (!_currentUserService.UserId.HasValue)

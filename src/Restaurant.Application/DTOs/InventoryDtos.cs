@@ -5,6 +5,8 @@ public class MaterialDto
     public int Id { get; set; }
     public int UnitOfMeasureId { get; set; }
     public string UnitName { get; set; } = string.Empty;
+    public string UnitAbbreviation { get; set; } = string.Empty;
+    public string DisplayUnit => !string.IsNullOrWhiteSpace(UnitAbbreviation) ? UnitAbbreviation : UnitName;
     public string Name { get; set; } = string.Empty;
     public string? NameEn { get; set; }
     public string DisplayName => (System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName.Equals("en", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(NameEn)) ? NameEn : Name;
@@ -13,6 +15,44 @@ public class MaterialDto
     public decimal CostPerUnit { get; set; }
     public bool IsActive { get; set; }
     public bool IsLowStock => CurrentStock <= MinStockLevel;
+}
+
+public static class UnitDimensionHelper
+{
+    public const string Weight = "Weight";
+    public const string Volume = "Volume";
+    public const string Count = "Count";
+
+    public static string GetDimension(string? abbr, string? name)
+    {
+        var a = (abbr ?? "").Trim().ToLowerInvariant();
+        var n = (name ?? "").Trim().ToLowerInvariant();
+
+        if (a == "kg" || a == "g" || n.Contains("kilo") || n.Contains("gram"))
+            return Weight;
+
+        if (a == "l" || a == "ml" || n.Contains("lít") || n.Contains("lit") || n.Contains("mili"))
+            return Volume;
+
+        return Count;
+    }
+
+    public static string GetDimensionDisplayName(string dimension) => dimension switch
+    {
+        Weight => "Khối lượng (Weight: Kg, g)",
+        Volume => "Thể tích (Volume: L, ml)",
+        _ => "Số lượng & Đóng gói (Count & Pack: Cái, Lon, Hộp...)"
+    };
+}
+
+public class UnitOfMeasureDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Abbreviation { get; set; } = string.Empty;
+    public string DisplayName => !string.IsNullOrWhiteSpace(Abbreviation) ? $"{Abbreviation} ({Name})" : Name;
+    public string Dimension => UnitDimensionHelper.GetDimension(Abbreviation, Name);
+    public string DimensionDisplayName => UnitDimensionHelper.GetDimensionDisplayName(Dimension);
 }
 
 public class CreateMaterialRequest

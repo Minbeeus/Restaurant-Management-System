@@ -459,6 +459,7 @@
     private string _errorMessage = string.Empty;
     private bool _isPaymentSuccess = false;
     private HubConnection? _hubConnection;
+    private CancellationTokenSource? _pollingCts;
     private List<TakeawayOrderItemDto> _orderItems = new();
 
     private decimal _memberDiscountAmount
@@ -494,19 +495,23 @@
     protected override async Task OnInitializedAsync()
     {
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl(Endpoints.GetHubUrl())
             .WithAutomaticReconnect()
             .Build();
+
+        _hubConnection.On<int, string, decimal, string>("ReceivePaymentCompleted", async (orderId, orderCode, amount, method) =>
+        {
+            if (orderId == OrderId)
+            {
+                await HandlePaymentSuccessAsync();
+            }
+        });
 
         _hubConnection.On<int>("OrderPaid", async (orderId) =>
         {
             if (orderId == OrderId)
             {
-                _isPaymentSuccess = true;
-                await InvokeAsync(StateHasChanged);
-                await Task.Delay(1500);
-                await CloseAsync();
-                await OnPaymentCompleted.InvokeAsync(true);
+                await HandlePaymentSuccessAsync();
             }
         });
 
@@ -518,6 +523,58 @@
         {
             Console.WriteLine($"SignalR error in PosPaymentModal: {ex.Message}");
         }
+    }
+
+    private async Task HandlePaymentSuccessAsync()
+    {
+        if (_isPaymentSuccess) return;
+        _isPaymentSuccess = true;
+        _pollingCts?.Cancel();
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(1500);
+        await CloseAsync();
+        await OnPaymentCompleted.InvokeAsync(true);
+    }
+
+    private void StartPollingPaymentStatus()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested && IsOpen && !_isPaymentSuccess)
+            {
+                try
+                {
+                    await Task.Delay(3000, token);
+                    if (token.IsCancellationRequested || !IsOpen || _isPaymentSuccess) break;
+
+                    var checkResp = await Http.GetFromJsonAsync<PaymentCheckResult>($"api/v1/payments/status/{OrderId}", token);
+                    if (checkResp?.IsPaid == true)
+                    {
+                        await InvokeAsync(HandlePaymentSuccessAsync);
+                        break;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch
+                {
+                    // Ignore transient network errors
+                }
+            }
+        }, token);
+    }
+
+    private class PaymentCheckResult
+    {
+        public bool Success { get; set; }
+        public bool IsPaid { get; set; }
     }
 
     protected override async Task OnParametersSetAsync()
@@ -640,8 +697,8 @@
             var req = new GenerateVietQrRequest
             {
                 OrderId = OrderId,
-                BankName = "TPBank",
-                BankAccountNo = "11102042003"
+                BankName = "",
+                BankAccountNo = ""
             };
             var response = await Http.PostAsJsonAsync("api/v1/payments/vietqr", req);
             if (response.IsSuccessStatusCode)
@@ -655,6 +712,7 @@
                 {
                     _qrData = await response.Content.ReadFromJsonAsync<VietQrResponse>();
                 }
+                StartPollingPaymentStatus();
             }
             else
             {
@@ -756,6 +814,7 @@
 
     private async Task CloseAsync()
     {
+        _pollingCts?.Cancel();
         IsOpen = false;
         _cashReceived = 0;
         _orderItems.Clear();
@@ -766,6 +825,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
         if (_hubConnection != null)
         {
             await _hubConnection.DisposeAsync();

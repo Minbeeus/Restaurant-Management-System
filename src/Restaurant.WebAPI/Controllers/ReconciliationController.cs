@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
@@ -7,7 +8,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/reconciliation")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
 public class ReconciliationController : ControllerBase
 {
     private readonly IReconciliationService _reconciliationService;

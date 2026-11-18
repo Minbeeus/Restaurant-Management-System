@@ -33,8 +33,28 @@ public class CashierToolsAndApprovalWorkflowTests
         var cashierRole = new Role { Id = 1, Name = "Cashier" };
         var managerRole = new Role { Id = 2, Name = "Manager" };
 
-        var cashier = new User { Id = 10, Username = "cashier01", FullName = "Nguyễn Văn Thu Ngân", RoleId = 1, Role = cashierRole, EmployeeCode = "NV0010" };
-        var manager = new User { Id = 20, Username = "manager01", FullName = "Trần Văn Quản Lý", RoleId = 2, Role = managerRole, EmployeeCode = "NV0020" };
+        var cashier = new User 
+        { 
+            Id = 10, 
+            Username = "cashier01", 
+            FullName = "Nguyễn Văn Thu Ngân", 
+            RoleId = 1, 
+            Role = cashierRole, 
+            EmployeeCode = "10", 
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword("000010"), 
+            IsActive = true 
+        };
+        var manager = new User 
+        { 
+            Id = 20, 
+            Username = "manager01", 
+            FullName = "Trần Văn Quản Lý", 
+            RoleId = 2, 
+            Role = managerRole, 
+            EmployeeCode = "20", 
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword("000020"), 
+            IsActive = true 
+        };
         var register = new Register { Id = 1, Code = "REG01", Name = "Máy POS 01", IsActive = true };
 
         context.Roles.AddRange(cashierRole, managerRole);
@@ -58,15 +78,25 @@ public class CashierToolsAndApprovalWorkflowTests
         var auditService = new Mock<IAuditService>();
         var policyService = new PosPolicyService();
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
-        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object, identityService);
+        var cashMovementService = new CashMovementService(db, permService, approvalService, policyService, auditService.Object);
 
-        // Open shift
-        var shiftDto = await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 2000000, Note = "Mở ca đầu ngày" });
+        // Manager opens shift with Custodian PIN
+        var shiftDto = await shiftService.OpenShiftAsync(manager.Id, new OpenShiftRequest 
+        { 
+            RegisterId = reg.Id, 
+            InitialCash = 500000, 
+            CashCustodianPin = "000010", 
+            Note = "Mở ca đầu ngày" 
+        });
         Assert.NotNull(shiftDto);
         Assert.Equal("Mở (Open)", shiftDto.StatusName);
 
-        // Close shift with exact expected cash (2,000,000)
-        var closeReport = await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest { ActualCashCounted = 2000000, Note = "Đóng ca đủ tiền" });
+        // Manager tills out all cash to satisfy Condition 2 (500k <= 1M limit, executes immediately)
+        await cashMovementService.PerformTillOutAsync(manager.Id, shiftDto.ShiftId, new TillOutRequest { Amount = 500000, Reason = "Rút hết két" });
+
+        // Manager closes shift
+        var closeReport = await shiftService.CloseShiftAsync(manager.Id, new CloseShiftRequest { ActualCashCounted = 500000, Note = "Đóng ca đủ tiền" });
         Assert.Equal("Đã Đóng (Closed)", closeReport.StatusName);
         Assert.Equal(0, closeReport.Difference);
     }
@@ -77,8 +107,8 @@ public class CashierToolsAndApprovalWorkflowTests
         var db = GetDbContext(nameof(OpenShift_OnRegisterWithActiveShift_ThrowsInvalidOperationException));
         var (cashier, manager, reg) = SeedUsersAndRegister(db);
 
-        var cashier2 = new User { Id = 11, Username = "cashier02", FullName = "Thu Ngân 2", RoleId = 1, EmployeeCode = "NV0011" };
-        db.Users.Add(cashier2);
+        var manager2 = new User { Id = 21, Username = "manager02", FullName = "Quản lý 2", RoleId = 2, EmployeeCode = "21", PinCodeHash = BCrypt.Net.BCrypt.HashPassword("000021"), IsActive = true };
+        db.Users.Add(manager2);
         db.SaveChanges();
 
         var localizer = new Mock<IStringLocalizer<SharedResources>>();
@@ -87,22 +117,22 @@ public class CashierToolsAndApprovalWorkflowTests
         var identityService = new IdentityService(db, config.Object);
         var auditService = new Mock<IAuditService>();
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
-        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object, identityService);
 
-        // Cashier 1 opens shift on Register 1
-        await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000 });
+        // Manager opens shift on Register 1
+        await shiftService.OpenShiftAsync(manager.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000, CashCustodianPin = "000010" });
 
-        // Cashier 2 tries to open another shift on same Register 1 -> Must throw!
+        // Manager 2 tries to open another shift on same Register 1 -> Must throw!
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await shiftService.OpenShiftAsync(cashier2.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000 });
+            await shiftService.OpenShiftAsync(manager2.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000, CashCustodianPin = "000010" });
         });
     }
 
     [Fact]
-    public async Task CloseShift_WithVariance_CreatesApprovalRequest_And_SetsPendingClosingApprovalStatus()
+    public async Task CloseShift_WithoutTillOut_ThrowsInvalidOperationException()
     {
-        var db = GetDbContext(nameof(CloseShift_WithVariance_CreatesApprovalRequest_And_SetsPendingClosingApprovalStatus));
+        var db = GetDbContext(nameof(CloseShift_WithoutTillOut_ThrowsInvalidOperationException));
         var (cashier, manager, reg) = SeedUsersAndRegister(db);
 
         var localizer = new Mock<IStringLocalizer<SharedResources>>();
@@ -111,20 +141,16 @@ public class CashierToolsAndApprovalWorkflowTests
         var identityService = new IdentityService(db, config.Object);
         var auditService = new Mock<IAuditService>();
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
-        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object, identityService);
 
-        await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 2000000 });
+        await shiftService.OpenShiftAsync(manager.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 2000000, CashCustodianPin = "000010" });
 
-        // Close shift with 50,000 variance (1,950,000 actual vs 2,000,000 expected)
-        var closeReport = await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest { ActualCashCounted = 1950000, Note = "Thiếu 50k" });
-
-        Assert.Equal("Chờ Duyệt Chênh Lệch", closeReport.StatusName);
-        Assert.Equal(-50000, closeReport.Difference);
-
-        var pendingReqs = await approvalService.GetPendingRequestsAsync();
-        Assert.Single(pendingReqs);
-        Assert.Equal((int)ApprovalType.ShiftClosing, pendingReqs[0].Type);
-        Assert.Equal(50000, pendingReqs[0].Amount);
+        // Close shift without tilling out remaining cash must throw per Condition 2 & 3
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await shiftService.CloseShiftAsync(manager.Id, new CloseShiftRequest { ActualCashCounted = 1950000, Note = "Chưa rút két" });
+        });
+        Assert.Contains("Điều kiện 2", ex.Message);
     }
 
     [Fact]
@@ -145,8 +171,8 @@ public class CashierToolsAndApprovalWorkflowTests
         db.Shifts.Add(shift);
         db.SaveChanges();
 
-        // Till Out 500,000 (under 1,000,000 limit)
-        var result = await cashService.PerformTillOutAsync(cashier.Id, shift.Id, new TillOutRequest { Amount = 500000, Reason = "Mua văn phòng phẩm" });
+        // Till Out 500,000 (under 1,000,000 limit) performed by Manager
+        var result = await cashService.PerformTillOutAsync(manager.Id, shift.Id, new TillOutRequest { Amount = 500000, Reason = "Mua văn phòng phẩm" });
 
         Assert.NotNull(result);
         Assert.Null(result.ApprovalRequestId);
@@ -171,12 +197,12 @@ public class CashierToolsAndApprovalWorkflowTests
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
         var cashService = new CashMovementService(db, permService, approvalService, policyService, auditService.Object);
 
-        var shift = new Shift { UserId = cashier.Id, RegisterId = reg.Id, OpeningBalance = 2000000, Status = (int)ShiftStatus.Open, OpenedAt = DateTime.UtcNow };
+        var shift = new Shift { UserId = manager.Id, RegisterId = reg.Id, OpeningBalance = 5000000, Status = (int)ShiftStatus.Open, OpenedAt = DateTime.UtcNow };
         db.Shifts.Add(shift);
         db.SaveChanges();
 
-        // Till Out 3,000,000 (over 1,000,000 limit) -> Creates Approval Request
-        var result = await cashService.PerformTillOutAsync(cashier.Id, shift.Id, new TillOutRequest { Amount = 3000000, Reason = "Nộp ngân hàng" });
+        // Till Out 3,000,000 (over 1,000,000 limit, without CashTillOutLimit) -> Creates Approval Request
+        var result = await cashService.PerformTillOutAsync(manager.Id, shift.Id, new TillOutRequest { Amount = 3000000, Reason = "Nộp ngân hàng" });
 
         Assert.NotNull(result);
         Assert.NotNull(result.ApprovalRequestId);
@@ -227,11 +253,14 @@ public class CashierToolsAndApprovalWorkflowTests
         var cashierPerms = await permService.GetUserPermissionsAsync(cashier.Id);
         var managerPerms = await permService.GetUserPermissionsAsync(manager.Id);
 
-        Assert.Contains(Permissions.ShiftOpen, cashierPerms);
-        Assert.Contains(Permissions.CashTillOut, cashierPerms);
+        Assert.DoesNotContain(Permissions.ShiftOpen, cashierPerms);
+        Assert.DoesNotContain(Permissions.CashTillOut, cashierPerms);
         Assert.DoesNotContain(Permissions.ApprovalProcess, cashierPerms);
         Assert.DoesNotContain(Permissions.CashAdjust, cashierPerms);
 
+        Assert.Contains(Permissions.ShiftOpen, managerPerms);
+        Assert.Contains(Permissions.ShiftClose, managerPerms);
+        Assert.Contains(Permissions.CashTillOut, managerPerms);
         Assert.Contains(Permissions.ApprovalProcess, managerPerms);
         Assert.Contains(Permissions.CashAdjust, managerPerms);
         Assert.Contains(Permissions.ShiftReopen, managerPerms);
@@ -507,9 +536,9 @@ public class CashierToolsAndApprovalWorkflowTests
     }
 
     [Fact]
-    public async Task ShiftsController_OpenShift_RequiresManagerPin_ReturnsBadRequest_WhenMissing()
+    public async Task ShiftsController_OpenShift_RequiresCustodianPin_ReturnsBadRequest_WhenMissing()
     {
-        var db = GetDbContext(nameof(ShiftsController_OpenShift_RequiresManagerPin_ReturnsBadRequest_WhenMissing));
+        var db = GetDbContext(nameof(ShiftsController_OpenShift_RequiresCustodianPin_ReturnsBadRequest_WhenMissing));
         var (cashier, manager, reg) = SeedUsersAndRegister(db);
 
         var permService = new PermissionService(db);
@@ -518,10 +547,10 @@ public class CashierToolsAndApprovalWorkflowTests
         var auditService = new Mock<IAuditService>();
         var localizer = new Mock<IStringLocalizer<SharedResources>>();
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
-        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object, identityService);
 
         var currentUserService = new Mock<ICurrentUserService>();
-        currentUserService.Setup(c => c.UserId).Returns(cashier.Id);
+        currentUserService.Setup(c => c.UserId).Returns(manager.Id);
 
         var controller = new Restaurant.WebAPI.Controllers.ShiftsController(shiftService, currentUserService.Object, identityService);
 
@@ -529,7 +558,7 @@ public class CashierToolsAndApprovalWorkflowTests
         {
             RegisterId = reg.Id,
             InitialCash = 2000000,
-            ManagerPin = null
+            CashCustodianPin = null
         });
 
         var badReq = Assert.IsType<Microsoft.AspNetCore.Mvc.BadRequestObjectResult>(result);
@@ -537,14 +566,10 @@ public class CashierToolsAndApprovalWorkflowTests
     }
 
     [Fact]
-    public async Task ShiftsController_OpenShift_WithValidManagerPin_Succeeds()
+    public async Task ShiftsController_OpenShift_WithValidCustodianPin_Succeeds()
     {
-        var db = GetDbContext(nameof(ShiftsController_OpenShift_WithValidManagerPin_Succeeds));
+        var db = GetDbContext(nameof(ShiftsController_OpenShift_WithValidCustodianPin_Succeeds));
         var (cashier, manager, reg) = SeedUsersAndRegister(db);
-
-        // Set manager's PIN
-        manager.PinCodeHash = BCrypt.Net.BCrypt.HashPassword("654321");
-        db.SaveChanges();
 
         var permService = new PermissionService(db);
         var config = new Mock<IConfiguration>();
@@ -552,10 +577,10 @@ public class CashierToolsAndApprovalWorkflowTests
         var auditService = new Mock<IAuditService>();
         var localizer = new Mock<IStringLocalizer<SharedResources>>();
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
-        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object, identityService);
 
         var currentUserService = new Mock<ICurrentUserService>();
-        currentUserService.Setup(c => c.UserId).Returns(cashier.Id);
+        currentUserService.Setup(c => c.UserId).Returns(manager.Id);
 
         var controller = new Restaurant.WebAPI.Controllers.ShiftsController(shiftService, currentUserService.Object, identityService);
 
@@ -563,7 +588,7 @@ public class CashierToolsAndApprovalWorkflowTests
         {
             RegisterId = reg.Id,
             InitialCash = 2000000,
-            ManagerPin = "654321"
+            CashCustodianPin = "000010"
         });
 
         var okResult = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(result);
@@ -582,14 +607,16 @@ public class CashierToolsAndApprovalWorkflowTests
         var auditService = new Mock<IAuditService>();
         var localizer = new Mock<IStringLocalizer<SharedResources>>();
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
-        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object, identityService);
+        var policyService = new PosPolicyService();
+        var cashMovementService = new CashMovementService(db, permService, approvalService, policyService, auditService.Object);
 
         // Open shift
-        var shiftDto = await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest
+        var shiftDto = await shiftService.OpenShiftAsync(manager.Id, new OpenShiftRequest
         {
             RegisterId = reg.Id,
             InitialCash = 1000000,
-            ManagerPin = "123456"
+            CashCustodianPin = "000010"
         });
 
         // Create an unpaid, uncompleted order in this shift
@@ -609,14 +636,14 @@ public class CashierToolsAndApprovalWorkflowTests
         // Attempting to close shift while an order is unsettled MUST throw InvalidOperationException
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest
+            await shiftService.CloseShiftAsync(manager.Id, new CloseShiftRequest
             {
                 ActualCashCounted = 1000000,
                 Note = "Thử đóng ca khi còn đơn chưa thanh toán"
             });
         });
 
-        Assert.Contains("Không thể đóng ca", ex.Message);
+        Assert.Contains("Điều kiện 1", ex.Message);
         Assert.Contains("ORD-TEST-001", ex.Message);
 
         // Now settle the order (mark completed and paid)
@@ -624,8 +651,11 @@ public class CashierToolsAndApprovalWorkflowTests
         activeOrder.PaymentStatus = (int)PaymentStatus.Paid;
         db.SaveChanges();
 
+        // Till out drawer cash to satisfy Condition 2
+        await cashMovementService.PerformTillOutAsync(manager.Id, shiftDto.ShiftId, new TillOutRequest { Amount = 1000000, Reason = "Rút tiền két trước khi đóng ca" });
+
         // Now closing shift should succeed
-        var closedShift = await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest
+        var closedShift = await shiftService.CloseShiftAsync(manager.Id, new CloseShiftRequest
         {
             ActualCashCounted = 1000000,
             Note = "Đóng ca sau khi đã hoàn tất đơn hàng"
@@ -651,7 +681,9 @@ public class CashierToolsAndApprovalWorkflowTests
         var identityService = new IdentityService(db, config.Object);
         var auditService = new Mock<IAuditService>();
         var approvalService = new ApprovalService(db, identityService, permService, auditService.Object);
-        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object);
+        var shiftService = new ShiftService(db, localizer.Object, approvalService, permService, auditService.Object, identityService);
+        var policyService = new PosPolicyService();
+        var cashMovementService = new CashMovementService(db, permService, approvalService, policyService, auditService.Object);
         var notificationService = new Mock<IRestaurantNotificationService>();
 
         var posOrderService = new PosOrderService(db, notificationService.Object, localizer.Object);
@@ -663,7 +695,7 @@ public class CashierToolsAndApprovalWorkflowTests
         Assert.Equal((int)TableStatus.Available, tableItem.Status);
 
         // Open shift 1
-        var shift1 = await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000 });
+        var shift1 = await shiftService.OpenShiftAsync(manager.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000, CashCustodianPin = "000010" });
 
         // Add order in Shift 1 on Table 5
         var orderShift1 = new Order
@@ -692,10 +724,13 @@ public class CashierToolsAndApprovalWorkflowTests
         orderShift1.PaymentStatus = (int)PaymentStatus.Paid;
         table.Status = (int)TableStatus.Available;
         db.SaveChanges();
-        await shiftService.CloseShiftAsync(cashier.Id, new CloseShiftRequest { ActualCashCounted = 1000000 });
+
+        // Till out cash before closing shift
+        await cashMovementService.PerformTillOutAsync(manager.Id, shift1.ShiftId, new TillOutRequest { Amount = 1000000, Reason = "Rút hết tiền két" });
+        await shiftService.CloseShiftAsync(manager.Id, new CloseShiftRequest { ActualCashCounted = 1000000 });
 
         // Open shift 2
-        var shift2 = await shiftService.OpenShiftAsync(cashier.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000 });
+        var shift2 = await shiftService.OpenShiftAsync(manager.Id, new OpenShiftRequest { RegisterId = reg.Id, InitialCash = 1000000, CashCustodianPin = "000010" });
 
         // In Shift 2, old order from Shift 1 must NOT be visible on Table 5
         var tablesShift2 = await posOrderService.GetTablesStatusAsync();

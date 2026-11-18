@@ -95,13 +95,16 @@ public class RestaurantNotificationService : IRestaurantNotificationService
 
     public async Task NotifyPaymentCompletedAsync(int orderId, string orderCode, decimal amountPaid, string paymentMethod)
     {
-        await _hubContext.Clients.Group(RestaurantHub.CashiersGroup)
+        // Broadcast to All clients so PosPaymentModal, PosTables, and PosTakeaway update immediately in realtime
+        await _hubContext.Clients.All
             .ReceivePaymentCompleted(orderId, orderCode, amountPaid, paymentMethod);
+        await _hubContext.Clients.All
+            .OrderPaid(orderId);
     }
 
     public async Task NotifyPaymentAlertAsync(int orderId, string orderCode, string message)
     {
-        await _hubContext.Clients.Group(RestaurantHub.CashiersGroup)
+        await _hubContext.Clients.All
             .ReceivePaymentAlert(orderId, orderCode, message);
     }
 }

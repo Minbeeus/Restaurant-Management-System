@@ -406,14 +406,6 @@
         OnOrderCancelled="HandleOrderCancelledWithPinAsync" />
 }
 
-@if (_showCashierToolsModal)
-{
-    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
-        IsOpen="_showCashierToolsModal" 
-        IsOpenChanged="val => _showCashierToolsModal = val"
-        OnShiftChanged="HandleShiftChangedAsync" />
-}
-
 <!-- Toast Notification -->
 @if (!string.IsNullOrEmpty(ToastMessage))
 {
@@ -437,7 +429,6 @@
     protected bool ShowPaymentModalState { get; set; } = false;
     protected bool ShowCancelModal { get; set; } = false;
     protected bool ShowK80Modal { get; set; } = false;
-    protected bool _showCashierToolsModal { get; set; } = false;
     protected K80ReceiptDto? ReceiptData { get; set; }
 
     private HubConnection? _hubConnection;
@@ -467,7 +458,7 @@
         await LoadOrdersAsync();
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl(Endpoints.GetHubUrl())
             .WithAutomaticReconnect()
             .Build();
 
@@ -517,7 +508,7 @@
         if (!isShiftOpen)
         {
             _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi tạo đơn mang về.");
-            _showCashierToolsModal = true;
+            Navigation.NavigateTo("/pos/cashier-tools");
             return;
         }
 

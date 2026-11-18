@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/pos")]
-[Authorize(Roles = "Admin,Manager,Cashier")]
+[Authorize(Roles = SystemConstants.Roles.AdminManagerOrCashier)]
 public class PosOrdersController : ControllerBase
 {
     private readonly IPosOrderService _posOrderService;
@@ -205,7 +206,7 @@ public class PosOrdersController : ControllerBase
         });
     }
 
-    [Authorize(Roles = "Admin,Manager,Cashier")]
+    [Authorize(Roles = SystemConstants.Roles.AdminManagerOrCashier)]
     [HttpPost("orders/{id}/cancel")]
     public async Task<IActionResult> CancelOrder(
         int id, 
@@ -299,7 +300,7 @@ public class PosOrdersController : ControllerBase
         });
     }
 
-    [Authorize(Roles = "Admin,Manager,Cashier")]
+    [Authorize(Roles = SystemConstants.Roles.AdminManagerOrCashier)]
     [HttpPost("orders/{orderId}/items/{orderItemId}/void")]
     public async Task<IActionResult> VoidOrderItem(int orderId, int orderItemId, [FromBody] VoidOrderItemRequest request, [FromServices] ICurrentUserService currentUserService, [FromServices] IIdentityService identityService)
     {
@@ -477,6 +478,32 @@ public class PosOrdersController : ControllerBase
         {
             success = true,
             data = new { message = "Đã dọn bàn thành công." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost("tables/{id}/occupy")]
+    [AllowAnonymous]
+    public async Task<IActionResult> OccupyTable(int id)
+    {
+        var result = await _posOrderService.OccupyTableAsync(id);
+        return Ok(new
+        {
+            success = result,
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    [HttpPost("tables/{id}/release")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ReleaseTable(int id)
+    {
+        var result = await _posOrderService.ReleaseTableAsync(id);
+        return Ok(new
+        {
+            success = result,
             error = (object?)null,
             timestamp = DateTime.UtcNow
         });

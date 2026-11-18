@@ -16,19 +16,22 @@ public class ShiftService : IShiftService
     private readonly IApprovalService _approvalService;
     private readonly IPermissionService _permissionService;
     private readonly IAuditService _auditService;
+    private readonly IIdentityService _identityService;
 
     public ShiftService(
         ApplicationDbContext context,
         IStringLocalizer<SharedResources> localizer,
         IApprovalService approvalService,
         IPermissionService permissionService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IIdentityService identityService)
     {
         _context = context;
         _localizer = localizer;
         _approvalService = approvalService;
         _permissionService = permissionService;
         _auditService = auditService;
+        _identityService = identityService;
     }
 
     public async Task<bool> HasActiveShiftAsync(int userId)
@@ -39,21 +42,13 @@ public class ShiftService : IShiftService
     public async Task<ShiftReportDto?> GetCurrentShiftAsync(int userId)
     {
         var shift = await _context.Shifts
-            .AsNoTracking()
             .Include(s => s.User)
+            .Include(s => s.OpenedByUser)
+            .Include(s => s.CashCustodianUser)
+            .Include(s => s.ClosedByUser)
             .Include(s => s.Register)
-            .FirstOrDefaultAsync(s => s.UserId == userId && s.Status == (int)ShiftStatus.Open);
-
-        // Fallback: If no shift specifically recorded for this user, return the currently active store shift
-        if (shift == null)
-        {
-            shift = await _context.Shifts
-                .AsNoTracking()
-                .Include(s => s.User)
-                .Include(s => s.Register)
-                .OrderByDescending(s => s.OpenedAt)
-                .FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
-        }
+            .OrderByDescending(s => s.OpenedAt)
+            .FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
 
         if (shift == null) return null;
 
@@ -67,7 +62,18 @@ public class ShiftService : IShiftService
         var hasActive = await HasActiveShiftAsync(userId);
         if (hasActive)
         {
-            throw new InvalidOperationException(_localizer["SHIFT_ALREADY_OPEN"] ?? "Thu ngân đã có ca làm việc đang mở.");
+            throw new InvalidOperationException(_localizer["SHIFT_ALREADY_OPEN"] ?? "Cửa hàng đã có ca làm việc đang mở.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CashCustodianPin))
+        {
+            throw new ArgumentException("Bắt buộc phải nhập mã PIN 6 số của nhân viên thu ngân giữ két.");
+        }
+
+        var custodian = await _identityService.GetUserByPinAsync(request.CashCustodianPin);
+        if (custodian == null || !custodian.IsActive)
+        {
+            throw new InvalidOperationException("Mã PIN nhân viên giữ két không hợp lệ hoặc tài khoản đã bị khóa.");
         }
 
         if (request.RegisterId.HasValue)
@@ -85,15 +91,20 @@ public class ShiftService : IShiftService
             }
         }
 
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
+        var managerUser = await _context.Users.FindAsync(userId);
+        if (managerUser == null)
         {
             throw new ArgumentException(_localizer["LOGIN_FAILED"]);
         }
 
+        var shiftCode = $"SHF-{DateTime.UtcNow:yyyyMMddHHmmss}";
+
         var shift = new Shift
         {
+            ShiftCode = shiftCode,
             UserId = userId,
+            OpenedByUserId = userId,
+            CashCustodianUserId = custodian.Id,
             RegisterId = request.RegisterId,
             OpeningBalance = request.InitialCash,
             Status = (int)ShiftStatus.Open,
@@ -118,7 +129,7 @@ public class ShiftService : IShiftService
         });
         await _context.SaveChangesAsync();
 
-        await _auditService.LogAsync(userId, "Shift.Open", "Shift", shift.Id.ToString(), $"Mở ca làm việc thành công với tiền đầu ca {request.InitialCash:N0}đ", request.RegisterId, shift.Id);
+        await _auditService.LogAsync(userId, "Shift.Open", "Shift", shift.Id.ToString(), $"Mở ca {shiftCode} thành công. Tiền đầu ca: {request.InitialCash:N0}đ. Người giữ két: {custodian.FullName} (#{custodian.EmployeeCode})", request.RegisterId, shift.Id);
 
         return await BuildShiftReportAsync(shift);
     }
@@ -132,37 +143,28 @@ public class ShiftService : IShiftService
         {
             var shift = await _context.Shifts
                 .Include(s => s.User)
+                .Include(s => s.OpenedByUser)
+                .Include(s => s.CashCustodianUser)
                 .Include(s => s.Payments)
-                .FirstOrDefaultAsync(s => s.UserId == userId && s.Status == (int)ShiftStatus.Open);
-
-            if (shift == null)
-            {
-                // Fallback: allow closing any active open shift in the restaurant
-                shift = await _context.Shifts
-                    .Include(s => s.User)
-                    .Include(s => s.Payments)
-                    .OrderByDescending(s => s.OpenedAt)
-                    .FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
-            }
+                .OrderByDescending(s => s.OpenedAt)
+                .FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
 
             if (shift == null)
             {
                 throw new InvalidOperationException(_localizer["NO_ACTIVE_SHIFT"] ?? "Không tìm thấy ca làm việc đang mở.");
             }
 
-            // Bắt buộc thanh toán và hoàn tất toàn bộ đơn hàng trước khi đóng ca
-            var pendingOrders = await _context.Orders
+            // Condition 1: 100% orders must be completed and paid
+            var activeOrders = await _context.Orders
                 .Where(o => (o.ShiftId == shift.Id || o.ShiftId == 0) && o.Status != (int)OrderStatus.Cancelled)
                 .Where(o => o.Status != (int)OrderStatus.Completed || o.PaymentStatus != (int)PaymentStatus.Paid)
                 .ToListAsync();
 
-            if (pendingOrders.Any())
+            if (activeOrders.Any())
             {
-                var sampleList = string.Join(", ", pendingOrders.Take(5).Select(o => $"{o.OrderCode} ({(o.TableId.HasValue ? $"Bàn {o.TableId}" : "Mang đi")})"));
-                throw new InvalidOperationException($"Không thể đóng ca! Còn {pendingOrders.Count} đơn hàng chưa thanh toán hoặc chưa hoàn tất ({sampleList}). Bắt buộc phải thanh toán và hoàn tất toàn bộ đơn hàng trước khi đóng ca.");
+                var sampleList = string.Join(", ", activeOrders.Take(5).Select(o => $"{o.OrderCode} ({(o.TableId.HasValue ? $"Bàn {o.TableId}" : "Mang đi")}, TT: {o.TotalAmount:N0}đ)"));
+                throw new InvalidOperationException($"Điều kiện 1 không thỏa: Còn {activeOrders.Count} đơn hàng chưa thanh toán hoặc chưa hoàn thành ({sampleList}). Bắt buộc phải thanh toán và hoàn tất toàn bộ đơn trước khi đóng ca.");
             }
-
-            var utcNow = DateTime.UtcNow;
 
             var completedPayments = await _context.Payments
                 .Where(p => p.ShiftId == shift.Id && p.Status == (int)PaymentStatus.Paid)
@@ -186,44 +188,49 @@ public class ShiftService : IShiftService
             var totalRefunds = movements.Where(m => m.Type == (int)CashMovementType.CashRefund).Sum(m => m.Amount);
             var totalAdjustments = movements.Where(m => m.Type == (int)CashMovementType.CashAdjustment).Sum(m => m.Amount);
 
-            var expectedCash = shift.OpeningBalance + shift.TotalCashAmount + totalTillIn - totalTillOut - totalRefunds + totalAdjustments;
+            var expectedCash = shift.OpeningBalance + shift.TotalCashAmount + totalTillIn - totalRefunds + totalAdjustments;
+            var remainingCashToTillOut = expectedCash - totalTillOut;
+            var cashDifference = expectedCash - totalTillOut;
+
+            // Condition 2: All cash in drawer must be tilled out
+            if (expectedCash > 0 && totalTillOut <= 0)
+            {
+                throw new InvalidOperationException("Điều kiện 2 không thỏa: Chưa thực hiện rút tiền (Till Out) khỏi két chung của ca. Bắt buộc Quản lý phải rút toàn bộ tiền mặt khỏi két trước khi đóng ca.");
+            }
+
+            if (remainingCashToTillOut > 0)
+            {
+                throw new InvalidOperationException($"Điều kiện 2 không thỏa: Két chung còn {remainingCashToTillOut:N0}đ chưa rút (Remaining Cash to Till Out > 0). Phải rút toàn bộ tiền mặt khỏi két.");
+            }
+
+            // Condition 3: Cash Difference == 0
+            if (cashDifference != 0)
+            {
+                throw new InvalidOperationException($"Điều kiện 3 không thỏa: Chênh lệch tiền mặt ({cashDifference:+N0;-N0;0}đ) khác 0. Yêu cầu khớp tiền tuyệt đối (Cash Difference == 0).");
+            }
+
+            // Condition 4: Manager/Admin role closes shift
+            var utcNow = DateTime.UtcNow;
+            shift.Status = (int)ShiftStatus.Closed;
+            shift.ClosedAt = utcNow;
+            shift.ClosedByUserId = userId;
             shift.ClosingBalance = expectedCash;
-            shift.ActualCashCounted = request.ActualCashCounted;
+            shift.ActualCashCounted = totalTillOut;
+            shift.Difference = 0;
 
-            var variance = request.ActualCashCounted - expectedCash;
-            shift.Difference = variance;
-
-            if (variance != 0)
+            if (!string.IsNullOrWhiteSpace(request.Note))
             {
-                // Create approval request for variance
-                shift.Status = (int)ShiftStatus.PendingClosingApproval;
-
-                var appReq = await _approvalService.CreateRequestAsync(userId, new CreateApprovalRequestDto
-                {
-                    Type = (int)ApprovalType.ShiftClosing,
-                    ReferenceId = shift.Id,
-                    Amount = Math.Abs(variance),
-                    Reason = $"Chênh lệch tiền đóng ca ({variance:+N0;-N0;0}đ): {request.Note ?? "Cần Quản lý duyệt"}",
-                    Note = request.Note
-                });
-
-                shift.Note = string.IsNullOrEmpty(shift.Note)
-                    ? $"Chờ Quản lý duyệt chênh lệch ({variance:+N0;-N0;0}đ) - Yêu cầu #{appReq.Id}"
-                    : $"{shift.Note} | Chờ duyệt chênh lệch - Yêu cầu #{appReq.Id}";
-
-                await _auditService.LogAsync(userId, "Shift.SubmitVariance", "Shift", shift.Id.ToString(), $"Gửi yêu cầu duyệt chênh lệch đóng ca ({variance:+N0;-N0;0}đ)", shift.RegisterId, shift.Id);
+                shift.Note = string.IsNullOrEmpty(shift.Note) ? request.Note : $"{shift.Note} | {request.Note}";
             }
-            else
+
+            // Release all tables when shift closes so no orphaned table statuses persist
+            var nonAvailableTables = await _context.Tables.Where(t => t.Status != (int)TableStatus.Available).ToListAsync();
+            foreach (var t in nonAvailableTables)
             {
-                shift.Status = (int)ShiftStatus.Closed;
-                shift.ClosedAt = utcNow;
-                if (!string.IsNullOrWhiteSpace(request.Note))
-                {
-                    shift.Note = string.IsNullOrEmpty(shift.Note) ? request.Note : $"{shift.Note} | {request.Note}";
-                }
-
-                await _auditService.LogAsync(userId, "Shift.Close", "Shift", shift.Id.ToString(), "Đóng ca làm việc thành công - Khớp tiền", shift.RegisterId, shift.Id);
+                t.Status = (int)TableStatus.Available;
             }
+
+            await _auditService.LogAsync(userId, "Shift.Close", "Shift", shift.Id.ToString(), $"Đóng ca {shift.ShiftCode ?? shift.Id.ToString()} thành công - Khớp tiền tuyệt đối 0đ", shift.RegisterId, shift.Id);
 
             await _context.SaveChangesAsync();
             await dbTransaction.CommitAsync();
@@ -240,8 +247,10 @@ public class ShiftService : IShiftService
     public async Task<List<ShiftReportDto>> GetAllShiftsAsync(DateTime? fromDate, DateTime? toDate, int? status = null)
     {
         var query = _context.Shifts
-            .AsNoTracking()
             .Include(s => s.User)
+            .Include(s => s.OpenedByUser)
+            .Include(s => s.CashCustodianUser)
+            .Include(s => s.ClosedByUser)
             .Include(s => s.Register)
             .AsQueryable();
 
@@ -289,11 +298,17 @@ public class ShiftService : IShiftService
     private async Task<ShiftReportDto> BuildShiftReportAsync(Shift shift)
     {
         var completedPayments = await _context.Payments
+            .Include(p => p.ProcessedByUser)
+            .Include(p => p.Order)
+                .ThenInclude(o => o.CreatedByUser)
             .Where(p => p.ShiftId == shift.Id && p.Status == (int)PaymentStatus.Paid)
             .ToListAsync();
 
-        var cashRevenue = completedPayments.Where(p => p.PaymentMethod == (int)PaymentMethod.Cash).Sum(p => p.Amount);
-        var transferRevenue = completedPayments.Where(p => p.PaymentMethod == (int)PaymentMethod.BankTransfer).Sum(p => p.Amount);
+        var cashPayments = completedPayments.Where(p => p.PaymentMethod == (int)PaymentMethod.Cash).ToList();
+        var transferPayments = completedPayments.Where(p => p.PaymentMethod == (int)PaymentMethod.BankTransfer).ToList();
+
+        var cashRevenue = cashPayments.Sum(p => p.Amount);
+        var transferRevenue = transferPayments.Sum(p => p.Amount);
 
         var movements = await _context.CashMovements
             .Where(m => m.ShiftId == shift.Id)
@@ -304,7 +319,9 @@ public class ShiftService : IShiftService
         var totalRefunds = movements.Where(m => m.Type == (int)CashMovementType.CashRefund).Sum(m => m.Amount);
         var totalAdjustments = movements.Where(m => m.Type == (int)CashMovementType.CashAdjustment).Sum(m => m.Amount);
 
-        var expectedCash = shift.OpeningBalance + cashRevenue + totalTillIn - totalTillOut - totalRefunds + totalAdjustments;
+        var expectedCash = shift.OpeningBalance + cashRevenue + totalTillIn - totalRefunds + totalAdjustments;
+        var remainingCashToTillOut = Math.Max(0, expectedCash - totalTillOut);
+        var cashDifference = expectedCash - totalTillOut;
 
         var shiftOrders = await _context.Orders
             .Where(o => o.ShiftId == shift.Id)
@@ -312,6 +329,50 @@ public class ShiftService : IShiftService
 
         var dineInCount = shiftOrders.Count(o => o.OrderType == (int)OrderType.DineIn);
         var takeawayCount = shiftOrders.Count(o => o.OrderType == (int)OrderType.Pickup);
+        var completedOrdersCount = shiftOrders.Count(o => o.Status == (int)OrderStatus.Completed && o.PaymentStatus == (int)PaymentStatus.Paid);
+        var cancelledOrdersCount = shiftOrders.Count(o => o.Status == (int)OrderStatus.Cancelled);
+
+        var outstandingOrders = await _context.Orders
+            .Where(o => (o.ShiftId == shift.Id || o.ShiftId == 0) && o.Status != (int)OrderStatus.Cancelled)
+            .Where(o => o.Status != (int)OrderStatus.Completed || o.PaymentStatus != (int)PaymentStatus.Paid)
+            .Select(o => new OutstandingOrderDto
+            {
+                OrderId = o.Id,
+                OrderCode = o.OrderCode,
+                TableId = o.TableId,
+                TableName = o.TableId.HasValue ? $"Bàn {o.TableId}" : "Mang đi",
+                TotalAmount = o.TotalAmount,
+                Status = o.Status,
+                PaymentStatus = o.PaymentStatus,
+                CreatedAt = o.CreatedAt
+            })
+            .ToListAsync();
+
+        var employeeSummaries = new List<ShiftEmployeeCashSummaryDto>();
+        var userGroup = completedPayments
+            .GroupBy(p => p.ProcessedByUserId ?? p.Order?.CreatedByUserId ?? 0)
+            .ToList();
+
+        foreach (var grp in userGroup)
+        {
+            var uid = grp.Key;
+            var u = await _context.Users.Include(x => x.Role).FirstOrDefaultAsync(x => x.Id == uid);
+            var empCashPayments = grp.Where(p => p.PaymentMethod == (int)PaymentMethod.Cash).ToList();
+            var empTransferPayments = grp.Where(p => p.PaymentMethod == (int)PaymentMethod.BankTransfer).ToList();
+
+            employeeSummaries.Add(new ShiftEmployeeCashSummaryDto
+            {
+                UserId = uid,
+                EmployeeCode = u?.EmployeeCode ?? $"NV{uid:D6}",
+                StaffName = u?.FullName ?? (uid == 0 ? "Hệ thống" : $"Nhân viên #{uid}"),
+                RoleName = u?.Role?.Name ?? "Staff",
+                CashOrdersCount = empCashPayments.Count,
+                CashCollected = empCashPayments.Sum(p => p.Amount),
+                NonCashOrdersCount = empTransferPayments.Count,
+                NonCashCollected = empTransferPayments.Sum(p => p.Amount),
+                TotalRevenue = grp.Sum(p => p.Amount)
+            });
+        }
 
         var statusName = ((ShiftStatus)shift.Status) switch
         {
@@ -321,11 +382,22 @@ public class ShiftService : IShiftService
             _ => "Khác"
         };
 
+        var openedByUser = shift.OpenedByUserId.HasValue ? await _context.Users.FindAsync(shift.OpenedByUserId.Value) : shift.User;
+        var custodianUser = shift.CashCustodianUserId.HasValue ? await _context.Users.FindAsync(shift.CashCustodianUserId.Value) : null;
+        var closedByUser = shift.ClosedByUserId.HasValue ? await _context.Users.FindAsync(shift.ClosedByUserId.Value) : null;
+
+        var canClose = !outstandingOrders.Any() && remainingCashToTillOut == 0 && cashDifference == 0 && (expectedCash == 0 || totalTillOut > 0);
+
         return new ShiftReportDto
         {
             ShiftId = shift.Id,
+            ShiftCode = shift.ShiftCode ?? $"SHF-{shift.Id:D6}",
             UserId = shift.UserId,
             StaffName = shift.User?.FullName ?? "Thu ngân",
+            OpenedByStaffName = openedByUser?.FullName ?? "Quản lý",
+            CashCustodianStaffName = custodianUser?.FullName ?? "Chưa gán",
+            CashCustodianEmployeeCode = custodianUser?.EmployeeCode ?? "N/A",
+            ClosedByStaffName = closedByUser?.FullName,
             StartTime = shift.OpenedAt,
             EndTime = shift.ClosedAt,
             Status = shift.Status,
@@ -334,17 +406,26 @@ public class ShiftService : IShiftService
             TotalRevenue = cashRevenue + transferRevenue,
             CashRevenue = cashRevenue,
             BankingRevenue = transferRevenue,
-            TotalCashOrders = completedPayments.Count(p => p.PaymentMethod == (int)PaymentMethod.Cash),
-            TotalTransferOrders = completedPayments.Count(p => p.PaymentMethod == (int)PaymentMethod.BankTransfer),
+            TotalCashOrders = cashPayments.Count,
+            TotalTransferOrders = transferPayments.Count,
+            TotalTillIn = totalTillIn,
+            TotalTillOut = totalTillOut,
+            TotalCashRefunds = totalRefunds,
+            TotalCashAdjustments = totalAdjustments,
             ExpectedCash = expectedCash,
-            ActualCash = shift.ActualCashCounted ?? expectedCash,
-            Difference = shift.Difference ?? (shift.ActualCashCounted.HasValue ? shift.ActualCashCounted.Value - expectedCash : 0),
+            ActualCash = shift.ActualCashCounted ?? totalTillOut,
+            RemainingCashToTillOut = remainingCashToTillOut,
+            Difference = shift.Difference ?? cashDifference,
+            CanCloseShift = canClose,
             Note = shift.Note,
             TotalOrders = shiftOrders.Count,
+            CompletedOrdersCount = completedOrdersCount,
+            CancelledOrdersCount = cancelledOrdersCount,
+            OutstandingOrdersCount = outstandingOrders.Count,
             DineInOrders = dineInCount,
             TakeawayOrders = takeawayCount,
-            TotalTillIn = totalTillIn,
-            TotalTillOut = totalTillOut
+            OutstandingOrders = outstandingOrders,
+            EmployeeSummaries = employeeSummaries
         };
     }
 }

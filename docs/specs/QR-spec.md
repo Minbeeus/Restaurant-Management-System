@@ -1,8 +1,8 @@
 # Đặc tả Chi tiết Chức năng — Phân hệ QR Ordering (Khách hàng Tự phục vụ)
 
-> **Module:** QR Ordering  
-> **Actor chính:** Khách hàng (Customer / Guest)  
-> **Công nghệ:** Mobile Web Responsive, SignalR Realtime Client
+> **Module:** QR Ordering (Khách tự gọi món tại bàn)  
+> **Actor chính:** Khách hàng (Customer / Guest), Thu ngân POS  
+> **Công nghệ:** Mobile-First Web Responsive, SignalR Realtime Client, REST API
 
 ---
 
@@ -10,123 +10,105 @@
 
 | Feature ID | Tên tính năng | Actor | Độ ưu tiên |
 |------------|---------------|-------|------------|
-| QR-001 | Quét Mã QR & Nhận diện Bàn/Pickup | Customer | Must Have |
-| QR-002 | Xem Thực đơn | Customer | Must Have |
-| QR-003 | Chọn Món & Combo | Customer | Must Have |
-| QR-004 | Quản lý Giỏ hàng | Customer | Must Have |
-| QR-005 | Gửi Đơn hàng | Customer | Must Have |
-| QR-006 | Theo dõi Trạng thái Chế biến | Customer | Must Have |
-| QR-007 | Gọi Thêm Món | Customer | Must Have |
+| QR-001 | Quét Mã QR & Tự động Nhận diện Bàn / Session | Customer | Must Have |
+| QR-002 | Xem Thực đơn Điện tử Tối ưu Di động | Customer | Must Have |
+| QR-003 | Chọn Món, Tùy chọn Topping & Combo Gói | Customer | Must Have |
+| QR-004 | Quản lý Giỏ hàng Tạm thời | Customer | Must Have |
+| QR-005 | Nhập Thông tin Khách hàng & Gửi Đơn (Submit Order) | Customer | Must Have |
+| QR-006 | Đồng bộ Phiên khi Chuyển / Gộp Bàn (Session Moved) | Customer, System | Must Have |
+| QR-007 | Theo dõi Tiến độ Chế biến Realtime (Order Tracking) | Customer | Must Have |
+| QR-008 | Gọi Thêm Món Vào Đơn Đang Phục vụ (Add More Items) | Customer | Must Have |
 
 ---
 
 ## 2. Đặc tả chi tiết từng tính năng
 
-### QR-001: Quét Mã QR & Nhận diện Bàn/Pickup (Scan QR & Identify Table)
+### QR-001: Quét Mã QR & Tự động Nhận diện Bàn / Session
 - **Actor:** Customer (Guest)
 - **Priority:** Must Have
-- **Mô tả:** Khách quét mã QR tại bàn (hoặc mã QR Pickup tại quầy) bằng camera điện thoại, hệ thống tự nhận diện thông tin bàn ăn và cấp Session ID để khách đặt món. Hỗ trợ cập nhật session tự động khi bị thu ngân chuyển/gộp bàn.
+- **Mô tả:** Khách dùng camera điện thoại quét mã QR dán trên bàn (hoặc mã QR đặt tại quầy pickup). Trình duyệt mở đường dẫn chứa mã nhận diện bàn (`tableId`) và mã xác thực bảo mật (`token`).
 - **Luồng chính:**
-  1. Khách hàng quét mã QR trên bàn. Trình duyệt di động mở đường dẫn có tham số: `https://nhahang.com/order?tableId=105&token=abc123xyz`.
-  2. Backend xác thực `tableId` và `token`.
-  3. Xác thực thành công:
-     - Hệ thống cấp Session Token lưu trữ tại LocalStorage/Cookie.
-     - Đồng bộ SignalR: Gửi sự kiện báo bàn 105 đang có khách bắt đầu thao tác.
-     - Giao diện chuyển sang trang Thực đơn của bàn 105.
-- **Cơ chế chuyển bàn tự động:**
-  - Trong lúc khách đang mở trang, nếu thu ngân thực hiện chuyển bàn từ bàn 105 sang bàn 110, client nhận sự kiện SignalR `TableSessionMoved`:
-    - Hệ thống tự động cập nhật lại `TableId = 110` trong cookie session của trình duyệt khách hàng.
-    - Hiển thị thông báo trên màn hình khách: "Đơn hàng của bạn đã được chuyển sang Bàn 110. Hệ thống sẽ tự động cập nhật".
-    - Trình duyệt tự động chuyển hướng và giữ nguyên giỏ hàng.
+  1. Khách quét mã mở trang web: `https://[domain]/order?tableId=102&token=abc123xyz`.
+  2. Hệ thống xác thực tính hợp lệ của `tableId` và `token`.
+  3. Cấp session cho khách hàng, tự động tải dữ liệu thực đơn và khu vực bàn ăn.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-QR-001.1:** Given khách hàng đang mở trang gọi món của Bàn 105, When thu ngân tại POS thực hiện chuyển đơn hàng sang Bàn 110, Then trình duyệt khách hàng phải nhận sự kiện `TableSessionMoved`, tự động đổi địa chỉ URL sang tham số `tableId=110` trong vòng dưới 1 giây và hiển thị thông báo chuyển bàn cho khách.
+  - **AC-QR-001.1:** Given mã QR và token hợp lệ, When khách mở trang, Then hệ thống nhận diện đúng tên bàn ăn (ví dụ: "Bàn 102 - Tầng 1") và hiển thị thực đơn trong vòng dưới 1 giây.
 - **Bảng liên quan:** `Tables`, `Areas`
-- **Sự kiện SignalR:** Đăng ký nhận sự kiện `TableSessionMoved`, phát sự kiện `TableStatusChanged`.
 
 ---
 
-### QR-002: Xem Thực đơn (Browse Menu)
+### QR-002: Xem Thực đơn Điện tử Tối ưu Di động (Mobile Menu)
 - **Actor:** Customer
 - **Priority:** Must Have
-- **Mô tả:** Giao diện xem thực đơn tối ưu hóa cho thiết bị di động (Mobile-First UI), hiển thị món theo từng danh mục. Món hết hàng hiển thị tag "Hết hàng" (Sold Out) realtime qua SignalR.
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-QR-002.1:** Given khách hàng đang xem thực đơn trên điện thoại, When đầu bếp bấm "Báo hết món" món "Sinh tố bơ" trên KDS, Then nút "Thêm vào giỏ" của món "Sinh tố bơ" trên điện thoại khách hàng phải lập tức bị vô hiệu hóa (Disabled) và đổi chữ thành "Hết hàng" trong vòng dưới 1 giây.
+- **Mô tả:** Giao diện xem món ăn thiết kế chuẩn Mobile-first, hiển thị danh mục theo thanh cuộn ngang, danh sách món kèm hình ảnh, mô tả, giá và nhãn trạng thái (Món mới, Bán chạy, Hết hàng).
+- **Đồng bộ Món Hết hàng:** Nếu đầu bếp hoặc quản trị viên báo hết món, nút đặt món của sản phẩm đó lập tức chuyển sang màu xám và hiện nhãn "Hết hàng" (Sold Out) realtime qua SignalR.
 - **Bảng liên quan:** `MenuItems`, `Categories`
-- **Sự kiện SignalR:** Đăng ký nhận sự kiện `MenuItemSoldOut`.
+- **Sự kiện SignalR:** Đăng ký nhận `ReceiveSoldOutNotice`.
 
 ---
 
-### QR-003: Chọn Món & Combo (Select Item with Modifiers / Combo options)
+### QR-003: Chọn Món, Tùy chọn Topping & Combo Gói
 - **Actor:** Customer
 - **Priority:** Must Have
-- **Mô tả:** Khách chọn món ăn, lựa chọn các tùy chọn đi kèm (Size, Toppings...) hoặc chọn các món thành phần trong Combo thông qua giao diện drawer trượt.
-- **Luồng chính:**
-  1. Khách click chọn một món ăn hoặc combo.
-  2. Một Drawer trượt từ dưới lên (Bottom Drawer) hiển thị:
-     - **Nếu là Combo:** Hiển thị các nhóm lựa chọn bắt buộc (ví dụ: nhóm "Món chính" chọn 1, nhóm "Đồ uống" chọn 1). Khách hàng bắt buộc phải tích chọn đủ số lượng món thành phần ở mỗi nhóm.
-     - **Nếu là món thường có modifier:** Hiển thị danh sách Size, Topping.
-  3. Bấm "Thêm vào giỏ hàng".
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-QR-003.1:** Given khách chọn Combo có nhóm món bắt buộc, When khách chưa tích đủ lựa chọn bắt buộc, Then nút "Thêm vào giỏ hàng" ở cuối drawer phải ở trạng thái vô hiệu hóa (Màu xám) và hiển thị thông báo nhắc chọn.
-- **Bảng liên quan:** `ModifierGroups`, `ModifierOptions`, `MenuItems`
+- **Mô tả:** Khi khách chạm vào một món ăn, ngăn kéo trượt từ dưới lên (Bottom Drawer `QrBottomDrawer.razor`) mở ra cho phép chọn:
+  - **Món đơn có modifier:** Chọn Size, mức đường/đá, danh sách Topping thêm (kèm giá phụ thu).
+  - **Gói Combo:** Bắt buộc khách chọn đủ số lượng món thành phần cho từng nhóm (ví dụ: Combo 2 người chọn 1 Pizza, 1 Món ăn kèm, 2 Lon nước). Nút "Thêm vào giỏ" bị khóa nếu chưa chọn đủ điều kiện bắt buộc.
+- **Bảng liên quan:** `ModifierGroups`, `ModifierOptions`, `ComboGroups`, `ComboItems`
 
 ---
 
-### QR-004: Quản lý Giỏ hàng (Manage Cart)
+### QR-004: Quản lý Giỏ hàng Tạm thời (Cart Modal)
 - **Actor:** Customer
 - **Priority:** Must Have
-- **Mô tả:** Khách hàng kiểm tra, tăng giảm số lượng hoặc xoá các món ăn trong giỏ hàng. Giỏ hàng được lưu trữ tạm thời trong browser session.
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-QR-004.1:** Given khách hàng đã thêm món vào giỏ hàng, When khách bấm nút giảm số lượng về `0` hoặc vuốt ngang dòng món ăn đó, Then món ăn phải được xóa khỏi giỏ hàng lập tức và tổng tiền giỏ hàng phải giảm đi chính xác.
+- **Mô tả:** Modal xem giỏ hàng (`QrCartModal.razor`) hiển thị danh sách các món đã chọn, tùy chọn kèm theo, số lượng và tổng tiền tạm tính. Khách có thể tăng/giảm số lượng hoặc xóa món khỏi giỏ hàng.
+- **Bảng liên quan:** Không (lưu trữ Client State).
 
 ---
 
-### QR-005: Gửi Đơn hàng (Submit Order)
+### QR-005: Nhập Thông tin Khách hàng & Gửi Đơn (Submit Order)
 - **Actor:** Customer
 - **Priority:** Must Have
-- **Mô tả:** Bấm gửi đơn hàng đã chọn lên quầy thu ngân để duyệt. Áp dụng cơ chế giới hạn tần suất gửi đơn (Rate Limiting) và chặn đặt món nếu bàn đang chuẩn bị thanh toán.
-- **Luồng chính:**
-  1. Khách hàng bấm nút "Gửi đơn hàng" trong giỏ hàng.
-  2. **Kiểm tra trạng thái Bàn:** Hệ thống kiểm tra trạng thái hiện tại của bàn ăn:
-     - Nếu bàn đang ở trạng thái `Billing` (Chờ thanh toán): Hệ thống chặn gửi đơn, hiển thị thông báo "Bàn đang trong quá trình thanh toán. Vui lòng liên hệ nhân viên nếu muốn gọi thêm món".
-  3. **Cơ chế chống Spam:** Hệ thống kiểm tra thời gian gửi đơn gần nhất của session này:
-     - Nếu khoảng cách nhỏ hơn 30 giây: Hiển thị cảnh báo "Hệ thống đang xử lý đơn hàng của bạn. Vui lòng đợi 30 giây để gửi yêu cầu tiếp theo" và chặn gửi đơn.
-     - Nếu hợp lệ: Cập nhật thời điểm gửi đơn gần nhất vào session, tiến hành gửi đơn.
-  4. Tạo đơn hàng trạng thái `Draft` (Nháp) trong Database.
-  5. Gửi thông báo SignalR `NewQrOrderReceived` lên quầy POS.
-  6. Trạng thái bàn tự động chuyển sang `New Order` (Đơn mới) để thu ngân biết cần duyệt.
-  7. Màn hình khách chuyển sang giao diện chờ duyệt.
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-QR-005.1:** Given khách hàng vừa gửi đơn hàng lúc 15:00:00, When khách bấm nút gửi thêm đơn mới lúc 15:00:15, Then hệ thống phải chặn lại và hiển thị thông báo yêu cầu chờ thêm 15 giây.
-  - **AC-QR-005.2:** Given bàn 105 đang ở trạng thái `Billing` (Chờ thanh toán), When khách bấm "Gửi đơn hàng", Then hệ thống phải chặn lại và hiển thị thông báo "Bàn đang trong quá trình thanh toán. Vui lòng liên hệ nhân viên nếu muốn gọi thêm món".
-  - **AC-QR-005.3:** When khách gửi đơn thành công, Then hệ thống phải tạo một đơn hàng có trạng thái `Draft` (giá trị `0`) trong database, gán trạng thái bàn thành `New Order` (giá trị `2`) và gửi thông báo SignalR đến quầy thu ngân.
-- **Bảng liên quan:** `Orders`, `OrderItems`, `OrderItemModifiers`, `Tables`
-- **Sự kiện SignalR:** Phát sự kiện `NewQrOrderReceived`, phát sự kiện `TableStatusChanged`.
+- **Mô tả:** Khách hàng bấm gửi đơn hàng. Hỗ trợ modal nhập thông tin khách hàng (`QrCustomerInfoModal.razor`): Họ tên, Số điện thoại (để tích điểm thành viên) và ghi chú đặc biệt cho nhà bếp.
+- **Ràng buộc nghiệp vụ:**
+  - **Chặn khi đang thanh toán:** Nếu bàn đang ở trạng thái `Billing` (chờ thanh toán), hệ thống chặn gửi đơn và thông báo: "Bàn đang trong quá trình thanh toán. Vui lòng liên hệ nhân viên phục vụ".
+  - **Chống Spam (Rate Limit):** Giới hạn tối thiểu 30 giây giữa hai lần gửi đơn liên tiếp từ cùng một phiên khách.
+- **Kết quả:** Đơn hàng tạo ở trạng thái `Draft`, trạng thái bàn chuyển sang `New Order` (Vàng), gửi sự kiện SignalR `ReceiveNewQrOrder` lên quầy POS thu ngân.
+- **Bảng liên quan:** `Orders`, `OrderItems`, `OrderItemModifiers`, `Tables`, `Customers`
+- **Sự kiện SignalR:** Phát sự kiện `ReceiveNewQrOrder`, phát sự kiện `ReceiveTableStatusSync`.
 
 ---
 
-### QR-006: Theo dõi Trạng thái Chế biến (Track Order Status)
+### QR-006: Đồng bộ Phiên khi Chuyển / Gộp Bàn (Session Moved)
+- **Actor:** Customer, System
+- **Priority:** Must Have
+- **Mô tả:** Trong lúc khách hàng đang mở trang QR của một bàn, nếu thu ngân tại POS thực hiện chuyển bàn hoặc gộp bàn:
+  - Client khách nhận sự kiện SignalR `ReceiveTableSessionMoved`.
+  - Tự động hiển thị thông báo: "Đơn hàng của bạn đã được chuyển sang Bàn [Tên Bàn Mới]".
+  - Tự động cập nhật lại Session và địa chỉ URL của khách sang bàn mới mà không làm mất giỏ hàng hay ngắt kết nối.
+- **Tiêu chí chấp nhận (Acceptance Criteria):**
+  - **AC-QR-006.1:** Given khách đang mở bàn 105, When thu ngân chuyển sang bàn 201, Then màn hình điện thoại khách tự động cập nhật sang Bàn 201 trong vòng dưới 1 giây.
+- **Bảng liên quan:** `Tables`, `Orders`
+- **Sự kiện SignalR:** Đăng ký nhận `ReceiveTableSessionMoved`.
+
+---
+
+### QR-007: Theo dõi Tiến độ Chế biến Realtime (Order Tracking)
 - **Actor:** Customer
 - **Priority:** Must Have
-- **Mô tả:** Khách theo dõi tiến độ chế biến từng món ăn trong bếp thông qua giao diện cập nhật thời gian thực.
+- **Mô tả:** Màn hình trạng thái đơn hàng (`QrOrderStatus.razor`) hiển thị tiến độ thời gian thực của từng món ăn:
+  - `Chờ duyệt` (Pending Approval): Đang chờ thu ngân xác nhận.
+  - `Đang chế biến` (Cooking / Processing): Bếp đã nhận làm món.
+  - `Đã hoàn thành` (Done / Ready): Món ăn đã làm xong, sẵn sàng được phục vụ lên bàn.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-QR-006.1:** Given khách đang mở màn hình theo dõi đơn hàng, When đầu bếp bấm hoàn thành món "Bò kho" trên KDS, Then trạng thái món "Bò kho" trên điện thoại khách hàng phải lập tức đổi thành "Đã làm xong" (Done) màu xanh dương trong vòng dưới 1 giây.
+  - **AC-QR-007.1:** When đầu bếp bấm hoàn thành món trên KDS, Then trạng thái món trên điện thoại khách lập tức cập nhật sang "Đã làm xong" qua sự kiện `ReceiveOrderItemStatusChanged`.
 - **Bảng liên quan:** `Orders`, `OrderItems`
-- **Sự kiện SignalR:** Đăng ký nhận sự kiện `OrderItemStatusChanged`.
+- **Sự kiện SignalR:** Đăng ký nhận `ReceiveOrderItemStatusChanged`.
 
 ---
 
-### QR-007: Gọi Thêm Món (Add More Items)
+### QR-008: Gọi Thêm Món Vào Đơn Đang Phục vụ (Add More Items)
 - **Actor:** Customer (Dine-in only)
 - **Priority:** Must Have
-- **Mô tả:** Cho phép khách hàng đang ngồi tại bàn quét mã gọi thêm món ăn mới, hệ thống tự động gộp vào đơn hàng đang chạy của bàn đó dưới dạng chờ duyệt. Áp dụng quy tắc chặn nếu bàn đang thanh toán.
-- **Luồng chính:**
-  1. Khách hàng chọn thêm các món ăn mới vào giỏ hàng và bấm "Gửi đơn".
-  2. **Kiểm tra trạng thái Bàn:** Nếu bàn đang ở trạng thái `Billing` (Chờ thanh toán): Hệ thống chặn gửi đơn, hiển thị thông báo "Bàn đang trong quá trình thanh toán. Vui lòng liên hệ nhân viên nếu muốn gọi thêm món".
-  3. Hệ thống tạo các dòng `OrderItems` mới gắn vào `OrderId` của đơn hiện tại với trạng thái bếp `Pending` và lưu snapshot giá.
-  4. Trạng thái bàn tự động chuyển từ `Occupied` sang `New Order` (Đơn mới) để thu ngân duyệt.
-  5. Phát SignalR thông báo thu ngân POS có món gọi thêm cần duyệt.
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-QR-007.1:** Given bàn 105 đang có một đơn hàng trạng thái `Confirmed` (bàn đang màu đỏ Occupied), When khách gửi đơn gọi thêm 1 lon Coca, Then lon Coca phải được thêm vào đơn hàng hiện tại ở trạng thái chờ duyệt, trạng thái bàn 105 phải chuyển sang màu vàng `New Order` trên sơ đồ POS trong vòng dưới 1 giây.
+- **Mô tả:** Khách hàng đang ngồi tại bàn có thể quay lại trang Thực đơn để chọn thêm món mới. Khi gửi đơn, các món mới sẽ được tự động gộp vào đơn hàng đang chạy của bàn đó ở trạng thái chờ duyệt. Bàn ăn chuyển trạng thái `New Order` để thu ngân duyệt chuyển tiếp cho bếp.
 - **Bảng liên quan:** `Orders`, `OrderItems`, `Tables`
-- **Sự kiện SignalR:** Phát sự kiện `NewQrOrderReceived`, phát sự kiện `TableStatusChanged`.
+- **Sự kiện SignalR:** Phát sự kiện `ReceiveNewQrOrder`, phát sự kiện `ReceiveTableStatusSync`.

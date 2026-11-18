@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
@@ -47,7 +48,7 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Create([FromBody] CreateMenuItemRequest request)
     {
         try
@@ -62,7 +63,7 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateMenuItemRequest request)
     {
         try
@@ -79,7 +80,7 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _menuItemService.DeleteAsync(id);
@@ -89,7 +90,7 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpPatch("{id}/toggle-sold-out")]
-    [Authorize(Roles = "Admin,Manager,Chef,Cashier")]
+    [Authorize(Roles = SystemConstants.Roles.Staff)]
     public async Task<IActionResult> ToggleSoldOut(int id)
     {
         var success = await _menuItemService.ToggleSoldOutAsync(id);

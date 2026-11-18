@@ -6,6 +6,25 @@ window.floorplan = {
     offsetX: 0,
     offsetY: 0,
     _bound: false,
+    scale: 1,
+    _resizeObserver: null,
+
+    updateScale: function () {
+        const container = document.getElementById('floorplan-container');
+        const scaler = document.getElementById('floorplan-scaler');
+        if (!container || !scaler) return;
+
+        // Container visible bounds minus padding
+        const padX = 16;
+        const padY = 16;
+        const availW = Math.max(100, container.clientWidth - padX);
+        const availH = Math.max(100, container.clientHeight - padY);
+
+        // Native architectural floorplan canvas dimension is 1240 x 720
+        const scale = Math.min(availW / 1240, availH / 720);
+        this.scale = scale;
+        scaler.style.transform = `scale(${scale})`;
+    },
 
     init: function (dotNetReference, tablesData) {
         this.dotNetRef = dotNetReference;
@@ -14,11 +33,28 @@ window.floorplan = {
         const canvas = document.getElementById('floorplan-canvas');
         if (!canvas) return;
 
+        // Immediately calculate scale to fit available container bounds
+        this.updateScale();
+
+        // Attach ResizeObserver to container for real-time auto-fit
+        const container = document.getElementById('floorplan-container');
+        if (container && window.ResizeObserver) {
+            if (this._resizeObserver) {
+                this._resizeObserver.disconnect();
+            }
+            this._resizeObserver = new ResizeObserver(() => {
+                this.updateScale();
+            });
+            this._resizeObserver.observe(container);
+        }
+
         if (!this._bound) {
             this.onPointerDown = this.onPointerDown.bind(this);
             this.onPointerMove = this.onPointerMove.bind(this);
             this.onPointerUp = this.onPointerUp.bind(this);
             this.onPointerLeave = this.onPointerLeave.bind(this);
+            this.onWindowResize = () => this.updateScale();
+            window.addEventListener('resize', this.onWindowResize);
             this._bound = true;
         }
 
@@ -45,6 +81,10 @@ window.floorplan = {
             canvas.removeEventListener('pointerup', this.onPointerUp);
             canvas.removeEventListener('pointerleave', this.onPointerLeave);
         }
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
         this.tables = [];
         this.dotNetRef = null;
     },
@@ -54,9 +94,8 @@ window.floorplan = {
     },
 
     onPointerDown: function (e) {
-        // Ensure we are in edit mode. Edit mode should probably add a class to the canvas.
         const canvas = document.getElementById('floorplan-canvas');
-        if (!canvas.classList.contains('edit-mode')) return;
+        if (!canvas || !canvas.classList.contains('edit-mode')) return;
 
         const target = e.target.closest('.table-element');
         if (!target) return;
@@ -72,13 +111,13 @@ window.floorplan = {
         target.setPointerCapture(e.pointerId);
         target.classList.add('dragging');
 
-        // Tính toán offset của con trỏ so với góc trên trái của bàn
-        const rect = target.getBoundingClientRect();
+        // Bounding rect của canvas và hệ số scale
         const canvasRect = canvas.getBoundingClientRect();
+        const scale = this.scale || (canvasRect.width / 1240) || 1;
         
-        // Tọa độ click tương đối với canvas
-        const clickX = e.clientX - canvasRect.left;
-        const clickY = e.clientY - canvasRect.top;
+        // Tọa độ click tương đối với canvas trong hệ tọa độ chuẩn 1240x720
+        const clickX = (e.clientX - canvasRect.left) / scale;
+        const clickY = (e.clientY - canvasRect.top) / scale;
 
         this.offsetX = clickX - this.activeTable.positionX;
         this.offsetY = clickY - this.activeTable.positionY;
@@ -89,25 +128,26 @@ window.floorplan = {
 
         const canvas = document.getElementById('floorplan-canvas');
         const canvasRect = canvas.getBoundingClientRect();
+        const scale = this.scale || (canvasRect.width / 1240) || 1;
         
-        // Tọa độ chuột mới tương đối với canvas
-        let newX = e.clientX - canvasRect.left - this.offsetX;
-        let newY = e.clientY - canvasRect.top - this.offsetY;
+        // Tọa độ chuột mới tương đối với canvas trong hệ tọa độ chuẩn
+        let newX = (e.clientX - canvasRect.left) / scale - this.offsetX;
+        let newY = (e.clientY - canvasRect.top) / scale - this.offsetY;
 
         // Snap to grid
         newX = Math.round(newX / this.gridSize) * this.gridSize;
         newY = Math.round(newY / this.gridSize) * this.gridSize;
 
-        // Boundary Check
+        // Boundary Check (trong hệ tọa độ 1240 x 720)
         if (newX < 0) newX = 0;
         if (newY < 0) newY = 0;
-        if (newX + this.activeTable.width > canvasRect.width) newX = canvasRect.width - this.activeTable.width;
-        if (newY + this.activeTable.height > canvasRect.height) newY = canvasRect.height - this.activeTable.height;
+        if (newX + this.activeTable.width > 1240) newX = 1240 - this.activeTable.width;
+        if (newY + this.activeTable.height > 720) newY = 720 - this.activeTable.height;
 
         this.activeTable.positionX = newX;
         this.activeTable.positionY = newY;
 
-        // Cập nhật DOM tạm thời
+        // Cập nhật DOM
         const element = document.querySelector(`.table-element[data-id='${this.activeTable.tableId}']`);
         if (element) {
             element.style.transform = `translate(${newX}px, ${newY}px)`;
@@ -143,7 +183,6 @@ window.floorplan = {
     },
 
     onPointerLeave: function(e) {
-        // Handle case where pointer leaves canvas entirely during drag
         if (this.activeTable) {
             this.onPointerUp(e);
         }
@@ -152,7 +191,6 @@ window.floorplan = {
     checkCollisions: function() {
         let hasGlobalCollision = false;
 
-        // Clear tất cả viền đỏ trước
         document.querySelectorAll('.table-element').forEach(el => el.classList.remove('collision'));
 
         for (let i = 0; i < this.tables.length; i++) {
@@ -174,7 +212,6 @@ window.floorplan = {
     },
 
     rectIntersect: function(r1, r2) {
-        // Handle rotation for width/height bounding box (simplified for 0,90,180,270)
         let w1 = (r1.rotation % 180 !== 0) ? r1.height : r1.width;
         let h1 = (r1.rotation % 180 !== 0) ? r1.width : r1.height;
         let w2 = (r2.rotation % 180 !== 0) ? r2.height : r2.width;

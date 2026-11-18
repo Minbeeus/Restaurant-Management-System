@@ -55,7 +55,7 @@
 
         <!-- Shift Status Indicator Button -->
         <button class="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer @(IsShiftOpen ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20" : "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20")"
-                @onclick="() => _showCashierToolsModal = true"
+                @onclick='() => Navigation.NavigateTo("/pos/cashier-tools")'
                 title="Quản lý ca làm việc (Click để mở công cụ thu ngân)">
             <span class="relative flex h-2 w-2">
                 @if (IsShiftOpen)
@@ -146,6 +146,9 @@
                         <span class="text-xs font-bold leading-tight">@(context.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? context.User.Identity?.Name ?? "Nhân viên")</span>
                         <span class="text-[10px] text-on-surface-variant leading-tight font-medium">@(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Thu ngân (POS)")</span>
                     </div>
+                    <a href="/Account/Logout?returnUrl=/login" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors cursor-pointer ml-1" title="Đăng xuất ca làm">
+                        <span class="material-symbols-outlined text-[19px]">logout</span>
+                    </a>
                 </div>
             </Authorized>
             <NotAuthorized>
@@ -163,14 +166,6 @@
     </div>
 </header>
 
-@if (_showCashierToolsModal)
-{
-    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
-        IsOpen="_showCashierToolsModal" 
-        IsOpenChanged="val => _showCashierToolsModal = val"
-        OnShiftChanged="RefreshShiftStatusAsync" />
-}
-
 @code {
     [Parameter] public Action? OnNotificationClick { get; set; }
 
@@ -180,7 +175,6 @@
 
     public bool IsShiftOpen => GlobalIsShiftOpen;
     public int? CurrentShiftId => GlobalCurrentShiftId;
-    private bool _showCashierToolsModal = false;
 
     private DateTime _currentTime = DateTime.Now;
     private System.Threading.Timer? _timer;
@@ -207,17 +201,29 @@
 
     private static void AddNotification(string title, string message, string icon)
     {
-        GlobalNotifications.Insert(0, new PosNotificationItem
+        var now = DateTime.Now;
+        // Chống spam thông báo trùng lặp (nếu cùng tiêu đề và nội dung xuất hiện trong vòng 3 giây thì bỏ qua)
+        lock (GlobalNotifications)
         {
-            Title = title,
-            Message = message,
-            Icon = icon,
-            Timestamp = DateTime.Now
-        });
+            var isDuplicate = GlobalNotifications.Any(n => 
+                n.Title == title && 
+                n.Message == message && 
+                (now - n.Timestamp).TotalSeconds < 3);
 
-        if (GlobalNotifications.Count > 40)
-        {
-            GlobalNotifications.RemoveAt(GlobalNotifications.Count - 1);
+            if (isDuplicate) return;
+
+            GlobalNotifications.Insert(0, new PosNotificationItem
+            {
+                Title = title,
+                Message = message,
+                Icon = icon,
+                Timestamp = now
+            });
+
+            if (GlobalNotifications.Count > 40)
+            {
+                GlobalNotifications.RemoveAt(GlobalNotifications.Count - 1);
+            }
         }
 
         OnNotificationsChanged?.Invoke();
@@ -232,7 +238,7 @@
         }, null, 0, 1000);
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=pos")
+            .WithUrl(Endpoints.GetHubUrl("pos"))
             .WithAutomaticReconnect()
             .Build();
 

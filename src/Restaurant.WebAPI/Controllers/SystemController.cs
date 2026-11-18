@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/system")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
 public class SystemController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -88,7 +89,7 @@ public class SystemController : ControllerBase
     }
 
     [HttpPost("registers")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public async Task<ActionResult> CreateRegister([FromBody] CreateRegisterRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
@@ -116,7 +117,7 @@ public class SystemController : ControllerBase
     }
 
     [HttpPut("registers/{id}/toggle-status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public async Task<ActionResult> ToggleRegisterStatus(int id)
     {
         var reg = await _context.Registers.FindAsync(id);
@@ -151,7 +152,7 @@ public class SystemController : ControllerBase
     }
 
     [HttpPost("kitchen-stations")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public async Task<ActionResult> CreateKitchenStation([FromBody] CreateKitchenStationRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
@@ -180,7 +181,7 @@ public class SystemController : ControllerBase
     }
 
     [HttpPut("kitchen-stations/{id}/toggle-status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public async Task<ActionResult> ToggleKitchenStationStatus(int id)
     {
         var station = await _context.KitchenStations.FindAsync(id);
@@ -245,7 +246,7 @@ public class SystemController : ControllerBase
     }
 
     [HttpPost("settings")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public ActionResult SaveSettings([FromBody] SystemSettingsDto settings)
     {
         _currentSettings = settings ?? new SystemSettingsDto();

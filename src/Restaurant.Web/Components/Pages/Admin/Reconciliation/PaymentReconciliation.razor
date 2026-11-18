@@ -52,7 +52,7 @@
 
             <!-- Print Slip Button -->
             <button class="px-3.5 py-2 bg-surface hover:bg-surface-high border border-outline-variant rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                    @onclick="() => _showPrintModal = true"
+                    @onclick="OpenPrintModal"
                     title="In biên bản đối soát ca">
                 <span class="material-symbols-outlined text-base text-primary">print</span>
                 <span>In Biên Bản</span>
@@ -636,7 +636,7 @@
                         @onclick="() => _showPrintModal = false">
                     Đóng
                 </button>
-                <button class="px-5 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                <button type="button" class="px-5 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold hover:bg-primary/90 flex items-center gap-1.5 cursor-pointer shadow-sm"
                         @onclick="TriggerBrowserPrintAsync">
                     <span class="material-symbols-outlined text-base">print</span>
                     <span>In Ngay</span>
@@ -645,6 +645,50 @@
         </div>
     </div>
 }
+
+<style>
+    @@media print {
+        body, html {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .no-print, header, aside, nav, .sidebar, .navbar, .fixed.inset-0.z-50 > div > div.flex.items-center.justify-between, .fixed.inset-0.z-50 > div > div.flex.justify-end {
+            display: none !important;
+        }
+
+        .fixed.inset-0.z-50 {
+            position: static !important;
+            background: transparent !important;
+            padding: 0 !important;
+            display: block !important;
+        }
+
+        .fixed.inset-0.z-50 > div {
+            border: none !important;
+            box-shadow: none !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+        }
+
+        #printSlipArea {
+            border: 1px solid #000 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 auto !important;
+            padding: 10mm !important;
+            max-width: 320px !important;
+        }
+
+        #printSlipArea * {
+            color: #000000 !important;
+        }
+    }
+</style>
 
 @code {
     private int _selectedShiftId = 1;
@@ -808,6 +852,26 @@
         {
             _isSaving = false;
         }
+    }
+
+    private void OpenPrintModal()
+    {
+        if (_shiftDetail == null)
+        {
+            var curShift = _allShifts.FirstOrDefault(s => s.ShiftId == _selectedShiftId);
+            _shiftDetail = new ShiftReconciliationDetailDto
+            {
+                ShiftId = _selectedShiftId,
+                StaffName = curShift?.StaffName ?? "Quản trị viên",
+                StartTime = curShift?.StartTime ?? DateTime.Today,
+                EndTime = curShift?.EndTime,
+                Status = curShift?.Status ?? 1,
+                StatusName = (curShift?.Status == 0) ? "Đang mở" : "Đã đóng",
+                OpeningBalance = 1000000m,
+                SalesSummary = EffectiveSalesSummary
+            };
+        }
+        _showPrintModal = true;
     }
 
     private async Task TriggerBrowserPrintAsync()

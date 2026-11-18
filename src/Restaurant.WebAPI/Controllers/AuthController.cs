@@ -4,6 +4,7 @@ using Microsoft.Extensions.Localization;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
 using Restaurant.Application.Resources;
+using Restaurant.Domain.Common;
 
 namespace Restaurant.WebAPI.Controllers;
 
@@ -135,7 +136,10 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var isValid = await _identityService.VerifyManagerPinAsync(request.PinCode);
+            var clientKey = HttpContext.Request.Headers["X-Terminal-Id"].FirstOrDefault()
+                ?? HttpContext.Connection.RemoteIpAddress?.ToString()
+                ?? "GLOBAL";
+            var isValid = await _identityService.VerifyManagerPinAsync(request.PinCode, clientKey);
             return Ok(new
             {
                 success = isValid,
@@ -192,14 +196,14 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("admin-only-test")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public IActionResult AdminOnlyTest()
     {
         return Ok("Admin accessed");
     }
 
     [HttpGet("users")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> GetUsers()
     {
         var users = await _identityService.GetAllUsersAsync();
@@ -207,7 +211,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("users")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
         try
@@ -221,8 +225,27 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPut("users/{id}")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
+    {
+        try
+        {
+            var user = await _identityService.UpdateUserAsync(id, request);
+            return Ok(user);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("users/{id}/toggle-status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemConstants.Roles.Admin)]
     public async Task<IActionResult> ToggleUserStatus(int id)
     {
         var success = await _identityService.ToggleUserStatusAsync(id);

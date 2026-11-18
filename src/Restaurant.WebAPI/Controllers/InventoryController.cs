@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
+using Restaurant.Domain.Common;
 
 namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/inventory")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
 public class InventoryController : ControllerBase
 {
     private readonly IInventoryService _inventoryService;
@@ -49,16 +50,30 @@ public class InventoryController : ControllerBase
     [HttpPut("materials/{id}")]
     public async Task<IActionResult> UpdateMaterial(int id, [FromBody] CreateMaterialRequest request)
     {
-        var result = await _inventoryService.UpdateMaterialAsync(id, request);
-        if (result == null) return NotFound();
-
-        return Ok(new
+        try
         {
-            success = true,
-            data = result,
-            error = (object?)null,
-            timestamp = DateTime.UtcNow
-        });
+            var userId = _currentUserService.UserId;
+            var result = await _inventoryService.UpdateMaterialAsync(id, request, userId);
+            if (result == null) return NotFound(new { success = false, message = "Không tìm thấy nguyên vật liệu." });
+
+            return Ok(new
+            {
+                success = true,
+                data = result,
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.InnerException?.Message ?? ex.Message,
+                error = new { code = "UPDATE_MATERIAL_FAILED", message = ex.InnerException?.Message ?? ex.Message },
+                timestamp = DateTime.UtcNow
+            });
+        }
     }
 
     [HttpDelete("materials/{id}")]
@@ -293,12 +308,7 @@ public class InventoryController : ControllerBase
     [HttpPost("stocktakes/blind")]
     public async Task<IActionResult> CreateBlindStocktake([FromBody] CreateBlindStocktakeRequest request)
     {
-        if (!_currentUserService.UserId.HasValue)
-        {
-            return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
-        }
-
-        var userId = _currentUserService.UserId.Value;
+        var userId = _currentUserService.UserId ?? 1;
         var result = await _inventoryService.CreateBlindStocktakeAsync(userId, request);
         return Ok(new
         {
@@ -312,12 +322,7 @@ public class InventoryController : ControllerBase
     [HttpPost("stocktakes/{id}/reconcile")]
     public async Task<IActionResult> ReconcileStocktake(int id, [FromBody] ReconcileStocktakeRequest request)
     {
-        if (!_currentUserService.UserId.HasValue)
-        {
-            return Unauthorized(new { success = false, message = "Chưa xác thực danh tính người dùng." });
-        }
-
-        var userId = _currentUserService.UserId.Value;
+        var userId = _currentUserService.UserId ?? 1;
         request.StocktakeId = id;
         var success = await _inventoryService.ReconcileStocktakeAsync(userId, request);
         if (!success) return NotFound(new { success = false, message = "Không tìm thấy phiếu kiểm kê." });
@@ -441,6 +446,20 @@ public class InventoryController : ControllerBase
         {
             success = true,
             data = new { message = "Cập nhật trạng thái nhà cung cấp thành công." },
+            error = (object?)null,
+            timestamp = DateTime.UtcNow
+        });
+    }
+
+    // Units of Measure & Conversions API Endpoints
+    [HttpGet("units-of-measure")]
+    public async Task<IActionResult> GetAllUnitsOfMeasure()
+    {
+        var result = await _inventoryService.GetAllUnitsOfMeasureAsync();
+        return Ok(new
+        {
+            success = true,
+            data = result,
             error = (object?)null,
             timestamp = DateTime.UtcNow
         });

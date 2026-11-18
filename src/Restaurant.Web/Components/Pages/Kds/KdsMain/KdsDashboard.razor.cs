@@ -69,9 +69,8 @@ public partial class KdsDashboard : IAsyncDisposable
         await LoadActiveTicketsAsync();
 
         // Hub Connection setup for Chefs with stationId query if present
-        var hubUrl = string.IsNullOrWhiteSpace(SelectedStationId) 
-            ? "http://localhost:5011/hubs/restaurant?clientType=kds" 
-            : $"http://localhost:5011/hubs/restaurant?clientType=kds&stationId={SelectedStationId}";
+        int? stationIdParam = int.TryParse(SelectedStationId, out var sId) && sId > 0 ? sId : null;
+        var hubUrl = Endpoints.GetHubUrl("kds", stationIdParam);
 
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(hubUrl)

@@ -50,7 +50,7 @@
 
                     <!-- Button 3: Công cụ thu ngân (Cashier Tools) -->
                     <button class="group flex flex-col items-center justify-center p-8 bg-surface-high hover:bg-primary hover:text-on-primary border border-outline-variant rounded-2xl shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer transform hover:-translate-y-1 text-center"
-                            @onclick="OpenCashierToolsModal">
+                            @onclick='() => Navigation.NavigateTo("/pos/cashier-tools")'>
                         <div class="w-16 h-16 rounded-2xl bg-primary/10 group-hover:bg-on-primary/20 flex items-center justify-center text-primary group-hover:text-on-primary mb-4 transition-colors">
                             <span class="material-symbols-outlined text-3xl">point_of_sale</span>
                         </div>
@@ -114,16 +114,7 @@
     </div>
 </div>
 
-@if (_showCashierToolsModal)
-{
-    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
-        IsOpen="_showCashierToolsModal" 
-        IsOpenChanged="val => _showCashierToolsModal = val" />
-}
-
 @code {
-    private bool _showCashierToolsModal = false;
-
     protected override void OnInitialized()
     {
         PosHeader.OnNotificationsChanged += HandleNotificationsChanged;
@@ -134,14 +125,9 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private void OpenCashierToolsModal()
-    {
-        _showCashierToolsModal = true;
-    }
-
     private void HandleLogout()
     {
-        Navigation.NavigateTo("/pos/login", forceLoad: true);
+        Navigation.NavigateTo("/Account/Logout?returnUrl=/login", forceLoad: true);
     }
 
     public void Dispose()

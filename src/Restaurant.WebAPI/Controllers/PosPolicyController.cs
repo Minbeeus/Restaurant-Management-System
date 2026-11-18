@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.Common;
@@ -26,7 +27,7 @@ public class PosPolicyController : ControllerBase
     }
 
     [HttpPut]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<ActionResult> UpdatePolicy([FromBody] PosPolicyOptions options)
     {
         await _policyService.UpdatePolicyAsync(options);

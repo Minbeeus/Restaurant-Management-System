@@ -31,6 +31,7 @@ public class UserDto
     public string Username { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string RoleName { get; set; } = string.Empty;
+    public string? EmployeeCode { get; set; }
     public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
     public bool IsActive { get; set; }
@@ -62,4 +63,14 @@ public class CreateUserRequest
     public string? PinCode { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Email { get; set; }
+}
+
+public class UpdateUserRequest
+{
+    public int RoleId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string? EmployeeCode { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? Email { get; set; }
+    public string? PinCode { get; set; }
 }

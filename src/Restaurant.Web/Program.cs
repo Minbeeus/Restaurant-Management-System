@@ -36,19 +36,22 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
-// HttpClients
+// Backend Endpoint Provider & HttpClients
+builder.Services.AddSingleton<IBackendEndpointProvider, BackendEndpointProvider>();
 builder.Services.AddTransient<BlazorAuthorizationMessageHandler>();
 
-builder.Services.AddHttpClient("Api", client => client.BaseAddress = new Uri("http://localhost:5011/"))
+var apiBaseUrl = (builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5011").TrimEnd('/') + "/";
+
+builder.Services.AddHttpClient("Api", client => client.BaseAddress = new Uri(apiBaseUrl))
     .AddHttpMessageHandler<BlazorAuthorizationMessageHandler>();
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));
-builder.Services.AddHttpClient<IAuthApiClient, AuthApiClient>(client => client.BaseAddress = new Uri("http://localhost:5011/"));
+builder.Services.AddHttpClient<IAuthApiClient, AuthApiClient>(client => client.BaseAddress = new Uri(apiBaseUrl));
 
 builder.Services.AddScoped<DashboardApiClient>();
 builder.Services.AddScoped<MenuApiClient>();
 builder.Services.AddScoped<TableApiClient>();
-builder.Services.AddHttpClient<AdminApiClient>(client => client.BaseAddress = new Uri("http://localhost:5011/"))
+builder.Services.AddHttpClient<AdminApiClient>(client => client.BaseAddress = new Uri(apiBaseUrl))
     .AddHttpMessageHandler<BlazorAuthorizationMessageHandler>();
 
 var app = builder.Build();

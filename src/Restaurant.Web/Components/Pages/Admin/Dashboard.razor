@@ -149,7 +149,7 @@
 
         // 2. Real-time SignalR listeners
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=pos")
+            .WithUrl(Endpoints.GetHubUrl("pos"))
             .WithAutomaticReconnect()
             .Build();
 

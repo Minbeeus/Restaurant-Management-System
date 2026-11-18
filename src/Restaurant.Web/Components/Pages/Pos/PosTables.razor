@@ -180,7 +180,7 @@
                 }
                 <button class="flex flex-col items-center justify-center py-2.5 px-2 bg-primary text-on-primary hover:bg-primary/90 border border-primary/20 rounded-xl transition-all cursor-pointer text-center group shadow-xs shrink-0 @(!canOrder ? "opacity-50 cursor-not-allowed" : "")"
                         disabled="@(!canOrder)"
-                        @onclick="() => { if (SelectedTable != null) OpenTableOrder(SelectedTable); }"
+                        @onclick="async () => { if (SelectedTable != null) await OpenTableOrder(SelectedTable); }"
                         title="@(hasTable ? (hasOrder ? $"Chỉnh sửa đơn của {SelectedTable!.TableName}" : $"Đặt món cho {SelectedTable!.TableName}") : "Vui lòng chọn bàn")">
                     <span class="material-symbols-outlined text-xl mb-0.5">@(hasOrder ? "edit_note" : "restaurant_menu")</span>
                     <span class="text-xs font-extrabold leading-tight">@(hasOrder ? "Sửa Đơn" : "Đặt Món")</span>
@@ -490,19 +490,10 @@
 
 <K80ReceiptModal IsOpen="ShowK80Modal" IsOpenChanged="val => ShowK80Modal = val" OrderData="ReceiptData" />
 
-@if (_showCashierToolsModal)
-{
-    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
-        IsOpen="_showCashierToolsModal" 
-        IsOpenChanged="val => _showCashierToolsModal = val"
-        OnShiftChanged="HandleShiftChangedAsync" />
-}
-
 @code {
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "printOrderId")] public int? PrintOrderId { get; set; }
 
-    protected bool _showCashierToolsModal { get; set; } = false;
     protected bool ShowCancelModal { get; set; } = false;
     protected bool ShowK80Modal { get; set; } = false;
     protected K80ReceiptDto? ReceiptData { get; set; }
@@ -641,7 +632,7 @@
         await LoadDataAsync();
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant?clientType=pos")
+            .WithUrl(Endpoints.GetHubUrl("pos"))
             .WithAutomaticReconnect()
             .Build();
 
@@ -745,7 +736,7 @@
         if (!isShiftOpen)
         {
             _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi nhận order bàn.");
-            _showCashierToolsModal = true;
+            Navigation.NavigateTo("/pos/cashier-tools");
             return;
         }
 

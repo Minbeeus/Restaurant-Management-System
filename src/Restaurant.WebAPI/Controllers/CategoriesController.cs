@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
+using Restaurant.Domain.Common;
 
 namespace Restaurant.WebAPI.Controllers;
 
@@ -35,7 +36,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Create([FromBody] CreateCategoryRequest request)
     {
         try
@@ -50,7 +51,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateCategoryRequest request)
     {
         try
@@ -67,7 +68,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _categoryService.DeleteAsync(id);

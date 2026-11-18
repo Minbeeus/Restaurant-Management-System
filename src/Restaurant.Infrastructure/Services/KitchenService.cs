@@ -62,16 +62,40 @@ public class KitchenService : IKitchenService
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
 
-        return orders.Select(o => new KitchenTicketDto
+        return orders.Select(o => 
         {
-            OrderId = o.Id,
-            OrderCode = o.OrderCode,
-            TableId = o.TableId,
-            TableName = o.Table?.Name ?? "Mang về",
-            CreatedAt = o.CreatedAt,
-            Items = o.OrderItems
-                .Where(oi => oi.Status == (int)OrderItemStatus.Active && (!stationId.HasValue || oi.MenuItem == null || oi.MenuItem.KitchenStationId == null || oi.MenuItem.KitchenStationId == stationId.Value))
-                .Select(oi =>
+            var validItems = o.OrderItems
+                .Where(oi => oi.Status == (int)OrderItemStatus.Active && (!stationId.HasValue || oi.MenuItem == null || oi.MenuItem.KitchenStationId == null || oi.MenuItem.KitchenStationId == stationId.Value));
+
+            if (!includeCompleted)
+            {
+                // Khi bếp đang nấu: chỉ hiển thị các món cần chế biến (chưa Done), không hiện lại các món cũ đã nấu xong
+                var pendingChildParentIds = validItems
+                    .Where(oi => oi.ParentItemId.HasValue && oi.KitchenStatus != (int)KitchenStatus.Done)
+                    .Select(oi => oi.ParentItemId!.Value)
+                    .ToHashSet();
+
+                validItems = validItems.Where(oi =>
+                    (oi.KitchenStatus != (int)KitchenStatus.Done && (oi.MenuItem == null || !oi.MenuItem.IsCombo || oi.ParentItemId.HasValue)) ||
+                    (oi.MenuItem != null && oi.MenuItem.IsCombo && !oi.ParentItemId.HasValue && pendingChildParentIds.Contains(oi.Id))
+                );
+            }
+
+            var itemList = validItems.ToList();
+            var ticketTime = itemList
+                .Where(oi => oi.KitchenStatus != (int)KitchenStatus.Done)
+                .Select(oi => oi.SentToKitchenAt ?? oi.CreatedAt)
+                .DefaultIfEmpty(o.CreatedAt)
+                .Min();
+
+            return new KitchenTicketDto
+            {
+                OrderId = o.Id,
+                OrderCode = o.OrderCode,
+                TableId = o.TableId,
+                TableName = o.Table?.Name ?? "Mang về",
+                CreatedAt = ticketTime,
+                Items = itemList.Select(oi =>
                 {
                     var waitingTime = (utcNow - (oi.SentToKitchenAt ?? oi.CreatedAt)).TotalMinutes;
                     return new KitchenItemDto
@@ -98,6 +122,7 @@ public class KitchenService : IKitchenService
                         Status = oi.Status
                     };
                 }).ToList()
+            };
         }).Where(t => t.Items.Any()).ToList();
     }
 
@@ -242,24 +267,15 @@ public class KitchenService : IKitchenService
 
         var statusName = Enum.GetName(typeof(KitchenStatus), newStatus) ?? "Unknown";
 
-        // 9. SignalR Broadcast to Cashiers, Chefs, and Table
+        // 9. SignalR Broadcast to Cashiers and Chefs
         await _hubContext.Clients.Group(SystemConstants.SignalRGroups.Cashiers)
             .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
 
         await _hubContext.Clients.Group(SystemConstants.SignalRGroups.Chefs)
             .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
 
-        if (item.MenuItem?.KitchenStationId.HasValue == true)
-        {
-            await _hubContext.Clients.Group(SystemConstants.SignalRGroups.StationGroup(item.MenuItem.KitchenStationId.Value))
-                .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
-        }
-
         if (item.Order?.TableId.HasValue == true)
         {
-            await _hubContext.Clients.Group(SystemConstants.SignalRGroups.TableGroup(item.Order.TableId.Value))
-                .ReceiveItemStatusUpdate(item.Id, statusName, item.OrderId);
-
             await _hubContext.Clients.Group(SystemConstants.SignalRGroups.TableGroup(item.Order.TableId.Value))
                 .ReceiveOrderItemStatusChanged(item.Order.TableId.Value, item.OrderId, item.Id, item.KitchenStatus, statusName);
         }

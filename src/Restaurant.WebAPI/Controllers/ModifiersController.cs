@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
@@ -35,7 +36,7 @@ public class ModifiersController : ControllerBase
     }
 
     [HttpPost("groups")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> CreateGroup([FromBody] CreateModifierGroupRequest request)
     {
         try
@@ -50,7 +51,7 @@ public class ModifiersController : ControllerBase
     }
 
     [HttpPut("groups/{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> UpdateGroup(int id, [FromBody] UpdateModifierGroupRequest request)
     {
         try
@@ -67,7 +68,7 @@ public class ModifiersController : ControllerBase
     }
 
     [HttpDelete("groups/{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> DeleteGroup(int id)
     {
         var success = await _modifierService.DeleteGroupAsync(id);
@@ -77,7 +78,7 @@ public class ModifiersController : ControllerBase
     }
 
     [HttpPost("groups/{groupId}/options")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> AddOption(int groupId, [FromBody] CreateModifierOptionRequest request)
     {
         try
@@ -92,7 +93,7 @@ public class ModifiersController : ControllerBase
     }
 
     [HttpPut("options/{optionId}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> UpdateOption(int optionId, [FromBody] UpdateModifierOptionRequest request)
     {
         try
@@ -109,7 +110,7 @@ public class ModifiersController : ControllerBase
     }
 
     [HttpDelete("options/{optionId}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> DeleteOption(int optionId)
     {
         var success = await _modifierService.DeleteOptionAsync(optionId);

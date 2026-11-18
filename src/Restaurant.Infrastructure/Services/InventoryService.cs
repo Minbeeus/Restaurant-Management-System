@@ -40,6 +40,7 @@ public class InventoryService : IInventoryService
             Id = m.Id,
             UnitOfMeasureId = m.UnitOfMeasureId,
             UnitName = m.UnitOfMeasure?.Name ?? string.Empty,
+            UnitAbbreviation = m.UnitOfMeasure?.Abbreviation ?? string.Empty,
             Name = m.Name,
             NameEn = m.NameEn,
             CurrentStock = m.CurrentStock,
@@ -71,6 +72,7 @@ public class InventoryService : IInventoryService
             Id = material.Id,
             UnitOfMeasureId = material.UnitOfMeasureId,
             UnitName = unit?.Name ?? string.Empty,
+            UnitAbbreviation = unit?.Abbreviation ?? string.Empty,
             Name = material.Name,
             NameEn = material.NameEn,
             CurrentStock = material.CurrentStock,
@@ -80,10 +82,78 @@ public class InventoryService : IInventoryService
         };
     }
 
-    public async Task<MaterialDto?> UpdateMaterialAsync(int id, CreateMaterialRequest request)
+    public async Task<MaterialDto?> UpdateMaterialAsync(int id, CreateMaterialRequest request, int? userId = null)
     {
         var material = await _context.Materials.FindAsync(id);
         if (material == null) return null;
+
+        var oldUomId = material.UnitOfMeasureId;
+        var newUomId = request.UnitOfMeasureId;
+
+        // If unit of measure is changed, convert stock and recipe items
+        if (newUomId > 0 && oldUomId > 0 && oldUomId != newUomId)
+        {
+            var unitConversions = await _context.UnitConversions.AsNoTracking().ToListAsync();
+            var allUnits = await _context.UnitOfMeasures.AsNoTracking().ToListAsync();
+
+            var oldUnit = allUnits.FirstOrDefault(u => u.Id == oldUomId);
+            var newUnit = allUnits.FirstOrDefault(u => u.Id == newUomId);
+
+            // Validate same physical dimension (Khối lượng / Thể tích / Đóng gói)
+            var oldDim = UnitDimensionHelper.GetDimension(oldUnit?.Abbreviation, oldUnit?.Name);
+            var newDim = UnitDimensionHelper.GetDimension(newUnit?.Abbreviation, newUnit?.Name);
+            if (oldDim != newDim)
+            {
+                throw new InvalidOperationException($"Không thể đổi đơn vị đo lường khác tính chất ({oldUnit?.Name ?? "cũ"} sang {newUnit?.Name ?? "mới"}). Chỉ cho phép đổi giữa các đơn vị cùng tính chất (ví dụ: Kg sang g, Lít sang ml).");
+            }
+
+            var factor = ConvertUnitQuantity(1m, oldUomId, newUomId, unitConversions, allUnits);
+            if (factor > 0)
+            {
+                var oldStock = material.CurrentStock;
+                material.CurrentStock = Math.Round(material.CurrentStock * factor, 3);
+
+                // Resolve valid user ID for audit log foreign key constraint
+                int effectiveUserId = userId.GetValueOrDefault();
+                var userExists = effectiveUserId > 0 && await _context.Users.AnyAsync(u => u.Id == effectiveUserId);
+                if (!userExists)
+                {
+                    var fallbackUser = await _context.Users.OrderBy(u => u.Id).FirstOrDefaultAsync();
+                    effectiveUserId = fallbackUser?.Id ?? 0;
+                }
+
+                if (effectiveUserId > 0)
+                {
+                    _context.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        MaterialId = material.Id,
+                        TransactionType = (int)InventoryTransactionType.AuditAdjustment,
+                        Quantity = Math.Round(material.CurrentStock - oldStock, 3),
+                        BalanceAfter = material.CurrentStock,
+                        ReferenceType = "UnitConversion",
+                        ReferenceId = material.Id,
+                        Note = $"Chuyển đổi đơn vị tính từ {oldUnit?.Name ?? oldUomId.ToString()} sang {newUnit?.Name ?? newUomId.ToString()} (Tồn kho quy đổi từ {oldStock:0.###} -> {material.CurrentStock:0.###})",
+                        CreatedByUserId = effectiveUserId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
+                // Update recipes referencing this material with old unit
+                var recipeItems = await _context.RecipeItems.Where(ri => ri.MaterialId == material.Id && ri.UnitOfMeasureId == oldUomId).ToListAsync();
+                foreach (var ri in recipeItems)
+                {
+                    ri.UnitOfMeasureId = newUomId;
+                    ri.Quantity = Math.Max(0.001m, Math.Round(ri.Quantity * factor, 4));
+                }
+
+                var modRecipeItems = await _context.ModifierRecipeItems.Where(mri => mri.MaterialId == material.Id && mri.UnitOfMeasureId == oldUomId).ToListAsync();
+                foreach (var mri in modRecipeItems)
+                {
+                    mri.UnitOfMeasureId = newUomId;
+                    mri.Quantity = Math.Max(0.001m, Math.Round(mri.Quantity * factor, 4));
+                }
+            }
+        }
 
         material.Name = request.Name;
         material.NameEn = request.NameEn?.Trim();
@@ -99,6 +169,7 @@ public class InventoryService : IInventoryService
             Id = material.Id,
             UnitOfMeasureId = material.UnitOfMeasureId,
             UnitName = unit?.Name ?? string.Empty,
+            UnitAbbreviation = unit?.Abbreviation ?? string.Empty,
             Name = material.Name,
             NameEn = material.NameEn,
             CurrentStock = material.CurrentStock,
@@ -122,6 +193,13 @@ public class InventoryService : IInventoryService
     {
         if (request.Items == null || !request.Items.Any()) return false;
 
+        int effectiveUserId = userId;
+        if (effectiveUserId <= 0 || !await _context.Users.AnyAsync(u => u.Id == effectiveUserId))
+        {
+            var defaultUser = await _context.Users.OrderBy(u => u.Id).FirstOrDefaultAsync();
+            effectiveUserId = defaultUser?.Id ?? 1;
+        }
+
         using var dbTransaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -130,7 +208,7 @@ public class InventoryService : IInventoryService
             var goodsReceipt = new GoodsReceipt
             {
                 SupplierId = request.SupplierId,
-                ReceivedByUserId = userId,
+                ReceivedByUserId = effectiveUserId,
                 TotalAmount = totalAmount,
                 Note = request.Note,
                 CreatedAt = DateTime.UtcNow
@@ -173,7 +251,7 @@ public class InventoryService : IInventoryService
                     ReferenceType = SystemConstants.ReferenceTypes.GoodsReceipt,
                     ReferenceId = goodsReceipt.Id,
                     Note = $"Imported from Supplier ID {request.SupplierId}",
-                    CreatedByUserId = userId,
+                    CreatedByUserId = effectiveUserId,
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -193,12 +271,19 @@ public class InventoryService : IInventoryService
     {
         if (request.Items == null || !request.Items.Any()) return false;
 
+        int effectiveUserId = userId;
+        if (effectiveUserId <= 0 || !await _context.Users.AnyAsync(u => u.Id == effectiveUserId))
+        {
+            var defaultUser = await _context.Users.OrderBy(u => u.Id).FirstOrDefaultAsync();
+            effectiveUserId = defaultUser?.Id ?? 1;
+        }
+
         using var dbTransaction = await _context.Database.BeginTransactionAsync();
         try
         {
             var stocktake = new Stocktake
             {
-                ConductedByUserId = userId,
+                ConductedByUserId = effectiveUserId,
                 Status = (int)StocktakeStatus.Completed,
                 Note = request.Note,
                 StartedAt = DateTime.UtcNow,
@@ -239,7 +324,7 @@ public class InventoryService : IInventoryService
                     ReferenceType = SystemConstants.ReferenceTypes.Stocktake,
                     ReferenceId = stocktake.Id,
                     Note = item.Reason ?? "Stocktake adjustment",
-                    CreatedByUserId = userId,
+                    CreatedByUserId = effectiveUserId,
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -281,11 +366,14 @@ public class InventoryService : IInventoryService
 
         foreach (var item in request.Items)
         {
+            var mat = await _context.Materials.FindAsync(item.MaterialId);
+            if (mat == null) continue;
+
             _context.RecipeItems.Add(new RecipeItem
             {
                 RecipeId = existingRecipe.Id,
                 MaterialId = item.MaterialId,
-                UnitOfMeasureId = item.UnitOfMeasureId,
+                UnitOfMeasureId = item.UnitOfMeasureId > 0 ? item.UnitOfMeasureId : mat.UnitOfMeasureId,
                 Quantity = item.Quantity
             });
         }
@@ -320,11 +408,14 @@ public class InventoryService : IInventoryService
 
         foreach (var item in request.Items)
         {
+            var mat = await _context.Materials.FindAsync(item.MaterialId);
+            if (mat == null) continue;
+
             _context.ModifierRecipeItems.Add(new ModifierRecipeItem
             {
                 ModifierRecipeId = existingRecipe.Id,
                 MaterialId = item.MaterialId,
-                UnitOfMeasureId = item.UnitOfMeasureId,
+                UnitOfMeasureId = item.UnitOfMeasureId > 0 ? item.UnitOfMeasureId : mat.UnitOfMeasureId,
                 Quantity = item.Quantity
             });
         }
@@ -343,21 +434,46 @@ public class InventoryService : IInventoryService
             .Include(r => r.RecipeItems)
                 .ThenInclude(ri => ri.Material)
                     .ThenInclude(m => m.UnitOfMeasure)
+            .Include(r => r.RecipeItems)
+                .ThenInclude(ri => ri.UnitOfMeasure)
             .FirstOrDefaultAsync(r => r.MenuItemId == menuItemId);
+
+        var unitConversions = await _context.UnitConversions.AsNoTracking().ToListAsync();
+        var allUnits = await _context.UnitOfMeasures.AsNoTracking().ToListAsync();
 
         var dto = new MenuItemRecipeDto
         {
             MenuItemId = menuItem.Id,
             MenuItemName = menuItem.Name,
-            Items = recipe?.RecipeItems.Select(ri => new RecipeItemDto
+            Items = recipe?.RecipeItems.Select(ri =>
             {
-                MaterialId = ri.MaterialId,
-                MaterialName = ri.Material?.Name ?? "Nguyên liệu",
-                MaterialNameEn = ri.Material?.NameEn,
-                UnitOfMeasureId = ri.UnitOfMeasureId,
-                UnitName = ri.Material?.UnitOfMeasure?.Name ?? "Kg",
-                Quantity = ri.Quantity,
-                CostPerUnit = ri.Material?.CostPerUnit ?? 0
+                var targetUomId = ri.UnitOfMeasureId > 0 ? ri.UnitOfMeasureId : (ri.Material?.UnitOfMeasureId ?? 1);
+                var matUomId = ri.Material?.UnitOfMeasureId ?? targetUomId;
+
+                decimal factor = 1m;
+                if (targetUomId != matUomId)
+                {
+                    factor = ConvertUnitQuantity(1m, targetUomId, matUomId, unitConversions, allUnits);
+                }
+
+                decimal effectiveCostPerUnit = (ri.Material?.CostPerUnit ?? 0) * factor;
+
+                var displayUnit = ri.UnitOfMeasure != null
+                    ? (!string.IsNullOrWhiteSpace(ri.UnitOfMeasure.Abbreviation) ? ri.UnitOfMeasure.Abbreviation : ri.UnitOfMeasure.Name)
+                    : (ri.Material?.UnitOfMeasure != null
+                        ? (!string.IsNullOrWhiteSpace(ri.Material.UnitOfMeasure.Abbreviation) ? ri.Material.UnitOfMeasure.Abbreviation : ri.Material.UnitOfMeasure.Name)
+                        : "Kg");
+
+                return new RecipeItemDto
+                {
+                    MaterialId = ri.MaterialId,
+                    MaterialName = ri.Material?.Name ?? "Nguyên liệu",
+                    MaterialNameEn = ri.Material?.NameEn,
+                    UnitOfMeasureId = targetUomId,
+                    UnitName = displayUnit,
+                    Quantity = ri.Quantity,
+                    CostPerUnit = effectiveCostPerUnit
+                };
             }).ToList() ?? new List<RecipeItemDto>()
         };
 
@@ -374,21 +490,46 @@ public class InventoryService : IInventoryService
             .Include(r => r.ModifierRecipeItems)
                 .ThenInclude(ri => ri.Material)
                     .ThenInclude(m => m.UnitOfMeasure)
+            .Include(r => r.ModifierRecipeItems)
+                .ThenInclude(ri => ri.UnitOfMeasure)
             .FirstOrDefaultAsync(r => r.ModifierOptionId == modifierOptionId);
+
+        var unitConversions = await _context.UnitConversions.AsNoTracking().ToListAsync();
+        var allUnits = await _context.UnitOfMeasures.AsNoTracking().ToListAsync();
 
         var dto = new ModifierOptionRecipeDto
         {
             ModifierOptionId = option.Id,
             ModifierOptionName = option.Name,
-            Items = recipe?.ModifierRecipeItems.Select(ri => new RecipeItemDto
+            Items = recipe?.ModifierRecipeItems.Select(ri =>
             {
-                MaterialId = ri.MaterialId,
-                MaterialName = ri.Material?.Name ?? "Nguyên liệu",
-                MaterialNameEn = ri.Material?.NameEn,
-                UnitOfMeasureId = ri.UnitOfMeasureId,
-                UnitName = ri.Material?.UnitOfMeasure?.Name ?? "Kg",
-                Quantity = ri.Quantity,
-                CostPerUnit = ri.Material?.CostPerUnit ?? 0
+                var targetUomId = ri.UnitOfMeasureId > 0 ? ri.UnitOfMeasureId : (ri.Material?.UnitOfMeasureId ?? 1);
+                var matUomId = ri.Material?.UnitOfMeasureId ?? targetUomId;
+
+                decimal factor = 1m;
+                if (targetUomId != matUomId)
+                {
+                    factor = ConvertUnitQuantity(1m, targetUomId, matUomId, unitConversions, allUnits);
+                }
+
+                decimal effectiveCostPerUnit = (ri.Material?.CostPerUnit ?? 0) * factor;
+
+                var displayUnit = ri.UnitOfMeasure != null
+                    ? (!string.IsNullOrWhiteSpace(ri.UnitOfMeasure.Abbreviation) ? ri.UnitOfMeasure.Abbreviation : ri.UnitOfMeasure.Name)
+                    : (ri.Material?.UnitOfMeasure != null
+                        ? (!string.IsNullOrWhiteSpace(ri.Material.UnitOfMeasure.Abbreviation) ? ri.Material.UnitOfMeasure.Abbreviation : ri.Material.UnitOfMeasure.Name)
+                        : "Kg");
+
+                return new RecipeItemDto
+                {
+                    MaterialId = ri.MaterialId,
+                    MaterialName = ri.Material?.Name ?? "Nguyên liệu",
+                    MaterialNameEn = ri.Material?.NameEn,
+                    UnitOfMeasureId = targetUomId,
+                    UnitName = displayUnit,
+                    Quantity = ri.Quantity,
+                    CostPerUnit = effectiveCostPerUnit
+                };
             }).ToList() ?? new List<RecipeItemDto>()
         };
 
@@ -539,9 +680,16 @@ public class InventoryService : IInventoryService
 
     public async Task<StocktakeDto> CreateBlindStocktakeAsync(int userId, CreateBlindStocktakeRequest request)
     {
+        int effectiveUserId = userId;
+        if (effectiveUserId <= 0 || !await _context.Users.AnyAsync(u => u.Id == effectiveUserId))
+        {
+            var defaultUser = await _context.Users.OrderBy(u => u.Id).FirstOrDefaultAsync();
+            effectiveUserId = defaultUser?.Id ?? 1;
+        }
+
         var stocktake = new Stocktake
         {
-            ConductedByUserId = userId,
+            ConductedByUserId = effectiveUserId,
             Status = (int)StocktakeStatus.PendingReconciliation,
             Note = request.Note,
             StartedAt = DateTime.UtcNow,
@@ -589,6 +737,13 @@ public class InventoryService : IInventoryService
 
             if (stocktake == null) return false;
 
+            int effectiveUserId = userId;
+            if (effectiveUserId <= 0 || !await _context.Users.AnyAsync(u => u.Id == effectiveUserId))
+            {
+                var defaultUser = await _context.Users.OrderBy(u => u.Id).FirstOrDefaultAsync();
+                effectiveUserId = defaultUser?.Id ?? 1;
+            }
+
             stocktake.Status = (int)StocktakeStatus.Completed;
             stocktake.CompletedAt = DateTime.UtcNow;
             if (!string.IsNullOrWhiteSpace(request.Note))
@@ -631,7 +786,7 @@ public class InventoryService : IInventoryService
                     ReferenceType = SystemConstants.ReferenceTypes.Stocktake,
                     ReferenceId = stocktake.Id,
                     Note = string.IsNullOrWhiteSpace(item.Reason) ? "Cân đối kiểm kê kho" : item.Reason,
-                    CreatedByUserId = userId,
+                    CreatedByUserId = effectiveUserId,
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -924,6 +1079,7 @@ public class InventoryService : IInventoryService
         if (!rawRecipeItems.Any()) return;
 
         var targetMaterialIds = rawRecipeItems.Select(r => r.MaterialId).Distinct().ToList();
+        var allUnits = await _context.UnitOfMeasures.AsNoTracking().ToListAsync();
         var unitConversions = await _context.UnitConversions.AsNoTracking().ToListAsync();
 
         // 3. Concurrency Retry Loop for Atomic Deduction
@@ -942,16 +1098,7 @@ public class InventoryService : IInventoryService
                     var mat = materials.FirstOrDefault(m => m.Id == item.MaterialId);
                     if (mat == null) continue;
 
-                    decimal actualQty = item.Quantity;
-                    // Check if unit conversion is needed (e.g. Recipe in Gram, Material in Kg)
-                    if (item.UnitOfMeasureId > 0 && mat.UnitOfMeasureId > 0 && item.UnitOfMeasureId != mat.UnitOfMeasureId)
-                    {
-                        var conv = unitConversions.FirstOrDefault(c => c.FromUnitId == item.UnitOfMeasureId && c.ToUnitId == mat.UnitOfMeasureId);
-                        if (conv != null && conv.ConversionFactor > 0)
-                        {
-                            actualQty = item.Quantity * conv.ConversionFactor;
-                        }
-                    }
+                    decimal actualQty = ConvertUnitQuantity(item.Quantity, item.UnitOfMeasureId, mat.UnitOfMeasureId, unitConversions, allUnits);
 
                     if (materialDeductions.ContainsKey(item.MaterialId))
                         materialDeductions[item.MaterialId] += actualQty;
@@ -967,6 +1114,8 @@ public class InventoryService : IInventoryService
 
                     material.CurrentStock -= deductQty;
 
+                    int orderUserId = (orderItem.Order != null && orderItem.Order.CreatedByUserId > 0) ? orderItem.Order.CreatedByUserId : 1;
+
                     _context.InventoryTransactions.Add(new InventoryTransaction
                     {
                         MaterialId = material.Id,
@@ -976,7 +1125,7 @@ public class InventoryService : IInventoryService
                         ReferenceType = SystemConstants.ReferenceTypes.OrderItem,
                         ReferenceId = orderItem.Id,
                         Note = $"BOM Deduction for OrderItem {orderItem.Id} (Order Code {orderItem.Order?.OrderCode})",
-                        CreatedByUserId = orderItem.Order != null ? orderItem.Order.CreatedByUserId : 0,
+                        CreatedByUserId = orderUserId,
                         CreatedAt = DateTime.UtcNow
                     });
 
@@ -1003,6 +1152,66 @@ public class InventoryService : IInventoryService
                 await Task.Delay(50);
             }
         }
+    }
+
+    private decimal ConvertUnitQuantity(
+        decimal quantity, 
+        int fromUnitId, 
+        int toUnitId, 
+        List<UnitConversion> unitConversions, 
+        List<UnitOfMeasure> allUnits)
+    {
+        if (fromUnitId <= 0 || toUnitId <= 0 || fromUnitId == toUnitId)
+            return quantity;
+
+        // 1. Direct conversion in DB
+        var conv = unitConversions.FirstOrDefault(c => c.FromUnitId == fromUnitId && c.ToUnitId == toUnitId);
+        if (conv != null && conv.ConversionFactor > 0)
+        {
+            return quantity * conv.ConversionFactor;
+        }
+
+        // 2. Reverse conversion in DB
+        var revConv = unitConversions.FirstOrDefault(c => c.FromUnitId == toUnitId && c.ToUnitId == fromUnitId);
+        if (revConv != null && revConv.ConversionFactor > 0)
+        {
+            return quantity / revConv.ConversionFactor;
+        }
+
+        // 3. Fallback metric conversion via abbreviations/names
+        var fromUnit = allUnits.FirstOrDefault(u => u.Id == fromUnitId);
+        var toUnit = allUnits.FirstOrDefault(u => u.Id == toUnitId);
+        if (fromUnit != null && toUnit != null)
+        {
+            var fromAbbr = (fromUnit.Abbreviation ?? "").Trim().ToLowerInvariant();
+            var toAbbr = (toUnit.Abbreviation ?? "").Trim().ToLowerInvariant();
+
+            // Weight: Gram <-> Kilogram
+            if ((fromAbbr == "g" || fromUnit.Name.Equals("Gram", StringComparison.OrdinalIgnoreCase)) &&
+                (toAbbr == "kg" || toUnit.Name.Equals("Kilogram", StringComparison.OrdinalIgnoreCase)))
+            {
+                return quantity / 1000m;
+            }
+            if ((fromAbbr == "kg" || fromUnit.Name.Equals("Kilogram", StringComparison.OrdinalIgnoreCase)) &&
+                (toAbbr == "g" || toUnit.Name.Equals("Gram", StringComparison.OrdinalIgnoreCase)))
+            {
+                return quantity * 1000m;
+            }
+
+            // Volume: Milliliter <-> Liter
+            if ((fromAbbr == "ml" || fromUnit.Name.Equals("Mililít", StringComparison.OrdinalIgnoreCase)) &&
+                (toAbbr == "l" || toUnit.Name.Equals("Lít", StringComparison.OrdinalIgnoreCase)))
+            {
+                return quantity / 1000m;
+            }
+            if ((fromAbbr == "l" || fromUnit.Name.Equals("Lít", StringComparison.OrdinalIgnoreCase)) &&
+                (toAbbr == "ml" || toUnit.Name.Equals("Mililít", StringComparison.OrdinalIgnoreCase)))
+            {
+                return quantity * 1000m;
+            }
+        }
+
+        return quantity;
     }
 
     // Supplier Management
@@ -1112,6 +1321,21 @@ public class InventoryService : IInventoryService
     }
 
     // Unit Conversion Management
+    public async Task<List<UnitOfMeasureDto>> GetAllUnitsOfMeasureAsync()
+    {
+        var units = await _context.UnitOfMeasures
+            .AsNoTracking()
+            .OrderBy(u => u.Id)
+            .ToListAsync();
+
+        return units.Select(u => new UnitOfMeasureDto
+        {
+            Id = u.Id,
+            Name = u.Name,
+            Abbreviation = u.Abbreviation
+        }).ToList();
+    }
+
     public async Task<List<UnitConversionDto>> GetAllUnitConversionsAsync()
     {
         var conversions = await _context.UnitConversions

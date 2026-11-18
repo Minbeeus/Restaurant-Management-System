@@ -336,13 +336,14 @@ public class Tier2_BoundaryAndCornerTests
     {
         using var ctx = new E2ETestContext();
 
-        // Cashier already has ActiveShift open from seed data
+        // Manager already has ActiveShift open from seed data
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await ctx.ShiftService.OpenShiftAsync(ctx.CashierUser.Id, new OpenShiftRequest
+            await ctx.ShiftService.OpenShiftAsync(ctx.ManagerUser.Id, new OpenShiftRequest
             {
                 RegisterId = ctx.Register1.Id,
-                InitialCash = 500000m
+                InitialCash = 500000m,
+                CashCustodianPin = "002007"
             });
         });
 
@@ -350,21 +351,31 @@ public class Tier2_BoundaryAndCornerTests
     }
 
     [Fact]
-    public async Task TC_BND_14_CloseShift_WithCashDiscrepancy_RecordsVarianceWithoutException()
+    public async Task TC_BND_14_CloseShift_WithCashDiscrepancy_ThrowsInvalidOperationException()
     {
         using var ctx = new E2ETestContext();
 
-        // Cashier counted 950,000 VND (expected 1,000,000 VND opening balance, shortage: -50,000)
-        var report = await ctx.ShiftService.CloseShiftAsync(ctx.CashierUser.Id, new CloseShiftRequest
+        // 1. Cashier cannot close shift (Strict Permission)
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
         {
-            ActualCashCounted = 950000m,
-            Note = "Thiếu 50k so với sổ sách"
+            await ctx.ShiftService.CloseShiftAsync(ctx.CashierUser.Id, new CloseShiftRequest
+            {
+                ActualCashCounted = 950000m,
+                Note = "Thiếu 50k"
+            });
         });
 
-        Assert.NotNull(report);
-        Assert.Equal(950000m, report.ActualCash);
-        Assert.Equal(1000000m, report.ExpectedCash); // Expected balance
-        Assert.Equal(-50000m, report.Difference);    // Variance recorded exactly
+        // 2. Discrepancy violates Condition 3 (Difference == 0) and Condition 2 (Drawer cash must be tilled out)
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await ctx.ShiftService.CloseShiftAsync(ctx.ManagerUser.Id, new CloseShiftRequest
+            {
+                ActualCashCounted = 950000m,
+                Note = "Thiếu 50k so với sổ sách"
+            });
+        });
+
+        Assert.Contains("Điều kiện", ex.Message);
     }
 
     [Fact]

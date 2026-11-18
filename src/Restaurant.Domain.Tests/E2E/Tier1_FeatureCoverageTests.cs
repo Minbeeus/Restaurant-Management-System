@@ -42,12 +42,12 @@ public class Tier1_FeatureCoverageTests
     {
         using var ctx = new E2ETestContext();
 
-        // Verify role-based permissions: Cashier has ShiftOpen, Chef does not
+        // Verify role-based permissions: Manager has ShiftOpen, Cashier does not
+        var managerHasShiftOpen = await ctx.PermissionService.HasPermissionAsync(ctx.ManagerUser.Id, Application.Common.Permissions.ShiftOpen);
         var cashierHasShiftOpen = await ctx.PermissionService.HasPermissionAsync(ctx.CashierUser.Id, Application.Common.Permissions.ShiftOpen);
-        var chefHasShiftOpen = await ctx.PermissionService.HasPermissionAsync(ctx.ChefUser.Id, Application.Common.Permissions.ShiftOpen);
 
-        Assert.True(cashierHasShiftOpen);
-        Assert.False(chefHasShiftOpen);
+        Assert.True(managerHasShiftOpen);
+        Assert.False(cashierHasShiftOpen);
     }
 
     [Fact]

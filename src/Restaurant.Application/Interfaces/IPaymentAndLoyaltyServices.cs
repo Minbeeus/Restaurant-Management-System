@@ -15,8 +15,9 @@ public interface ILoyaltyService
 public interface IPaymentService
 {
     Task<VietQrResponse> GenerateVietQrAsync(GenerateVietQrRequest request);
-    Task<bool> ProcessSepayWebhookAsync(SepayWebhookPayload payload, string? signatureHeader);
-    Task<CashPaymentResponse> ProcessCashPaymentAsync(ProcessCashPaymentRequest request);
+    Task<bool> ProcessSepayWebhookAsync(SepayWebhookPayload payload, string? signatureHeader, string? queryToken = null);
+    Task<CashPaymentResponse> ProcessCashPaymentAsync(ProcessCashPaymentRequest request, int? processedByUserId = null);
+    Task<bool> CheckPaymentStatusAsync(int orderId);
 }
 
 public interface ICancelOrderService

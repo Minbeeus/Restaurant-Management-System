@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
@@ -37,7 +38,7 @@ public class ComboController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Create([FromBody] CreateComboRequest request)
     {
         try
@@ -60,7 +61,7 @@ public class ComboController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateComboRequest request)
     {
         try
@@ -84,7 +85,7 @@ public class ComboController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Delete(int id)
     {
         try
@@ -100,7 +101,7 @@ public class ComboController : ControllerBase
     }
 
     [HttpPatch("{id}/toggle-status")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> ToggleStatus(int id)
     {
         var success = await _comboService.ToggleComboStatusAsync(id);

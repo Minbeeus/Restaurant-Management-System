@@ -32,7 +32,6 @@ public class PosOrderService : IPosOrderService
     public async Task<List<TableStatusOverviewDto>> GetTablesStatusAsync()
     {
         var tables = await _context.Tables
-            .AsNoTracking()
             .Include(t => t.Area)
             .Where(t => t.IsActive && !t.IsDeleted && (t.Area == null || t.Area.IsActive))
             .OrderBy(t => t.SortOrder)
@@ -54,12 +53,39 @@ public class PosOrderService : IPosOrderService
         }
 
         var result = new List<TableStatusOverviewDto>();
+        bool dirtyTables = false;
         foreach (var t in tables)
         {
             var activeOrd = activeOrders.FirstOrDefault(o => o.TableId == t.Id);
-            var displayStatus = (currentShift == null || activeOrd == null)
-                ? (int)TableStatus.Available
-                : t.Status;
+
+            // Self-heal only orphaned Serving/Billing statuses that have no active orders
+            if (activeOrd == null && t.Status != (int)TableStatus.Available && t.Status != (int)TableStatus.Occupied && t.Status != (int)TableStatus.Paid)
+            {
+                t.Status = (int)TableStatus.Available;
+                dirtyTables = true;
+            }
+
+            int displayStatus;
+            if (currentShift == null)
+            {
+                displayStatus = (int)TableStatus.Available;
+            }
+            else if (t.Status == (int)TableStatus.Occupied)
+            {
+                displayStatus = (int)TableStatus.Occupied;
+            }
+            else if (t.Status == (int)TableStatus.Paid)
+            {
+                displayStatus = (int)TableStatus.Paid;
+            }
+            else if (activeOrd != null)
+            {
+                displayStatus = t.Status;
+            }
+            else
+            {
+                displayStatus = (int)TableStatus.Available;
+            }
 
             result.Add(new TableStatusOverviewDto
             {
@@ -82,7 +108,54 @@ public class PosOrderService : IPosOrderService
             });
         }
 
+        if (dirtyTables)
+        {
+            await _context.SaveChangesAsync();
+        }
+
         return result;
+    }
+
+    public async Task<bool> OccupyTableAsync(int tableId)
+    {
+        var table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == tableId);
+        if (table == null) return false;
+
+        // If table is currently Available, mark it as Occupied (red) while cashier is taking order
+        if (table.Status == (int)TableStatus.Available)
+        {
+            table.Status = (int)TableStatus.Occupied;
+            await _context.SaveChangesAsync();
+            await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Occupied");
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task<bool> ReleaseTableAsync(int tableId)
+    {
+        var table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == tableId);
+        if (table == null) return false;
+
+        // If table is Occupied, check if any active order was actually placed
+        if (table.Status == (int)TableStatus.Occupied)
+        {
+            var hasActiveOrder = await _context.Orders.AnyAsync(o => o.TableId == tableId &&
+                o.Status != (int)OrderStatus.Completed &&
+                o.Status != (int)OrderStatus.Cancelled &&
+                o.PaymentStatus != (int)PaymentStatus.Paid);
+
+            if (!hasActiveOrder)
+            {
+                table.Status = (int)TableStatus.Available;
+                await _context.SaveChangesAsync();
+                await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Available");
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task<bool> ApproveQrOrderAsync(int orderId, string? note = null)
@@ -260,7 +333,8 @@ public class PosOrderService : IPosOrderService
                 }
 
                 targetOrder.SubTotal += srcOrder.SubTotal;
-                targetOrder.TotalAmount += srcOrder.TotalAmount;
+                targetOrder.DiscountAmount += srcOrder.DiscountAmount;
+                targetOrder.TotalAmount = Math.Max(0, targetOrder.SubTotal - targetOrder.DiscountAmount);
 
                 srcOrder.Status = (int)OrderStatus.Cancelled;
                 srcOrder.Note = $"Merged into Order {targetOrder.OrderCode}";
@@ -327,9 +401,9 @@ public class PosOrderService : IPosOrderService
             if (request.TableId.HasValue && request.TableId.Value > 0)
             {
                 table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == request.TableId.Value);
-                if (table != null && table.Status == (int)TableStatus.Billing)
+                if (table != null && table.Status == (int)TableStatus.Paid)
                 {
-                    throw new InvalidOperationException(_localizer["TABLE_IS_BILLING"]);
+                    throw new InvalidOperationException("Bàn đã thanh toán và đang chờ dọn bàn. Vui lòng dọn bàn trước khi mở đơn mới.");
                 }
             }
 
@@ -756,7 +830,7 @@ public class PosOrderService : IPosOrderService
             targetOrder.DiscountAmount += addedDiscount;
             targetOrder.TotalAmount = Math.Max(0, targetOrder.SubTotal - targetOrder.DiscountAmount);
             
-            if (table != null && (table.Status == (int)TableStatus.Available || table.Status == (int)TableStatus.Occupied))
+            if (table != null && (table.Status == (int)TableStatus.Available || table.Status == (int)TableStatus.Occupied || table.Status == (int)TableStatus.Billing))
             {
                 table.Status = (int)TableStatus.Serving;
                 await _notificationService.NotifyTableStatusSyncAsync(table.Id, "Serving");

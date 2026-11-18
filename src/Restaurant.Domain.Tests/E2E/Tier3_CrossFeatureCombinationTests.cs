@@ -219,22 +219,22 @@ public class Tier3_CrossFeatureCombinationTests
             CashReceived = 180000m
         });
 
-        // 3. Till-Out: 300,000 VND
-        await ctx.CashMovementService.PerformTillOutAsync(ctx.CashierUser.Id, ctx.ActiveShift.Id, new TillOutRequest
+        // 3. Till-Out all cash to manager safe: 1,680,000 VND (1,000,000 float + 500,000 till-in + 180,000 sale)
+        await ctx.CashMovementService.PerformTillOutAsync(ctx.AdminUser.Id, ctx.ActiveShift.Id, new TillOutRequest
         {
-            Amount = 300000m,
-            Reason = "Nộp về két trung tâm"
+            Amount = 1680000m,
+            Reason = "Nộp toàn bộ tiền mặt về két trung tâm trước khi đóng ca"
         });
 
-        // Expected cash: 1,000,000 (float) + 500,000 (till-in) + 180,000 (sale) - 300,000 (till-out) = 1,380,000 VND
-        var shiftReport = await ctx.ShiftService.CloseShiftAsync(ctx.CashierUser.Id, new CloseShiftRequest
+        // 4. Close Shift by Manager: actual matches expected total
+        var shiftReport = await ctx.ShiftService.CloseShiftAsync(ctx.ManagerUser.Id, new CloseShiftRequest
         {
-            ActualCashCounted = 1380000m,
-            Note = "Khớp tiền 100%"
+            ActualCashCounted = 1680000m,
+            Note = "Khớp tiền 100%, nộp két hoàn tất"
         });
 
-        Assert.Equal(1380000m, shiftReport.ExpectedCash);
-        Assert.Equal(1380000m, shiftReport.ActualCash);
+        Assert.Equal(1680000m, shiftReport.ExpectedCash);
+        Assert.Equal(1680000m, shiftReport.ActualCash);
         Assert.Equal(0m, shiftReport.Difference); // Zero variance
     }
 

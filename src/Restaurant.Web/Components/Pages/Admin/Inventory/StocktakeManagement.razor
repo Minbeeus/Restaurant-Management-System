@@ -4,6 +4,7 @@
 @using Restaurant.Application.DTOs
 @using Restaurant.Web.Services
 @inject AdminApiClient ApiClient
+@inject IJSRuntime JS
 
 @if (_currentView == ViewMode.List)
 {
@@ -288,7 +289,7 @@ else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
     <!-- VIEW C: GIAO DIỆN ĐỐI SOÁT & CÂN ĐỐI KHO CỦA QUẢN LÝ TRƯỞNG -->
     <!-- (Hiển thị song song Tồn Hệ Thống vs Thực Tế và giải trình chênh lệch) -->
     <!-- ========================================== -->
-    <div class="mb-6">
+    <div class="mb-6 no-print">
         <nav class="flex items-center gap-2 text-xs text-on-surface-variant mb-2">
             <button class="hover:text-primary transition-colors cursor-pointer" @onclick="SwitchToListView">Quản Lý Kiểm Kê Kho</button>
             <span>/</span>
@@ -303,6 +304,11 @@ else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
                 <button type="button" class="px-4 py-2.5 rounded-xl border border-outline-variant/40 text-on-surface hover:bg-surface-container font-semibold text-sm transition-all cursor-pointer"
                         @onclick="SwitchToListView">
                     Quay Lại Danh Sách
+                </button>
+                <button type="button" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-sm shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95"
+                        @onclick="PrintStocktakeSheet">
+                    <span class="material-symbols-outlined text-base" data-icon="print">print</span>
+                    <span>In Biên Bản Kiểm Kê</span>
                 </button>
                 @if (!_isReadOnlyReconcile)
                 {
@@ -332,8 +338,18 @@ else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
         </div>
     }
 
-    <!-- Thông tin phiếu đối soát -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-surface border border-outline-variant/30 mb-6 shadow-sm text-sm">
+    <!-- Bọc vùng in biên bản kiểm kê -->
+    <div id="stocktake-print-area" class="space-y-6">
+        <!-- Tiêu đề chứng từ khi in ấn (Ẩn trên màn hình thường) -->
+        <div class="stocktake-print-header text-center border-b pb-4 mb-4">
+            <h1 class="text-xl font-bold uppercase tracking-wider text-black m-0">HỆ THỐNG NHÀ HÀNG PIZZA CONNER</h1>
+            <p class="text-xs text-gray-600 m-0 mt-1">Địa chỉ: 123 Phố Ẩm Thực, Quận 1, TP. Hồ Chí Minh - Hotline: 1900 6868</p>
+            <h2 class="text-lg font-bold uppercase mt-3 mb-1 text-black">BIÊN BẢN KIỂM KÊ KHO & ĐỐI SOÁT TỒN</h2>
+            <p class="text-xs font-mono text-gray-700 m-0">Mã đợt kiểm kê: <strong>@_reconcileModel.AuditCode</strong> | Ngày in: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</p>
+        </div>
+
+        <!-- Thông tin phiếu đối soát -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-surface border border-outline-variant/30 shadow-sm text-sm">
         <div>
             <span class="text-xs text-on-surface-variant block font-medium">Mã đợt kiểm kê:</span>
             <strong class="text-primary font-mono text-base">@_reconcileModel.AuditCode</strong>
@@ -369,7 +385,7 @@ else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
     <div class="bg-surface rounded-2xl p-6 border border-outline-variant/30 shadow-sm space-y-4">
         <div class="flex justify-between items-center pb-2">
             <h3 class="font-bold text-lg text-on-surface m-0">Bảng Đối Soát Chênh Lệch Kho</h3>
-            <div class="flex gap-4 text-xs font-bold">
+            <div class="flex gap-4 text-xs font-bold no-print">
                 <span class="text-red-600">Thiếu: @_reconcileModel.Items.Count(i => i.ActualQuantity < i.SystemQuantity) mặt hàng</span>
                 <span class="text-emerald-600">Thừa: @_reconcileModel.Items.Count(i => i.ActualQuantity > i.SystemQuantity) mặt hàng</span>
                 <span class="text-on-surface-variant">Khớp: @_reconcileModel.Items.Count(i => i.ActualQuantity == i.SystemQuantity) mặt hàng</span>
@@ -455,7 +471,7 @@ else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
 
         @if (!_isReadOnlyReconcile)
         {
-            <div class="pt-4 border-t border-outline-variant/20 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="pt-4 border-t border-outline-variant/20 flex flex-col md:flex-row justify-between items-center gap-4 no-print">
                 <div class="text-xs text-on-surface-variant max-w-lg">
                     ⚠️ <strong>Lưu ý Quản lý trưởng:</strong> Khi bấm <em>"Phê Duyệt & Cân Đối Kho Hệ Thống"</em>, toàn bộ số lượng thực tế sẽ ghi đè lên tồn kho hiện tại trên phần mềm và tạo các bút toán kiểm kê kho.
                 </div>
@@ -472,7 +488,83 @@ else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
                 </div>
             </div>
         }
+
+        <!-- Phần chữ ký xác nhận khi in -->
+        <div class="stocktake-print-footer mt-8 pt-4 border-t border-gray-300">
+            <div class="grid grid-cols-3 gap-6 text-center text-xs">
+                <div>
+                    <p class="font-bold uppercase m-0">Người Kiểm Đếm</p>
+                    <p class="text-[11px] text-gray-500 italic mt-0.5 m-0">(Ký & ghi rõ họ tên)</p>
+                    <div style="height: 60px;"></div>
+                    <p class="font-bold text-sm m-0">@_reconcileModel.ConductedByUserName</p>
+                </div>
+                <div>
+                    <p class="font-bold uppercase m-0">Quản Lý Trưởng Phê Duyệt</p>
+                    <p class="text-[11px] text-gray-500 italic mt-0.5 m-0">(Ký & xác nhận)</p>
+                    <div style="height: 60px;"></div>
+                    <p class="font-bold text-sm m-0">Xác nhận cân đối tồn</p>
+                </div>
+                <div>
+                    <p class="font-bold uppercase m-0">Giám Đốc / Kế Toán Trưởng</p>
+                    <p class="text-[11px] text-gray-500 italic mt-0.5 m-0">(Ký & lưu trữ)</p>
+                    <div style="height: 60px;"></div>
+                    <p class="font-bold text-sm m-0">Đã lưu hồ sơ kho</p>
+                </div>
+            </div>
+        </div>
     </div>
+    </div>
+
+    <!-- Print Media Styling -->
+    <style>
+        .stocktake-print-header,
+        .stocktake-print-footer {
+            display: none;
+        }
+
+        @@media print {
+            .no-print, header, aside, nav, .sidebar, .navbar {
+                display: none !important;
+            }
+
+            .stocktake-print-header {
+                display: block !important;
+            }
+
+            .stocktake-print-footer {
+                display: block !important;
+            }
+
+            body, html {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            #stocktake-print-area {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 12mm !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+
+            #stocktake-print-area * {
+                color: #000000 !important;
+            }
+
+            @@page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+        }
+    </style>
 }
 
 @code {
@@ -653,6 +745,18 @@ else if (_currentView == ViewMode.ManagerReconcile && _reconcileModel != null)
         finally
         {
             _isSaving = false;
+        }
+    }
+
+    private async Task PrintStocktakeSheet()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Print error: {ex.Message}");
         }
     }
 }

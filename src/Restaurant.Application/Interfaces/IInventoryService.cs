@@ -6,7 +6,7 @@ public interface IInventoryService
 {
     Task<List<MaterialDto>> GetAllMaterialsAsync();
     Task<MaterialDto> CreateMaterialAsync(CreateMaterialRequest request);
-    Task<MaterialDto?> UpdateMaterialAsync(int id, CreateMaterialRequest request);
+    Task<MaterialDto?> UpdateMaterialAsync(int id, CreateMaterialRequest request, int? userId = null);
     Task<bool> DeleteMaterialAsync(int id);
     Task<bool> CreatePurchaseOrderAsync(int userId, CreatePurchaseOrderRequest request);
     Task<bool> AuditStockAsync(int userId, StockAuditRequest request);
@@ -35,6 +35,7 @@ public interface IInventoryService
     Task<bool> ToggleSupplierStatusAsync(int id);
 
     // Unit Conversion Management
+    Task<List<UnitOfMeasureDto>> GetAllUnitsOfMeasureAsync();
     Task<List<UnitConversionDto>> GetAllUnitConversionsAsync();
     Task<UnitConversionDto> CreateUnitConversionAsync(CreateUnitConversionRequest request);
 }

@@ -14,19 +14,22 @@ public class CashMovementService : ICashMovementService
     private readonly IApprovalService _approvalService;
     private readonly IPosPolicyService _policyService;
     private readonly IAuditService _auditService;
+    private readonly IIdentityService? _identityService;
 
     public CashMovementService(
         ApplicationDbContext context,
         IPermissionService permissionService,
         IApprovalService approvalService,
         IPosPolicyService policyService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IIdentityService? identityService = null)
     {
         _context = context;
         _permissionService = permissionService;
         _approvalService = approvalService;
         _policyService = policyService;
         _auditService = auditService;
+        _identityService = identityService;
     }
 
     public async Task<CashMovementDto> PerformTillInAsync(int userId, int shiftId, TillInRequest request)
@@ -78,6 +81,26 @@ public class CashMovementService : ICashMovementService
         if (request.Amount <= 0)
         {
             throw new ArgumentException("Số tiền rút két (Till Out) phải lớn hơn 0.");
+        }
+
+        var completedCashPayments = await _context.Payments
+            .Where(p => p.ShiftId == shiftId && p.Status == (int)PaymentStatus.Paid && p.PaymentMethod == (int)PaymentMethod.Cash)
+            .SumAsync(p => p.Amount);
+
+        var existingMovements = await _context.CashMovements
+            .Where(m => m.ShiftId == shiftId)
+            .ToListAsync();
+
+        var totalTillIn = existingMovements.Where(m => m.Type == (int)CashMovementType.TillIn).Sum(m => m.Amount);
+        var totalTillOut = existingMovements.Where(m => m.Type == (int)CashMovementType.TillOut).Sum(m => m.Amount);
+        var totalRefunds = existingMovements.Where(m => m.Type == (int)CashMovementType.CashRefund).Sum(m => m.Amount);
+        var totalAdjustments = existingMovements.Where(m => m.Type == (int)CashMovementType.CashAdjustment).Sum(m => m.Amount);
+
+        var currentCashInDrawer = shift.OpeningBalance + completedCashPayments + totalTillIn - totalTillOut - totalRefunds + totalAdjustments;
+
+        if (request.Amount > currentCashInDrawer)
+        {
+            throw new InvalidOperationException($"Số tiền rút ({request.Amount:N0}đ) vượt quá số tiền mặt hiện có trong két chung ({currentCashInDrawer:N0}đ).");
         }
 
         var policy = await _policyService.GetPolicyAsync();
@@ -243,6 +266,79 @@ public class CashMovementService : ICashMovementService
             CreatedByUserName = createdByName,
             CreatedAt = cm.CreatedAt,
             ApprovalRequestId = cm.ApprovalRequestId
+        };
+    }
+
+    public async Task<TillOutBalanceCheckDto> CheckTillOutBalanceAsync(CheckTillOutBalanceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.ManagerPin))
+        {
+            throw new ArgumentException("Vui lòng nhập mã PIN Quản lý 6 số.");
+        }
+
+        if (_identityService != null)
+        {
+            var isPinValid = await _identityService.VerifyManagerPinAsync(request.ManagerPin);
+            if (!isPinValid)
+            {
+                throw new InvalidOperationException("Mã PIN Quản lý không chính xác.");
+            }
+        }
+
+        UserDto? manager = null;
+        if (_identityService != null)
+        {
+            manager = await _identityService.GetUserByPinAsync(request.ManagerPin);
+        }
+
+        var shiftQuery = _context.Shifts
+            .Include(s => s.Register)
+            .AsQueryable();
+
+        Shift? shift;
+        if (request.ShiftId.HasValue && request.ShiftId.Value > 0)
+        {
+            shift = await shiftQuery.FirstOrDefaultAsync(s => s.Id == request.ShiftId.Value);
+        }
+        else
+        {
+            shift = await shiftQuery.OrderByDescending(s => s.OpenedAt).FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+        }
+
+        if (shift == null || shift.Status != (int)ShiftStatus.Open)
+        {
+            throw new InvalidOperationException("Hiện không có ca làm việc nào đang mở.");
+        }
+
+        var completedCashPayments = await _context.Payments
+            .Where(p => p.ShiftId == shift.Id && p.Status == (int)PaymentStatus.Paid && p.PaymentMethod == (int)PaymentMethod.Cash)
+            .SumAsync(p => p.Amount);
+
+        var existingMovements = await _context.CashMovements
+            .Where(m => m.ShiftId == shift.Id)
+            .ToListAsync();
+
+        var totalTillIn = existingMovements.Where(m => m.Type == (int)CashMovementType.TillIn).Sum(m => m.Amount);
+        var totalTillOut = existingMovements.Where(m => m.Type == (int)CashMovementType.TillOut).Sum(m => m.Amount);
+        var totalRefunds = existingMovements.Where(m => m.Type == (int)CashMovementType.CashRefund).Sum(m => m.Amount);
+        var totalAdjustments = existingMovements.Where(m => m.Type == (int)CashMovementType.CashAdjustment).Sum(m => m.Amount);
+
+        var currentCashInDrawer = shift.OpeningBalance + completedCashPayments + totalTillIn - totalTillOut - totalRefunds + totalAdjustments;
+
+        return new TillOutBalanceCheckDto
+        {
+            IsValid = true,
+            ManagerName = manager?.FullName ?? "Quản lý ca",
+            ManagerRole = manager?.RoleName ?? "Manager",
+            ShiftId = shift.Id,
+            ShiftCode = shift.ShiftCode ?? $"SHF-{shift.Id}",
+            OpeningBalance = shift.OpeningBalance,
+            CashSales = completedCashPayments,
+            TotalTillIn = totalTillIn,
+            TotalTillOut = totalTillOut,
+            TotalRefunds = totalRefunds,
+            TotalAdjustments = totalAdjustments,
+            CurrentCashInDrawer = currentCashInDrawer
         };
     }
 }

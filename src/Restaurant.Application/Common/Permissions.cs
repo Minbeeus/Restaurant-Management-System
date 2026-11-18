@@ -84,11 +84,8 @@ public static class Permissions
     private static readonly HashSet<string> CashierPermissions = new(StringComparer.OrdinalIgnoreCase)
     {
         PosAccess,
-        ShiftOpen,
-        ShiftClose,
         ShiftViewOwn,
         CashTillIn,
-        CashTillOut,
         CashViewMovement,
         PaymentProcess,
         PaymentView,
@@ -115,7 +112,6 @@ public static class Permissions
         ShiftReopen,
         CashTillIn,
         CashTillOut,
-        CashTillOutLimit,
         CashViewMovement,
         CashAdjust,
         PaymentProcess,

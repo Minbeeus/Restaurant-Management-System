@@ -1,0 +1,161 @@
+TOTAL_PAGES: 106
+
+--- FIGURES ---
+Fig  1 | Page 26 | 5.80x9.51 in | Hình 2.1: Biểu đồ Use Case Tổng thể Toàn Hệ thống Quản lý Nhà hàng
+Fig  2 | Page 27 | 5.20x2.42 in | Hình 2.2a: Biểu đồ Use Case Phân rã Phân hệ Tự gọi món QR Ordering
+Fig  3 | Page 28 | 5.40x1.77 in | Hình 2.2b: Biểu đồ Use Case Phân rã Phân hệ Bán hàng POS tại Quầy
+Fig  4 | Page 28 | 5.20x1.97 in | Hình 2.2c: Biểu đồ Use Case Phân rã Phân hệ Màn hình Nhà bếp KDS
+Fig  5 | Page 29 | 5.40x1.27 in | Hình 2.2d: Biểu đồ Use Case Phân rã Phân hệ Quản trị Hậu sảnh BOH Admi
+Fig  6 | Page 33 | 5.60x9.15 in | Hình 2.3a: Biểu đồ lớp phân hệ Đơn hàng, Dòng món và Giao dịch Thanh t
+Fig  7 | Page 35 | 5.20x6.95 in | Hình 2.3b: Biểu đồ lớp phân hệ Danh mục, Món ăn và Nhóm Tùy chọn Modif
+Fig  8 | Page 36 | 5.60x4.56 in | Hình 2.3c: Biểu đồ lớp phân hệ Nguyên vật liệu, Công thức Định lượng B
+Fig  9 | Page 38 | 5.20x7.56 in | Hình 2.3d: Biểu đồ lớp phân hệ Ca làm việc, Dòng tiền két và Báo cáo Z
+Fig 10 | Page 39 | 4.50x3.95 in | Hình 2.4: Sơ đồ kiến trúc Clean Architecture phân tầng phụ thuộc (Tríc
+Fig 11 | Page 41 | 6.00x2.63 in | Hình 2.5: Sơ đồ tuần tự xử lý yêu cầu hệ thống từ Client đến Database 
+Fig 12 | Page 42 | 6.20x3.15 in | Hình 2.6: Sơ đồ tuần tự luồng đặt món QR, duyệt POS và chế biến KDS qu
+Fig 13 | Page 43 | 5.50x1.12 in | Hình 2.7: Sơ đồ chuyển đổi trạng thái Bàn ăn Table State Machine
+Fig 14 | Page 44 | 6.00x1.03 in | Hình 2.8: Sơ đồ chuyển đổi trạng thái Đơn hàng Order State Machine dạn
+Fig 15 | Page 45 | 6.00x1.26 in | Hình 2.9: Sơ đồ chuyển đổi trạng thái Món ăn trong Bếp OrderItem State
+Fig 16 | Page 45 | 5.50x1.03 in | Hình 2.10: Sơ đồ máy trạng thái Thanh toán Payment State Machine
+Fig 17 | Page 46 | 5.50x0.55 in | Hình 2.11: Sơ đồ máy trạng thái Ca làm việc Shift State Machine
+Fig 18 | Page 46 | 5.50x0.36 in | Hình 2.12: Sơ đồ máy trạng thái Đợt kiểm kê Kho Stocktake State Machin
+Fig 19 | Page 47 | 5.20x3.55 in | Hình 2.13: Sơ đồ ERD phân hệ Người dùng, Phân quyền và Bàn ăn
+Fig 20 | Page 48 | 2.30x3.78 in | Hình 2.14a: ERD Danh mục & Món ăn
+Fig 21 | Page 48 | 3.70x2.31 in | Hình 2.14b: ERD Tùy chọn Modifiers & Topping
+Fig 22 | Page 49 | 3.80x4.17 in | Hình 2.15a: Sơ đồ ERD Đơn hàng, Dòng món chi tiết và Nhật ký Hủy món
+Fig 23 | Page 50 | 3.20x3.10 in | Hình 2.15b: ERD Thanh toán & Webhook SePay
+Fig 24 | Page 50 | 1.90x3.21 in | Hình 2.15c: ERD Ca làm việc & Dòng tiền két
+Fig 25 | Page 51 | 3.00x5.28 in | Hình 2.16: Sơ đồ ERD phân hệ Khách hàng Thân thiết và Tích điểm
+Fig 26 | Page 52 | 5.80x4.98 in | Hình 2.17: Sơ đồ ERD phân hệ Kho hàng và Định mức BOM
+Fig 27 | Page 53 | 4.80x0.56 in | Hình 2.18: Sơ đồ tổng thể luồng dữ liệu liên module
+
+--- TABLES ---
+Table  1 | Page  1-> 1 (Span: 1) | Chuyên ngành: Kỹ thuật Phần mềm / Công nghệ Thông tin
+Table  2 | Page  2-> 2 (Span: 1) | Ngành: Công nghệ Thông tinMã số ngành: 7480201
+Table  3 | Page 11->11 (Span: 1) | DANH MỤC CÁC TỪ VIẾT TẮT
+Table  4 | Page 14->14 (Span: 1) | Bảng 1.1: Ma trận so sánh chuyên sâu giữa các giải pháp thương mại và 
+Table  5 | Page 16->16 (Span: 1) | Bảng 1.2a: Bảng đặc tả Yêu cầu Chức năng Phân hệ QR Ordering và POS (F
+Table  6 | Page 17->17 (Span: 1) | Bảng 1.2b: Bảng đặc tả Yêu cầu Chức năng Phân hệ KDS, BOM và Quản trị 
+Table  7 | Page 18->18 (Span: 1) | Bảng 1.3: Bảng đặc tả Yêu cầu Phi chức năng Hệ thống (Non-Functional R
+Table  8 | Page 19->19 (Span: 1) | Bảng 1.4: Ma trận Phân quyền và Trách nhiệm RACI trong Vận hành Nhà hà
+Table  9 | Page 29->29 (Span: 1) | Bảng 2.1: Đặc tả Use Case UC-01: Đặt món tại bàn qua mã QR (QR Orderin
+Table 10 | Page 30->30 (Span: 1) | Bảng 2.2: Đặc tả Use Case UC-02: Tiếp nhận và duyệt đơn hàng tại quầy 
+Table 11 | Page 30->30 (Span: 1) | Bảng 2.3: Đặc tả Use Case UC-03: Điều phối và chế biến món ăn tại KDS
+Table 12 | Page 31->31 (Span: 1) | Bảng 2.4: Đặc tả Use Case UC-04: Thanh toán hóa đơn và đối soát tự độn
+Table 13 | Page 31->31 (Span: 1) | Bảng 2.5: Đặc tả Use Case UC-05: Quản lý ca làm việc và chốt két thu n
+Table 14 | Page 32->32 (Span: 1) | Bảng 2.6: Đặc tả Use Case UC-06: Cấu hình định mức BOM và trừ tồn tự đ
+Table 17 | Page 56->56 (Span: 1) | Bảng 2.7: Đặc tả kỹ thuật tính năng Bán hàng & Phục vụ Bàn (POS-001 đế
+Table 18 | Page 58->58 (Span: 1) | Bảng 2.8: Đặc tả kỹ thuật tính năng Thanh toán & Quản trị Ca (POS-011 
+Table 19 | Page 59->59 (Span: 1) | Bảng 2.9: Đặc tả kỹ thuật 7 tính năng phân hệ Màn hình Nhà bếp (KDS)
+Table 20 | Page 60->60 (Span: 1) | Bảng 2.10: Đặc tả tính năng Thực đơn, Định lượng BOM & Quản lý Kho (BO
+Table 21 | Page 61->61 (Span: 1) | Bảng 2.11: Đặc tả tính năng Phê duyệt, Đối soát & Báo cáo (BOH-011 đến
+Table 22 | Page 62->62 (Span: 1) | Bảng 2.12: Đặc tả tính năng Nhân sự, Cấu hình & Kiểm toán (BOH-019 đến
+Table 23 | Page 63->63 (Span: 1) | Bảng 2.13: Đặc tả kỹ thuật 8 tính năng phân hệ Khách hàng Tự gọi món (
+Table 24 | Page 64->64 (Span: 1) | Bảng 2.14: Đặc tả kỹ thuật 10 tính năng phân hệ Tài khoản & Loyalty (A
+Table 25 | Page 65->65 (Span: 1) | Bảng 2.15: Cấu trúc trường chi tiết bảng Orders
+Table 26 | Page 66->66 (Span: 1) | Bảng 2.16: Cấu trúc trường chi tiết bảng OrderItems
+Table 27 | Page 66->66 (Span: 1) | Bảng 2.17: Cấu trúc trường chi tiết bảng Shifts
+Table 28 | Page 67->67 (Span: 1) | Bảng 2.18: Cấu trúc trường chi tiết bảng Materials và Recipes
+Table 29 | Page 76->76 (Span: 1) | Bảng 3.1: Bảng tổng hợp kết quả thực thi 85 test cases tự động
+Table 30 | Page 77->77 (Span: 1) | Bảng 3.2a: Bảng kịch bản kiểm thử tích hợp phân hệ POS và KDS (IT-01 đ
+Table 31 | Page 78->78 (Span: 1) | Bảng 3.2b: Bảng kịch bản kiểm thử tích hợp Quản trị Ca, Kho BOM và Web
+Table 32 | Page 78->78 (Span: 1) | Bảng 3.3: Bảng kết quả kiểm thử tải hệ thống bằng công cụ k6
+Table 33 | Page 79->79 (Span: 1) | Bảng 3.4: Bảng đo lường độ trễ truyền thông điệp thời gian thực Signal
+Table 34 | Page 80->80 (Span: 1) | Bảng 3.5: Ma trận đối chiếu mục tiêu nghiên cứu và kết quả thực tế
+Table 35 | Page 88->88 (Span: 1) | Bảng B.1a: Danh mục API Endpoints Phân hệ Xác thực, Bàn ăn, Thực đơn v
+Table 36 | Page 89->89 (Span: 1) | Bảng B.1b: Danh mục API Endpoints Phân hệ Chế biến, Thanh toán, Ca thu
+Table 37 | Page 90->90 (Span: 1) | Bảng C.1: Danh mục mã lỗi chuẩn hóa ProblemDetails RFC 7807
+
+Multi-page tables count: 0
+
+--- HEADINGS ---
+H  1: MỞ ĐẦU
+H  2: 1. Lý do chọn đề tài
+H  3: 2. Mục đích nghiên cứu của đề tài
+H  4: 3. Đối tượng và phạm vi nghiên cứu
+H  5: 4. Ý nghĩa khoa học và thực tiễn của đề tài
+H  6: 5. Bố cục của đồ án tốt nghiệp
+H  7: CHƯƠNG 1: TỔNG QUAN TÀI LIỆU VÀ CƠ SỞ LÝ LUẬN VỀ HỆ THỐNG QUẢN LÝ NHÀ HÀNG
+H  8: 1.1. Cơ sở lý luận về quy trình vận hành và quản lý nhà hàng F&B
+H  9: 1.1.1. Đặc thù và chu trình vận hành nghiệp vụ nhà hàng ẩm thực
+H 10: 1.1.2. Khái niệm và vai trò của các phân hệ chức năng trong nhà hàng
+H 11: 1.2. Khảo sát thực trạng quy trình vận hành tại các mô hình nhà hàng ẩm thực
+H 12: 1.3. Tổng quan các hướng nghiên cứu và giải pháp hiện có
+H 13: 1.3.1. Phân tích các giải pháp thương mại phổ biến trên thị trường
+H 14: 1.3.2. Những vấn đề tồn tại và bài toán nghiên cứu đặt ra
+H 15: 1.4. Đặc tả yêu cầu hệ thống phần mềm (Software Requirements Specification - SRS)
+H 16: 1.4.1. Ma trận Phân quyền và Trách nhiệm Người dùng (RACI Matrix)
+H 17: 1.5. Cơ sở công nghệ và giải pháp kỹ thuật đề xuất
+H 18: CHƯƠNG 2: PHƯƠNG PHÁP NGHIÊN CỨU VÀ THIẾT KẾ KIẾN TRÚC HỆ THỐNG
+H 19: 2.1. Phương pháp nghiên cứu và quy trình phát triển phần mềm
+H 20: 2.1.1. Phương pháp luận nghiên cứu và thực nghiệm
+H 21: 2.2. Phân tích yêu cầu chức năng và phi chức năng
+H 22: 2.2.1. Phân tích chi tiết 70 yêu cầu chức năng (Functional Requirements)
+H 23: 2.2.2. Phân tích các yêu cầu phi chức năng (Non-Functional Requirements)
+H 24: 2.3. Phân tích Ca sử dụng (Use Case Analysis)
+H 25: 2.3.1. Biểu đồ Use Case Tổng thể Toàn Hệ thống
+H 26: 2.3.2. Biểu đồ Use Case Phân rã theo từng Phân hệ Nghiệp vụ
+H 27: 2.3.3. Bảng Đặc tả Chi tiết các Ca sử dụng Cốt lõi (Use Case Specifications)
+H 28: 2.4. Thiết kế Hướng đối tượng và Biểu đồ Lớp (Class Diagrams)
+H 29: 2.4.1. Biểu đồ Lớp Phân hệ Đơn hàng và Thanh toán (Orders & Payments Aggregate)
+H 30: 2.4.2. Biểu đồ Lớp Phân hệ Thực đơn và Nhóm Tùy chọn (Menu & Modifiers Aggregate)
+H 31: 2.4.3. Biểu đồ Lớp Phân hệ Kho hàng và Định mức BOM (Inventory & BOM Aggregate)
+H 32: 2.4.4. Biểu đồ Lớp Phân hệ Ca làm việc và Quản lý Tiền két (Shifts & Cash Management)
+H 33: 2.5. Thiết kế kiến trúc tổng thể hệ thống (Clean Architecture)
+H 34: 2.5.1. Sơ đồ Kiến trúc Phân tầng Clean Architecture
+H 35: 2.5.2. Sơ đồ Tuần tự Xử lý Yêu cầu (Request-Response Flow)
+H 36: 2.6. Thiết kế các Sơ đồ Trạng thái và Luồng Nghiệp vụ Realtime
+H 37: 2.6.1. Sơ đồ Tuần tự Luồng Đặt món và Đồng bộ Realtime
+H 38: 2.6.2. Sơ đồ Chuyển đổi Trạng thái Bàn ăn (Table State Machine)
+H 39: 2.6.3. Sơ đồ Chuyển đổi Trạng thái Đơn hàng và Món ăn
+H 40: 2.6.4. Sơ đồ Trạng thái Thanh toán (Payment State Machine)
+H 41: 2.6.5. Sơ đồ Trạng thái Ca làm việc và Đợt kiểm kê Kho
+H 42: 2.7. Thiết kế Sơ đồ Thực thể Quan hệ ERD (Trích xuất từ CSDL)
+H 43: 2.7.1. Sơ đồ ERD Phân hệ Người dùng, Phân quyền và Sơ đồ Sảnh
+H 44: 2.7.2. Sơ đồ ERD Phân hệ Thực đơn và Tùy chọn Modifier
+H 45: 2.7.3. Sơ đồ ERD Phân hệ Đơn hàng, Dòng món và Hủy món
+H 46: 2.7.4. Sơ đồ ERD Phân hệ Thanh toán, SePay Webhook và Quản lý Ca Thu ngân
+H 47: 2.7.5. Sơ đồ ERD Phân hệ Khách hàng Thân thiết (Loyalty & CRM)
+H 48: 2.7.6. Sơ đồ ERD Phân hệ Kho hàng và Định mức BOM
+H 49: 2.7.7. Sơ đồ Tổng thể Luồng Dữ liệu Liên module (System Architecture Flowchart)
+H 50: 2.8. Thiết kế Cấu trúc Thành phần Giao diện (UI/UX Component Architecture)
+H 51: 2.9. Đặc tả Kỹ thuật và Hiện thực hóa Chi tiết 70 Chức năng Hệ thống
+H 52: 2.9.1. Đặc tả Nhóm Tính năng Bán hàng & Phục vụ Bàn (POS)
+H 53: 2.9.2. Đặc tả Nhóm Tính năng Thanh toán, Quản trị Ca & Thu ngân (POS)
+H 54: 2.9.3. Đặc tả Chi tiết 7 Chức năng Phân hệ Màn hình Nhà bếp (KDS)
+H 55: 2.9.4. Đặc tả Nhóm Quản trị Thực đơn, Định lượng BOM & Kho bãi (BOH Admin)
+H 56: 2.9.5. Đặc tả Nhóm Phê duyệt, Đối soát & Báo cáo Thống kê (BOH Admin)
+H 57: 2.9.6. Đặc tả Nhóm Nhân sự, Phân quyền & Cấu hình Vận hành (BOH Admin)
+H 58: 2.9.7. Đặc tả Chi tiết 8 Chức năng Phân hệ Khách hàng Tự gọi món (QR Ordering)
+H 59: 2.9.8. Đặc tả Chi tiết 10 Chức năng Phân hệ Tài khoản & Khách hàng thân thiết (ACC)
+H 60: 2.10. Đặc tả Chi tiết Lược đồ Thực thể Cơ sở Dữ liệu (42 DbSets)
+H 61: 2.10.1. Bảng Đơn hàng (Orders) và Dòng món ăn (OrderItems)
+H 62: 2.10.2. Bảng Ca làm việc (Shifts) và Biến động Két tiền (CashMovements)
+H 63: 2.10.3. Bảng Nguyên vật liệu (Materials) và Công thức Định lượng (Recipes)
+H 64: CHƯƠNG 3: HIỆN THỰC HÓA VÀ ĐÁNH GIÁ KẾT QUẢ ĐẠT ĐƯỢC
+H 65: 3.1. Môi trường phát triển và cấu hình công nghệ
+H 66: 3.2. Hiện thực hóa các thuật toán và logic nghiệp vụ cốt lõi
+H 67: 3.2.1. Cơ chế Kiểm soát Tương tranh Lạc quan với RowVersion
+H 68: 3.2.2. Xử lý Webhook SePay Idempotent và Đối soát Giao dịch VietQR Tự động
+H 69: 3.2.3. Cơ chế Định tuyến Nhóm Kết nối SignalR Hub
+H 70: 3.2.4. Thuật toán Tự động Khấu trừ Tồn kho Đa tầng theo Định mức BOM
+H 71: 3.2.5. Cơ chế Bảo mật Mã PIN Quản lý với BCrypt và Giới hạn Đăng nhập Sai
+H 72: 3.3. Hiện thực hóa các giao diện tương tác cốt lõi
+H 73: 3.3.1. Phân hệ Bán hàng POS và Quản lý Ca làm việc
+H 74: 3.3.2. Phân hệ Màn hình Nhà bếp KDS Thời gian thực
+H 75: 3.3.3. Phân hệ Khách hàng Tự gọi món QR Ordering
+H 76: 3.3.4. Phân hệ Quản trị Hậu sảnh BOH Admin
+H 77: 3.4. Kiểm thử hệ thống và đánh giá hiệu năng toàn diện
+H 78: 3.4.1. Kết quả Kiểm thử Tự động với Framework xUnit
+H 79: 3.4.2. Bảng Kịch bản Kiểm thử Tích hợp Chi tiết (Integration Tests)
+H 80: 3.4.3. Đánh giá Hiệu năng và Khả năng Chịu tải với k6
+H 81: 3.4.4. Đo lường Độ trễ Giao tiếp Realtime SignalR Core
+H 82: 3.5. Đánh giá kết quả đạt được so với mục tiêu ban đầu
+H 83: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+H 84: 1. Các kết quả chính đã đạt được
+H 85: 2. Những hạn chế của đề tài
+H 86: 3. Hướng phát triển trong tương lai
+H 87: A.1. Yêu cầu Môi trường Phần cứng và Phần mềm
+H 88: A.2. Cấu hình Triển khai với Docker Compose (docker-compose.yml)
+H 89: A.3. Các Bước Khởi tạo Cơ sở Dữ liệu và Seed Data Ban đầu
+H 90: A.4. Khởi động Ứng dụng

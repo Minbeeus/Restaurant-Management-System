@@ -136,17 +136,25 @@ else
 
                 @foreach (var row in _editingRecipeRows)
                 {
-                    <div class="flex gap-3 items-center bg-surface-low p-2 rounded border border-outline-variant/30">
-                        <select @bind="row.MaterialId" class="flex-1 px-3 py-1.5 text-sm border border-outline rounded bg-surface">
+                    var selectedMat = _availableMaterials.FirstOrDefault(m => m.Id == row.MaterialId);
+                    var uName = selectedMat != null ? (!string.IsNullOrWhiteSpace(selectedMat.UnitAbbreviation) ? selectedMat.UnitAbbreviation : selectedMat.UnitName) : "";
+
+                    <div class="flex gap-3 items-center bg-surface-low p-2.5 rounded-xl border border-outline-variant/30">
+                        <select value="@row.MaterialId" @onchange="(e) => OnMaterialChanged(row, e)" class="flex-1 px-3 py-2 text-sm border border-outline rounded-lg bg-surface font-medium cursor-pointer">
                             <option value="0">@L["Recipe_Select_Material"]</option>
                             @foreach (var mat in _availableMaterials)
                             {
-                                <option value="@mat.Id">@mat.Name (@mat.UnitName)</option>
+                                <option value="@mat.Id">@mat.Name (@(!string.IsNullOrWhiteSpace(mat.UnitAbbreviation) ? mat.UnitAbbreviation : mat.UnitName))</option>
                             }
                         </select>
-                        <input type="number" step="0.001" @bind="row.Quantity" placeholder="@L["Recipe_Quantity_Placeholder"]" class="w-28 px-3 py-1.5 text-sm border border-outline rounded bg-surface font-mono" />
-                        <button class="text-error hover:bg-error-container p-1 rounded" @onclick="() => RemoveMaterialRow(row)">
-                            <span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+                        <div class="relative flex items-center">
+                            <input type="number" step="0.001" min="0" @bind="row.Quantity" placeholder="@L["Recipe_Quantity_Placeholder"]" class="w-32 px-3 py-2 text-sm border border-outline rounded-lg bg-surface font-mono text-right pr-12 font-bold" />
+                            <span class="absolute right-2 text-xs font-bold text-on-surface-variant pointer-events-none">
+                                @uName
+                            </span>
+                        </div>
+                        <button class="text-error hover:bg-error-container p-2 rounded-lg cursor-pointer transition-colors" @onclick="() => RemoveMaterialRow(row)" title="Xóa dòng">
+                            <span class="material-symbols-outlined text-base" data-icon="delete">delete</span>
                         </button>
                     </div>
                 }
@@ -240,6 +248,7 @@ else
                     MaterialId = r.MaterialId,
                     MaterialName = r.MaterialName,
                     Quantity = r.Quantity,
+                    UnitOfMeasureId = r.UnitOfMeasureId,
                     UnitName = r.UnitName,
                     CostPerUnit = r.CostPerUnit
                 }).ToList();
@@ -270,12 +279,19 @@ else
         _editingRecipeRows = _recipeItems.Select(r => new RecipeItemRow
         {
             MaterialId = r.MaterialId,
-            Quantity = r.Quantity
+            Quantity = r.Quantity,
+            UnitOfMeasureId = r.UnitOfMeasureId > 0 ? r.UnitOfMeasureId : (_availableMaterials.FirstOrDefault(m => m.Id == r.MaterialId)?.UnitOfMeasureId ?? 1)
         }).ToList();
 
         if (!_editingRecipeRows.Any())
         {
-            _editingRecipeRows.Add(new RecipeItemRow());
+            var firstMat = _availableMaterials.FirstOrDefault();
+            _editingRecipeRows.Add(new RecipeItemRow
+            {
+                MaterialId = firstMat?.Id ?? 0,
+                UnitOfMeasureId = firstMat?.UnitOfMeasureId ?? 1,
+                Quantity = 0.1m
+            });
         }
 
         _errorMessage = null;
@@ -284,7 +300,26 @@ else
 
     private void AddMaterialRow()
     {
-        _editingRecipeRows.Add(new RecipeItemRow());
+        var firstMat = _availableMaterials.FirstOrDefault();
+        _editingRecipeRows.Add(new RecipeItemRow
+        {
+            MaterialId = firstMat?.Id ?? 0,
+            UnitOfMeasureId = firstMat?.UnitOfMeasureId ?? 1,
+            Quantity = 0.1m
+        });
+    }
+
+    private void OnMaterialChanged(RecipeItemRow row, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var matId))
+        {
+            row.MaterialId = matId;
+            var mat = _availableMaterials.FirstOrDefault(m => m.Id == matId);
+            if (mat != null)
+            {
+                row.UnitOfMeasureId = mat.UnitOfMeasureId;
+            }
+        }
     }
 
     private void RemoveMaterialRow(RecipeItemRow row)
@@ -315,11 +350,11 @@ else
             var request = new SetMenuItemRecipeRequest
             {
                 MenuItemId = _selectedMenuItem.Id,
-                Items = _editingRecipeRows.Select(r => new RecipeItemRequest
+                Items = _editingRecipeRows.Where(r => r.MaterialId > 0 && r.Quantity > 0).Select(r => new RecipeItemRequest
                 {
                     MaterialId = r.MaterialId,
                     Quantity = r.Quantity,
-                    UnitOfMeasureId = _availableMaterials.FirstOrDefault(m => m.Id == r.MaterialId)?.UnitOfMeasureId ?? 1
+                    UnitOfMeasureId = r.UnitOfMeasureId > 0 ? r.UnitOfMeasureId : (_availableMaterials.FirstOrDefault(m => m.Id == r.MaterialId)?.UnitOfMeasureId ?? 1)
                 }).ToList()
             };
 
@@ -344,6 +379,7 @@ else
         public int MaterialId { get; set; }
         public string MaterialName { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
+        public int UnitOfMeasureId { get; set; }
         public string UnitName { get; set; } = string.Empty;
         public decimal CostPerUnit { get; set; }
     }
@@ -352,5 +388,6 @@ else
     {
         public int MaterialId { get; set; }
         public decimal Quantity { get; set; } = 0.1m;
+        public int UnitOfMeasureId { get; set; }
     }
 }

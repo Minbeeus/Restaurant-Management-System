@@ -1,8 +1,8 @@
 # Đặc tả Chi tiết Chức năng — Phân hệ KDS (Kitchen Display System)
 
 > **Module:** KDS (Kitchen Display System)  
-> **Actor chính:** Nhân viên Bếp (Chef)  
-> **Công nghệ:** Blazor Server/WebAssembly (Realtime client), SignalR Hub Client
+> **Actor chính:** Nhân viên Bếp (Chef), Quầy pha chế (Bartender), Hệ thống tự động  
+> **Công nghệ:** Blazor Server, SignalR Realtime Client, REST API
 
 ---
 
@@ -10,92 +10,98 @@
 
 | Feature ID | Tên tính năng | Actor | Độ ưu tiên |
 |------------|---------------|-------|------------|
-| KDS-001 | Xem Danh sách Thẻ Đơn Chế biến | Chef | Must Have |
-| KDS-002 | Nhận Làm Món | Chef | Must Have |
-| KDS-003 | Hoàn Thành Món | Chef | Must Have |
-| KDS-004 | Xem Tổng hợp Gom Món | Chef | Should Have |
-| KDS-005 | Báo Hết Món | Chef | Must Have |
-| KDS-006 | Cảnh báo Chậm trễ Chế biến (Kitchen SLA & Delay Alert) | Chef, System | Must Have |
+| KDS-001 | Xem Thẻ Đơn Chế biến & Lọc theo Trạm (Station Tickets) | Chef, Bartender | Must Have |
+| KDS-002 | Nhận Làm Món (Start Processing Item) | Chef | Must Have |
+| KDS-003 | Hoàn Thành Món & Trừ Tồn kho Tự động (Complete & BOM) | Chef, System | Must Have |
+| KDS-004 | Gom Món Tổng hợp (Batch / Aggregate View) | Chef | Should Have |
+| KDS-005 | Báo Hết Món & Đồng bộ Menu Toàn hệ thống (Mark Sold Out) | Chef | Must Have |
+| KDS-006 | Cảnh báo Vi phạm SLA & Trễ Chế biến (SLA Timer Alerts) | Chef, System | Must Have |
+| KDS-007 | Lọc & Xem Lịch sử Món Đã Hoàn Thành (Completed Tickets) | Chef | Nice to Have |
 
 ---
 
 ## 2. Đặc tả chi tiết từng tính năng
 
-### KDS-001: Xem Danh sách Thẻ Đơn Chế biến (View Kitchen Tickets)
-- **Actor:** Chef
+### KDS-001: Xem Thẻ Đơn Chế biến & Lọc theo Trạm (Station Tickets)
+- **Actor:** Chef, Bartender
 - **Priority:** Must Have
-- **Mô tả:** Màn hình KDS hiển thị danh sách các đơn hàng cần chế biến dưới dạng các thẻ (Tickets) theo thứ tự thời gian đặt hàng tăng dần. Hỗ trợ giao diện tối (Dark Mode) để bảo vệ mắt.
-- **Điều kiện tiên quyết:** Thiết bị bếp đã mở ứng dụng KDS.
-- **Luồng chính:**
-  1. Đầu bếp truy cập màn hình KDS.
-  2. Giao diện hiển thị danh sách các Ticket đang hoạt động.
-  3. Mỗi Ticket hiển thị: số bàn/mã đơn mang đi, thời gian chờ lũy tiến, danh sách món ăn kèm ghi chú, trạng thái từng món (`Pending`/`Processing`).
-  4. Hệ thống đổi màu Ticket để cảnh báo: bình thường (xanh lá/trắng), cảnh báo 10-15 phút (vàng), khẩn cấp > 15 phút (đỏ nhấp nháy).
+- **Mô tả:** Màn hình KDS hiển thị danh sách các đơn hàng cần chế biến dưới dạng thẻ (Tickets) theo thứ tự thời gian. 
+- **Phân trạm chế biến (Kitchen Station):** 
+  - Cho phép chọn lọc theo từng trạm cụ thể (Bếp Pizza, Bếp Lạnh, Bếp Chiên, Quầy Pha Chế Bar) hoặc xem toàn bộ ("Tất cả trạm").
+  - Mỗi thẻ hiển thị: Mã đơn, Bàn hoặc Đơn Mang đi (Takeaway), thời gian chờ tăng dần theo từng giây, ghi chú món ăn, trạng thái từng món (`Pending`/`Processing`).
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-KDS-001.1:** Given màn hình KDS đang hoạt động, When thu ngân duyệt một đơn Dine-in mới tại bàn 105, Then một thẻ đơn mới của bàn 105 phải xuất hiện lập tức ở cuối danh sách KDS trong vòng dưới 1 giây kèm theo âm thanh thông báo.
-  - **AC-KDS-001.2:** Given thẻ đơn có thời gian chờ là 11 phút, When hiển thị trên màn hình KDS, Then viền thẻ đơn phải chuyển sang màu vàng để cảnh báo bếp.
+  - **AC-KDS-001.1:** Given đơn hàng mới được gửi từ POS hoặc QR, Then thẻ đơn xuất hiện trên màn hình KDS trong vòng dưới 1 giây qua SignalR `ReceiveKitchenTicket`.
+  - **AC-KDS-001.2:** Given đầu bếp chọn trạm "Pha chế", Then KDS chỉ hiển thị các món ăn thuộc danh mục đồ uống gán cho trạm pha chế.
+- **Bảng liên quan:** `Orders`, `OrderItems`, `KitchenStations`, `Categories`
+- **Sự kiện SignalR:** Đăng ký nhận `ReceiveKitchenTicket`.
 
 ---
 
 ### KDS-002: Nhận Làm Món (Start Processing Item)
 - **Actor:** Chef
 - **Priority:** Must Have
-- **Mô tả:** Bếp xác nhận bắt đầu chế biến một món ăn để thu ngân và khách hàng biết tiến độ.
-- **Luồng chính:**
-  1. Đầu bếp chọn một món ăn trên Ticket (đang ở trạng thái `Pending`) và chạm/click vào món đó.
-  2. Hệ thống chuyển trạng thái món ăn thành `Processing` (Đang làm).
-  3. Hệ thống cập nhật thời gian bắt đầu chế biến `SentToKitchenAt` nếu chưa có.
-  4. Phát tín hiệu SignalR cập nhật trạng thái món ăn lên POS và điện thoại khách hàng.
+- **Mô tả:** Đầu bếp bấm chọn một món đang ở trạng thái `Pending` để chuyển sang `Processing` (Đang nấu). 
+- **Đồng bộ Realtime:** Hệ thống phát sự kiện SignalR `ReceiveOrderItemStatusChanged` cập nhật tiến độ lên POS và màn hình theo dõi đơn của khách hàng.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-KDS-002.1:** Given món ăn đang ở trạng thái `Pending` trên KDS, When đầu bếp click vào món đó, Then trạng thái món ăn phải chuyển sang `Processing` trên DB và gửi tín hiệu SignalR cập nhật giao diện của khách hàng thành "Đang làm" trong vòng dưới 500ms.
-  - **AC-KDS-002.2:** When nhận làm món thành công, Then hệ thống phải ghi nhận thời điểm bắt đầu chế biến `SentToKitchenAt` trong cơ sở dữ liệu.
-
----
-
-### KDS-003: Hoàn Thành Món (Complete Item)
-- **Actor:** Chef
-- **Priority:** Must Have
-- **Mô tả:** Đánh dấu hoàn thành chế biến món ăn để nhân viên phục vụ bê lên cho khách.
-- **Luồng chính:**
-  1. Đầu bếp click vào món ăn đang ở trạng thái `Processing` (hoặc `Pending`).
-  2. Hệ thống chuyển trạng thái món thành `Done` (Hoàn thành), lưu thời điểm hoàn thành `CompletedAt` và kích hoạt tự động thuật toán trừ kho BOM cho món ăn vừa hoàn thành.
-  3. Phát tín hiệu SignalR thông báo hoàn thành món ăn.
-  4. Nếu toàn bộ món ăn trong Ticket đều đã chuyển sang `Done`:
-     - Tự động xóa Ticket khỏi màn hình KDS.
-     - Cập nhật trạng thái đơn hàng `Orders.Status = Completed`.
-     - Thông báo cho POS biết đơn hàng đã làm xong để phục vụ.
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-KDS-003.1:** Given ticket chỉ còn 1 món đang chế biến, When đầu bếp bấm hoàn thành món đó, Then ticket phải biến mất khỏi màn hình KDS và trạng thái đơn hàng trên POS phải chuyển sang màu xanh dương (Completed) qua SignalR.
-  - **AC-KDS-003.2:** When hoàn thành món, Then hệ thống phải tự động cập nhật thời điểm hoàn thành `CompletedAt` của món ăn đó trong cơ sở dữ liệu và trừ lượng tồn kho thực tế của các nguyên liệu thô theo công thức BOM.
-
----
-
-### KDS-004: Xem Tổng hợp Gom Món (Aggregate View)
-- **Actor:** Chef
-- **Priority:** Should Have
-- **Mô tả:** Giao diện gom các món ăn giống nhau từ nhiều đơn hàng đang chờ để đầu bếp nấu chung một mẻ lớn, tối ưu hóa thời gian.
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-KDS-004.1:** Given KDS đang có 3 đơn hàng khác nhau chứa món "Mì xào giòn" với số lượng lần lượt là 1, 2, 2, When đầu bếp bật màn hình gom món, Then màn hình phải hiển thị đúng "Mì xào giòn: 5 phần".
+  - **AC-KDS-002.1:** When đầu bếp click vào món, Then trạng thái món chuyển sang `Processing` và ghi nhận thời điểm bắt đầu `SentToKitchenAt` nếu chưa có.
 - **Bảng liên quan:** `OrderItems`
+- **Sự kiện SignalR:** Phát sự kiện `ReceiveOrderItemStatusChanged`.
 
 ---
 
-### KDS-005: Báo Hết Món (Mark Sold Out)
-- **Actor:** Chef
-- **Priority:** Must Have
-- **Mô tả:** Đầu bếp báo hết nguyên liệu của một món ăn trực tiếp trên KDS, lập tức vô hiệu hóa món đó trên menu của POS và QR Ordering.
-- **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-KDS-005.1:** Given đầu bếp chọn món "Nước cam" và bấm "Báo hết món" trên KDS, When món ăn chuyển `IsSoldOut = true`, Then trên menu của khách hàng quét QR, nút thêm món "Nước cam" phải chuyển sang màu xám và hiển thị tag "Hết hàng" trong vòng dưới 1 giây.
-- **Bảng liên quan:** `MenuItems`
-- **Sự kiện SignalR:** Phát sự kiện `MenuItemSoldOut`.
-
----
-
-### KDS-006: Cảnh báo Chậm trễ Chế biến (Kitchen SLA & Delay Alert)
+### KDS-003: Hoàn Thành Món & Trừ Tồn kho Tự động (Complete & BOM)
 - **Actor:** Chef, System
 - **Priority:** Must Have
-- **Mô tả:** Hệ thống tự động theo dõi thời gian chờ chế biến của từng món ăn và Ticket. Nếu vượt quá ngưỡng thời gian quy định (SLA, ví dụ 15 phút), viền thẻ ticket chuyển sang màu đỏ nhấp nháy và phát âm thanh cảnh báo trễ món.
+- **Mô tả:** Đầu bếp bấm hoàn thành món ăn (`KitchenStatus = Done`).
+- **Quy tắc Trừ kho BOM:**
+  - Hệ thống tự động kích hoạt tính toán trừ tồn kho nguyên vật liệu thô theo công thức định lượng (BOM) đã cấu hình cho món ăn (`Recipes`) và các tùy chọn Topping/Modifier (`ModifierRecipes`).
+  - Ghi nhận biến động vào bảng `InventoryTransactions` (Type = Out, Reference = OrderItemId).
+  - Duy trì tính Idempotent (chỉ trừ kho 1 lần duy nhất cho mỗi món).
+- **Trạng thái Đơn hàng:**
+  - Khi tất cả các món trong ticket hoàn tất, đơn hàng chuyển sang trạng thái sẵn sàng phục vụ (`Ready`), thông báo đến nhân viên phục vụ và thu ngân POS.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-KDS-006.1:** Given ticket có thời gian chờ chế biến vượt quá 15 phút, When hiển thị trên màn KDS, Then viền thẻ đơn phải chuyển sang màu đỏ nhấp nháy và gửi tín hiệu cảnh báo trễ món `KitchenSlaWarning` lên màn hình thu ngân POS.
+  - **AC-KDS-003.1:** When đầu bếp bấm hoàn thành món, Then trạng thái món đổi thành `Done`, tồn kho các nguyên liệu tương ứng giảm đi đúng định lượng và POS nhận được thông báo món đã sẵn sàng.
+- **Bảng liên quan:** `OrderItems`, `Orders`, `Recipes`, `ModifierRecipes`, `Materials`, `InventoryTransactions`
+- **Sự kiện SignalR:** Phát sự kiện `ReceiveOrderItemStatusChanged`.
+
+---
+
+### KDS-004: Gom Món Tổng hợp (Batch / Aggregate View)
+- **Actor:** Chef
+- **Priority:** Should Have
+- **Mô tả:** Chế độ gom các món ăn giống nhau từ nhiều đơn hàng đang chờ chế biến thành một danh sách tổng hợp (ví dụ: "Khoai tây chiên: 4 phần", "Pizza Hải sản: 3 bánh") giúp bếp tối ưu thời gian nấu theo mẻ.
+- **Bảng liên quan:** `OrderItems`, `MenuItems`
+
+---
+
+### KDS-005: Báo Hết Món & Đồng bộ Menu Toàn hệ thống (Mark Sold Out)
+- **Actor:** Chef
+- **Priority:** Must Have
+- **Mô tả:** Đầu bếp bấm nút "Báo hết món" trực tiếp từ giao diện KDS khi phát hiện nguyên liệu trong bếp đã hết.
+- **Đồng bộ tức thời:** Hệ thống phát sự kiện SignalR `ReceiveSoldOutNotice`. Món ăn trên POS và màn hình QR Ordering của khách hàng lập tức hiển thị nhãn "Hết hàng" và vô hiệu hóa nút đặt món.
+- **Tiêu chí chấp nhận (Acceptance Criteria):**
+  - **AC-KDS-005.1:** When đầu bếp báo hết món A trên KDS, Then POS và QR menu nhận thông báo trong vòng dưới 1 giây và chặn không cho thêm món A vào giỏ hàng mới.
+- **Bảng liên quan:** `MenuItems`
+- **Sự kiện SignalR:** Phát sự kiện `ReceiveSoldOutNotice`.
+
+---
+
+### KDS-006: Cảnh báo Vi phạm SLA & Trễ Chế biến (SLA Timer Alerts)
+- **Actor:** Chef, System
+- **Priority:** Must Have
+- **Mô tả:** Hệ thống tự động tính toán thời gian chờ chế biến của từng món.
+  - Bình thường (< 10 phút): Thẻ hiển thị màu tiêu chuẩn.
+  - Cảnh báo (10 - 15 phút): Viền thẻ đổi sang màu Vàng cam.
+  - Khẩn cấp / Trễ SLA (> 15 phút): Viền thẻ đổi sang màu Đỏ nhấp nháy, phát cảnh báo âm thanh và gửi sự kiện `ReceiveKitchenSlaWarning` lên màn hình thu ngân POS.
+- **Tiêu chí chấp nhận (Acceptance Criteria):**
+  - **AC-KDS-006.1:** Given một món ăn chờ quá 15 phút chưa hoàn thành, Then viền thẻ chuyển màu đỏ nhấp nháy và phát tín hiệu cảnh báo trễ lên POS.
 - **Bảng liên quan:** `OrderItems`, `Orders`
-- **Sự kiện SignalR:** Phát sự kiện `KitchenSlaWarning`.
+- **Sự kiện SignalR:** Phát sự kiện `ReceiveKitchenSlaWarning`.
+
+---
+
+### KDS-007: Lọc & Xem Lịch sử Món Đã Hoàn Thành (Completed Tickets)
+- **Actor:** Chef
+- **Priority:** Nice to Have
+- **Mô tả:** Cho phép chuyển đổi chế độ xem để xem lại các ticket đã làm xong trong ca để kiểm tra lại thông tin nếu cần thiết.
+- **Bảng liên quan:** `Orders`, `OrderItems`

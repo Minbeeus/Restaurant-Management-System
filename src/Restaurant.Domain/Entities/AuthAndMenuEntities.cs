@@ -14,7 +14,7 @@ public class User : FullAuditableEntity
     public int RoleId { get; set; }
     public Role Role { get; set; } = null!;
     public string Username { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordHash { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string? EmployeeCode { get; set; }
     public string? PinCodeHash { get; set; }

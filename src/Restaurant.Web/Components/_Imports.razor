@@ -9,6 +9,7 @@
 @using Microsoft.JSInterop
 @using Restaurant.Web
 @using Restaurant.Web.Components
+@using Restaurant.Web.Services
 @using Restaurant.Web.Components.UI.Buttons
 @using Restaurant.Web.Components.UI.Inputs
 @using Restaurant.Web.Components.UI.Badges
@@ -18,3 +19,4 @@
 @using Microsoft.Extensions.Localization
 @using Restaurant.Application.Resources
 @inject IStringLocalizer<SharedResources> L
+@inject IBackendEndpointProvider Endpoints

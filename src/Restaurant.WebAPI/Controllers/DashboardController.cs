@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.Interfaces;
 using Restaurant.Application.DTOs.Dashboard;
+using Restaurant.Domain.Common;
 
 namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Route("api/v1/dashboard")]
-[Authorize(Roles = "Admin,Manager")]
+[Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
 public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;

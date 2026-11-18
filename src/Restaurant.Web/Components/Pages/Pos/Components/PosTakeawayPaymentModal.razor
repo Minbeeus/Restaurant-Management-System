@@ -372,6 +372,7 @@
     private bool _isLoadingQr;
     private bool _isPaymentSuccess;
     private HubConnection? _hubConnection;
+    private CancellationTokenSource? _pollingCts;
 
     protected decimal ChangeAmount => Math.Max(0, CashReceived - (Order?.TotalAmount ?? 0));
     protected decimal MissingAmount => Math.Max(0, (Order?.TotalAmount ?? 0) - CashReceived);
@@ -390,19 +391,23 @@
     protected override async Task OnInitializedAsync()
     {
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl(Endpoints.GetHubUrl())
             .WithAutomaticReconnect()
             .Build();
+
+        _hubConnection.On<int, string, decimal, string>("ReceivePaymentCompleted", async (orderId, orderCode, amount, method) =>
+        {
+            if (Order != null && orderId == Order.OrderId)
+            {
+                await HandlePaymentSuccessAsync();
+            }
+        });
 
         _hubConnection.On<int>("OrderPaid", async (orderId) =>
         {
             if (Order != null && orderId == Order.OrderId)
             {
-                _isPaymentSuccess = true;
-                await InvokeAsync(StateHasChanged);
-                await Task.Delay(1500);
-                await CloseAsync();
-                await OnPaymentSuccess.InvokeAsync(true);
+                await HandlePaymentSuccessAsync();
             }
         });
 
@@ -414,6 +419,59 @@
         {
             Console.WriteLine($"SignalR error in PosTakeawayPaymentModal: {ex.Message}");
         }
+    }
+
+    private async Task HandlePaymentSuccessAsync()
+    {
+        if (_isPaymentSuccess) return;
+        _isPaymentSuccess = true;
+        _pollingCts?.Cancel();
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(1500);
+        await CloseAsync();
+        await OnPaymentSuccess.InvokeAsync(true);
+    }
+
+    private void StartPollingPaymentStatus()
+    {
+        if (Order == null) return;
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested && IsOpen && !_isPaymentSuccess)
+            {
+                try
+                {
+                    await Task.Delay(3000, token);
+                    if (token.IsCancellationRequested || !IsOpen || _isPaymentSuccess || Order == null) break;
+
+                    var checkResp = await Http.GetFromJsonAsync<PaymentCheckResult>($"api/v1/payments/status/{Order.OrderId}", token);
+                    if (checkResp?.IsPaid == true)
+                    {
+                        await InvokeAsync(HandlePaymentSuccessAsync);
+                        break;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch
+                {
+                    // Ignore transient network errors
+                }
+            }
+        }, token);
+    }
+
+    private class PaymentCheckResult
+    {
+        public bool Success { get; set; }
+        public bool IsPaid { get; set; }
     }
 
     protected override void OnParametersSet()
@@ -510,8 +568,8 @@
             var req = new GenerateVietQrRequest
             {
                 OrderId = Order.OrderId,
-                BankName = "TPBank",
-                BankAccountNo = "11102042003"
+                BankName = "",
+                BankAccountNo = ""
             };
             var response = await Http.PostAsJsonAsync("api/v1/payments/vietqr", req);
             if (response.IsSuccessStatusCode)
@@ -525,6 +583,7 @@
                 {
                     _qrData = await response.Content.ReadFromJsonAsync<VietQrResponse>();
                 }
+                StartPollingPaymentStatus();
             }
             else
             {
@@ -584,6 +643,7 @@
 
     private async Task CloseAsync()
     {
+        _pollingCts?.Cancel();
         IsOpen = false;
         CashReceived = 0;
         _qrData = null;
@@ -594,6 +654,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
         if (_hubConnection != null)
         {
             await _hubConnection.DisposeAsync();

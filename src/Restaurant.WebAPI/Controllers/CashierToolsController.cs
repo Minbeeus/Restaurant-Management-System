@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
+using Restaurant.Domain.Common;
 
 namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/cashier")]
-[Authorize(Roles = "Admin,Manager,Cashier")]
+[Authorize(Roles = SystemConstants.Roles.AdminManagerOrCashier)]
 public class CashierToolsController : ControllerBase
 {
     private readonly ICashMovementService _cashMovementService;
@@ -41,7 +42,23 @@ public class CashierToolsController : ControllerBase
         }
     }
 
+    [HttpPost("till-out/check-balance")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
+    public async Task<IActionResult> CheckTillOutBalance([FromBody] CheckTillOutBalanceRequest request)
+    {
+        try
+        {
+            var data = await _cashMovementService.CheckTillOutBalanceAsync(request);
+            return Ok(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpPost("till-out/{shiftId}")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> PerformTillOut(int shiftId, [FromBody] TillOutRequest request)
     {
         try

@@ -28,7 +28,7 @@ public class IdentityService : IIdentityService
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Username == request.Username && u.IsActive);
 
-        if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
+        if (user == null || string.IsNullOrEmpty(user.PasswordHash) || !VerifyPassword(request.Password, user.PasswordHash))
         {
             return null;
         }
@@ -118,6 +118,41 @@ public class IdentityService : IIdentityService
         };
     }
 
+    public async Task<UserDto?> GetUserByPinAsync(string pinCode)
+    {
+        if (string.IsNullOrWhiteSpace(pinCode)) return null;
+        var trimmedPin = pinCode.Trim();
+        if (!Restaurant.Application.Common.EmployeePinStandardizer.IsValidPin(trimmedPin))
+        {
+            return null;
+        }
+
+        var activeUsers = await _context.Users
+            .Include(u => u.Role)
+            .Where(u => u.IsActive && !u.IsDeleted)
+            .ToListAsync();
+
+        foreach (var u in activeUsers)
+        {
+            if (!string.IsNullOrEmpty(u.PinCodeHash) && VerifyPassword(trimmedPin, u.PinCodeHash))
+            {
+                return new UserDto
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    FullName = u.FullName,
+                    RoleName = u.Role?.Name ?? "Staff",
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    EmployeeCode = u.EmployeeCode,
+                    IsActive = u.IsActive
+                };
+            }
+        }
+
+        return null;
+    }
+
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (int FailedCount, DateTime LockoutUntil)> _pinLoginAttempts = new();
 
     public async Task<PinLoginResponse?> PinLoginAsync(PinLoginRequest request)
@@ -128,6 +163,11 @@ public class IdentityService : IIdentityService
         }
 
         var pinCode = request.PinCode.Trim();
+        if (!Restaurant.Application.Common.EmployeePinStandardizer.IsValidPin(pinCode))
+        {
+            return null;
+        }
+
         var clientKey = "PIN_LOCKOUT_" + pinCode;
         if (_pinLoginAttempts.TryGetValue(clientKey, out var attemptInfo))
         {
@@ -137,22 +177,16 @@ public class IdentityService : IIdentityService
                 throw new InvalidOperationException($"Mã PIN bị khóa do nhập sai 5 lần. Vui lòng thử lại sau {remaining} phút.");
             }
         }
-        var employeeCodeWithPrefix = "NV" + pinCode;
 
         var activeUsers = await _context.Users
             .Include(u => u.Role)
-            .Where(u => u.IsActive)
+            .Where(u => u.IsActive && !u.IsDeleted)
             .ToListAsync();
 
         User? matchedUser = null;
         foreach (var u in activeUsers)
         {
             if (!string.IsNullOrEmpty(u.PinCodeHash) && VerifyPassword(pinCode, u.PinCodeHash))
-            {
-                matchedUser = u;
-                break;
-            }
-            if (u.EmployeeCode == pinCode || u.EmployeeCode == employeeCodeWithPrefix)
             {
                 matchedUser = u;
                 break;
@@ -240,12 +274,14 @@ public class IdentityService : IIdentityService
 
     public static void ResetManagerPinAttempts() => _managerPinAttempts.Clear();
 
-    public async Task<bool> VerifyManagerPinAsync(string pinCode)
+    public async Task<bool> VerifyManagerPinAsync(string pinCode, string? terminalOrIpKey = null)
     {
         if (string.IsNullOrWhiteSpace(pinCode)) return false;
         var trimmedPin = pinCode.Trim();
 
-        const string lockoutKey = "GLOBAL_MGR_PIN_LOCKOUT";
+        string lockoutKey = !string.IsNullOrWhiteSpace(terminalOrIpKey)
+            ? $"MGR_PIN_LOCKOUT_{terminalOrIpKey.Trim()}"
+            : "GLOBAL_MGR_PIN_LOCKOUT";
         if (_managerPinAttempts.TryGetValue(lockoutKey, out var attemptInfo))
         {
             if (attemptInfo.LockoutUntil > DateTime.UtcNow)
@@ -264,7 +300,7 @@ public class IdentityService : IIdentityService
 
         var activeManagersAndAdmins = await _context.Users
             .Include(u => u.Role)
-            .Where(u => u.IsActive && (u.Role.Name == "Admin" || u.Role.Name == "Manager"))
+            .Where(u => u.IsActive && !u.IsDeleted && (u.Role.Name == "Admin" || u.Role.Name == "Manager"))
             .ToListAsync();
 
         User? matchedUser = null;
@@ -334,6 +370,7 @@ public class IdentityService : IIdentityService
             RoleName = u.Role?.Name ?? "Staff",
             Email = u.Email,
             PhoneNumber = u.PhoneNumber,
+            EmployeeCode = u.EmployeeCode,
             IsActive = u.IsActive
         }).ToList();
     }
@@ -346,19 +383,79 @@ public class IdentityService : IIdentityService
             throw new InvalidOperationException($"Tên đăng nhập '{request.Username}' đã tồn tại trong hệ thống.");
         }
 
+        string employeeCode;
+        if (string.IsNullOrWhiteSpace(request.EmployeeCode))
+        {
+            var lastUser = await _context.Users.OrderByDescending(u => u.Id).FirstOrDefaultAsync();
+            var nextNum = (lastUser?.Id ?? 0) + 1;
+            employeeCode = nextNum.ToString();
+        }
+        else
+        {
+            employeeCode = request.EmployeeCode.Trim();
+            if (employeeCode.StartsWith("NV", StringComparison.OrdinalIgnoreCase))
+            {
+                employeeCode = employeeCode.Substring(2).Trim();
+            }
+        }
+
+        if (string.IsNullOrEmpty(employeeCode) || !employeeCode.All(char.IsDigit) || employeeCode.Length > 6)
+        {
+            throw new ArgumentException("Mã nhân viên phải là chuỗi số từ 1 đến 6 chữ số.");
+        }
+
+        var isEmpCodeDuplicate = await _context.Users.AnyAsync(u => u.EmployeeCode == employeeCode && !u.IsDeleted);
+        if (isEmpCodeDuplicate)
+        {
+            throw new InvalidOperationException($"Mã nhân viên '{employeeCode}' đã tồn tại trong hệ thống.");
+        }
+
+        string pin;
+        if (!string.IsNullOrWhiteSpace(request.PinCode))
+        {
+            pin = request.PinCode.Trim();
+            if (!Restaurant.Application.Common.EmployeePinStandardizer.IsValidPin(pin))
+            {
+                throw new ArgumentException("Mã PIN phải có đúng 6 chữ số.");
+            }
+        }
+        else
+        {
+            pin = Restaurant.Application.Common.EmployeePinStandardizer.StandardizePinFromEmployeeCode(employeeCode);
+        }
+
+        var activeUsers = await _context.Users.Where(u => u.IsActive && !u.IsDeleted).ToListAsync();
+        foreach (var u in activeUsers)
+        {
+            if (!string.IsNullOrEmpty(u.PinCodeHash) && VerifyPassword(pin, u.PinCodeHash))
+            {
+                throw new InvalidOperationException($"Mã PIN ({pin}) bị trùng lặp với nhân viên khác.");
+            }
+        }
+
         var roleId = request.RoleId > 0 ? request.RoleId : 3; // Default to Cashier if not specified
         var role = await _context.Roles.FindAsync(roleId);
+
+        string? passwordHash = null;
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            passwordHash = HashPassword(request.Password.Trim());
+        }
+        else if (role != null && (string.Equals(role.Name, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(role.Name, "Manager", StringComparison.OrdinalIgnoreCase)))
+        {
+            passwordHash = HashPassword("123456");
+        }
 
         var newUser = new User
         {
             Username = request.Username.Trim(),
-            PasswordHash = HashPassword(!string.IsNullOrWhiteSpace(request.Password) ? request.Password : "123456"),
+            PasswordHash = passwordHash,
             FullName = request.FullName.Trim(),
             RoleId = roleId,
-            EmployeeCode = request.EmployeeCode?.Trim(),
             PhoneNumber = request.PhoneNumber?.Trim(),
             Email = request.Email?.Trim(),
-            PinCodeHash = !string.IsNullOrWhiteSpace(request.PinCode) ? BCrypt.Net.BCrypt.HashPassword(request.PinCode.Trim()) : null,
+            EmployeeCode = employeeCode,
+            PinCodeHash = BCrypt.Net.BCrypt.HashPassword(pin),
             IsActive = true
         };
 
@@ -373,7 +470,83 @@ public class IdentityService : IIdentityService
             RoleName = role?.Name ?? "Staff",
             Email = newUser.Email,
             PhoneNumber = newUser.PhoneNumber,
+            EmployeeCode = newUser.EmployeeCode,
             IsActive = newUser.IsActive
+        };
+    }
+
+    public async Task<UserDto> UpdateUserAsync(int userId, UpdateUserRequest request)
+    {
+        var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+        {
+            throw new KeyNotFoundException($"Không tìm thấy nhân viên #{userId}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+        {
+            user.FullName = request.FullName.Trim();
+        }
+
+        if (request.RoleId > 0)
+        {
+            user.RoleId = request.RoleId;
+        }
+
+        user.PhoneNumber = request.PhoneNumber?.Trim();
+        user.Email = request.Email?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(request.EmployeeCode))
+        {
+            var empCode = request.EmployeeCode.Trim();
+            if (empCode.StartsWith("NV", StringComparison.OrdinalIgnoreCase))
+            {
+                empCode = empCode.Substring(2).Trim();
+            }
+            if (string.IsNullOrEmpty(empCode) || !empCode.All(char.IsDigit) || empCode.Length > 6)
+            {
+                throw new ArgumentException("Mã nhân viên phải là chuỗi số từ 1 đến 6 chữ số.");
+            }
+            var isDuplicate = await _context.Users.AnyAsync(u => u.EmployeeCode == empCode && u.Id != userId && !u.IsDeleted);
+            if (isDuplicate)
+            {
+                throw new InvalidOperationException($"Mã nhân viên '{empCode}' đã tồn tại trong hệ thống.");
+            }
+            user.EmployeeCode = empCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.PinCode))
+        {
+            var pin = request.PinCode.Trim();
+            if (!Restaurant.Application.Common.EmployeePinStandardizer.IsValidPin(pin))
+            {
+                throw new ArgumentException("Mã PIN phải có đúng 6 chữ số.");
+            }
+
+            var activeUsers = await _context.Users.Where(u => u.IsActive && !u.IsDeleted && u.Id != userId).ToListAsync();
+            foreach (var u in activeUsers)
+            {
+                if (!string.IsNullOrEmpty(u.PinCodeHash) && VerifyPassword(pin, u.PinCodeHash))
+                {
+                    throw new InvalidOperationException("Mã PIN bị trùng lặp với nhân viên khác.");
+                }
+            }
+            user.PinCodeHash = BCrypt.Net.BCrypt.HashPassword(pin);
+        }
+
+        await _context.SaveChangesAsync();
+
+        var role = await _context.Roles.FindAsync(user.RoleId);
+        return new UserDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            FullName = user.FullName,
+            RoleName = role?.Name ?? user.Role?.Name ?? "Staff",
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            EmployeeCode = user.EmployeeCode,
+            IsActive = user.IsActive
         };
     }
 
@@ -394,6 +567,13 @@ public class IdentityService : IIdentityService
 
     public bool VerifyPassword(string password, string passwordHash)
     {
-        return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+        try
+        {
+            return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

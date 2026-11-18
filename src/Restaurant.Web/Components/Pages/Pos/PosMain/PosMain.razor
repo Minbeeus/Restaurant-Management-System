@@ -459,7 +459,7 @@ else
             </p>
             <div class="flex flex-col gap-2.5 pt-2">
                 <button class="w-full py-3.5 bg-primary text-on-primary rounded-2xl font-black text-sm shadow-md hover:bg-primary/90 cursor-pointer flex items-center justify-center gap-2"
-                        @onclick="() => ShowCashierToolsModal = true">
+                        @onclick='() => Navigation.NavigateTo("/pos/cashier-tools")'>
                     <span class="material-symbols-outlined text-xl">play_circle</span>
                     Mở Ca Làm Việc Ngay
                 </button>
@@ -470,15 +470,6 @@ else
             </div>
         </div>
     </div>
-}
-
-<!-- Cashier Tools Modal -->
-@if (ShowCashierToolsModal)
-{
-    <Restaurant.Web.Components.Pages.Pos.Components.PosCashierToolsModal 
-        IsOpen="ShowCashierToolsModal" 
-        IsOpenChanged="val => ShowCashierToolsModal = val"
-        OnShiftChanged="HandleShiftChangedAsync" />
 }
 
 <!-- Toast Notification -->

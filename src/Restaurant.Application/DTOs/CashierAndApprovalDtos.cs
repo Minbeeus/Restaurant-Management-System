@@ -22,6 +22,28 @@ public class CashAdjustmentRequest
     public string? Note { get; set; }
 }
 
+public class CheckTillOutBalanceRequest
+{
+    public string ManagerPin { get; set; } = string.Empty;
+    public int? ShiftId { get; set; }
+}
+
+public class TillOutBalanceCheckDto
+{
+    public bool IsValid { get; set; }
+    public string ManagerName { get; set; } = string.Empty;
+    public string ManagerRole { get; set; } = string.Empty;
+    public int ShiftId { get; set; }
+    public string ShiftCode { get; set; } = string.Empty;
+    public decimal OpeningBalance { get; set; }
+    public decimal CashSales { get; set; }
+    public decimal TotalTillIn { get; set; }
+    public decimal TotalTillOut { get; set; }
+    public decimal TotalRefunds { get; set; }
+    public decimal TotalAdjustments { get; set; }
+    public decimal CurrentCashInDrawer { get; set; }
+}
+
 public class CreateApprovalRequestDto
 {
     public int Type { get; set; } // ApprovalType enum

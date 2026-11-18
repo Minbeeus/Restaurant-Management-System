@@ -288,7 +288,7 @@ public partial class PosMain : IAsyncDisposable
 
         // Hub Connection setup
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl(Endpoints.GetHubUrl())
             .WithAutomaticReconnect()
             .Build();
 
@@ -344,6 +344,15 @@ public partial class PosMain : IAsyncDisposable
                                 AppliedDiscountAmount = activeOrder.DiscountAmount;
                             }
                         }
+                    }
+                    else
+                    {
+                        // Table is empty and opened for taking order -> Mark Occupied (red) across all POS screens
+                        try
+                        {
+                            await Http.PostAsync($"api/v1/pos/tables/{parsedTableId}/occupy", null);
+                        }
+                        catch { }
                     }
                 }
             }
@@ -407,6 +416,10 @@ public partial class PosMain : IAsyncDisposable
         }
         else
         {
+            if (ActiveOrderId == 0 && int.TryParse(TableId, out int tId))
+            {
+                _ = Http.PostAsync($"api/v1/pos/tables/{tId}/release", null);
+            }
             Navigation.NavigateTo("/pos/tables");
         }
     }
@@ -503,7 +516,7 @@ public partial class PosMain : IAsyncDisposable
         if (!IsShiftOpen)
         {
             _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi order món.");
-            ShowCashierToolsModal = true;
+            Navigation.NavigateTo("/pos/cashier-tools");
             return;
         }
 
@@ -1180,7 +1193,7 @@ public partial class PosMain : IAsyncDisposable
         if (!IsShiftOpen)
         {
             _ = ShowToastAsync("Chưa mở ca làm việc! Vui lòng mở ca thu ngân trước khi hoàn tất order.");
-            ShowCashierToolsModal = true;
+            Navigation.NavigateTo("/pos/cashier-tools");
             return;
         }
 
@@ -1387,6 +1400,15 @@ public partial class PosMain : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (!IsTakeaway && ActiveOrderId == 0 && int.TryParse(TableId, out int tId))
+        {
+            try
+            {
+                await Http.PostAsync($"api/v1/pos/tables/{tId}/release", null);
+            }
+            catch { }
+        }
+
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();

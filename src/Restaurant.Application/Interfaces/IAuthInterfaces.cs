@@ -7,10 +7,12 @@ public interface IIdentityService
     Task<LoginResponse?> LoginAsync(LoginRequest request);
     Task<LoginResponse?> QuickLoginAsync(QuickLoginRequest request);
     Task<PinLoginResponse?> PinLoginAsync(PinLoginRequest request);
-    Task<bool> VerifyManagerPinAsync(string pinCode);
+    Task<bool> VerifyManagerPinAsync(string pinCode, string? terminalOrIpKey = null);
+    Task<UserDto?> GetUserByPinAsync(string pinCode);
     Task<UserDto?> GetUserByIdAsync(int userId);
     Task<List<UserDto>> GetAllUsersAsync();
     Task<UserDto> CreateUserAsync(CreateUserRequest request);
+    Task<UserDto> UpdateUserAsync(int userId, UpdateUserRequest request);
     Task<bool> ToggleUserStatusAsync(int userId);
     string HashPassword(string password);
     bool VerifyPassword(string password, string passwordHash);

@@ -60,6 +60,23 @@
                 <span class="material-symbols-outlined text-[20px]">history</span>
                 @(ShowCompletedOnly ? "Xem Vé Đang Chờ" : "Xem Vé Đã Xong")
             </button>
+
+            <div class="h-6 w-[1px] bg-slate-700"></div>
+
+            <AuthorizeView>
+                <Authorized>
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xs">
+                            @(context.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value?.Take(2).Aggregate("", (acc, c) => acc + c) ?? "ĐB")
+                        </div>
+                        <span class="text-xs font-bold text-slate-300 hidden md:inline">@(context.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? context.User.Identity?.Name ?? "Đầu bếp")</span>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+            <a href="/Account/Logout?returnUrl=/login" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer flex items-center justify-center" title="Đăng xuất ca bếp">
+                <span class="material-symbols-outlined text-[20px]">logout</span>
+            </a>
         </div>
     </header>
 

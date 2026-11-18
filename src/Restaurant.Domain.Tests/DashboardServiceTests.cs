@@ -35,8 +35,12 @@ public class DashboardServiceTests
             new Table { Id = 5, Name = "Bàn 5", Status = (int)TableStatus.Paid, AreaId = 1 }
         );
 
-        // Seed Orders for Today
-        var nowUtc = DateTime.UtcNow;
+        // Seed Orders for Today (anchored at midday local time to avoid midnight boundary crossing)
+        TimeZoneInfo tz;
+        try { tz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); }
+        catch { tz = TimeZoneInfo.Local; }
+        var localToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
+        var nowUtc = TimeZoneInfo.ConvertTimeToUtc(localToday.AddHours(12), tz);
         var paidOrderToday = new Order
         {
             Id = 101,

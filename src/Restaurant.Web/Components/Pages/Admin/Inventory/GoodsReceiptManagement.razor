@@ -4,6 +4,7 @@
 @using Restaurant.Application.DTOs
 @using Restaurant.Web.Services
 @inject AdminApiClient ApiClient
+@inject IJSRuntime JS
 
 @if (_currentView == ViewMode.List)
 {
@@ -429,7 +430,7 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
     <!-- ========================================== -->
     <!-- VIEW C: GIAO DIỆN XEM CHI TIẾT & IN PHIẾU -->
     <!-- ========================================== -->
-    <div class="mb-6">
+    <div class="mb-6 no-print">
         <nav class="flex items-center gap-2 text-xs text-on-surface-variant mb-2">
             <button class="hover:text-primary transition-colors cursor-pointer" @onclick="SwitchToListView">Quản Lý Nhập Kho</button>
             <span>/</span>
@@ -445,8 +446,8 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
                         @onclick="SwitchToListView">
                     Quay Lại Danh Sách
                 </button>
-                <button type="button" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-sm shadow-md transition-all cursor-pointer flex items-center gap-2"
-                        @onclick="() => PrintDocument()">
+                <button type="button" class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold text-sm shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95"
+                        @onclick="PrintDocument">
                     <span class="material-symbols-outlined text-base" data-icon="print">print</span>
                     <span>In Phiếu Nhập Kho</span>
                 </button>
@@ -454,9 +455,17 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
         </div>
     </div>
 
-    <div class="bg-surface rounded-2xl p-6 border border-outline-variant/30 shadow-sm space-y-6">
+    <div id="goods-receipt-print-area" class="bg-surface rounded-2xl p-6 border border-outline-variant/30 shadow-sm space-y-6">
+        <!-- Tiêu đề chứng từ khi in ấn (Ẩn trên màn hình thường) -->
+        <div class="goods-receipt-print-header text-center border-b pb-4 mb-4">
+            <h1 class="text-xl font-bold uppercase tracking-wider text-black m-0">HỆ THỐNG NHÀ HÀNG PIZZA CONNER</h1>
+            <p class="text-xs text-gray-600 m-0 mt-1">Địa chỉ: 123 Phố Ẩm Thực, Quận 1, TP. Hồ Chí Minh - Hotline: 1900 6868</p>
+            <h2 class="text-lg font-bold uppercase mt-3 mb-1 text-black">PHIẾU NHẬP KHO NGUYÊN VẬT LIỆU</h2>
+            <p class="text-xs font-mono text-gray-700 m-0">Mã phiếu: <strong>@_selectedReceiptForDetail.ReceiptCode</strong> | Ngày in: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</p>
+        </div>
+
         <!-- Thông tin đầu phiếu -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-xl bg-surface-container/30 border border-outline-variant/20 text-sm">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-surface-container/30 border border-outline-variant/20 text-sm receipt-info-grid">
             <div>
                 <span class="text-xs text-on-surface-variant block font-medium">Nhà cung cấp:</span>
                 <strong class="text-on-surface text-base">@_selectedReceiptForDetail.SupplierName</strong>
@@ -480,7 +489,7 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
 
         @if (!string.IsNullOrWhiteSpace(_selectedReceiptForDetail.Note))
         {
-            <div class="text-sm bg-surface-container/20 p-3 rounded-lg border border-outline-variant/20">
+            <div class="text-sm bg-surface-container/20 p-3 rounded-lg border border-outline-variant/20 receipt-note">
                 <span class="text-xs font-bold text-on-surface-variant">Ghi chú / Chứng từ kèm theo:</span>
                 <p class="text-on-surface m-0 mt-0.5">@_selectedReceiptForDetail.Note</p>
             </div>
@@ -488,14 +497,14 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
 
         <!-- Bảng chi tiết mặt hàng -->
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse border border-outline-variant/30 receipt-table">
                 <thead>
                     <tr class="bg-surface-container/50 text-xs font-bold text-on-surface-variant border-b border-outline-variant/30 uppercase">
-                        <th class="py-3 px-4 w-12 text-center">STT</th>
-                        <th class="py-3 px-4">Tên Mặt Hàng / Nguyên Liệu</th>
-                        <th class="py-3 px-4 text-center">Đơn Vị Tính</th>
-                        <th class="py-3 px-4 text-right">Khối Lượng / Số Lượng</th>
-                        <th class="py-3 px-4 text-right">Đơn Giá Nhập</th>
+                        <th class="py-3 px-4 w-12 text-center border-r border-outline-variant/20">STT</th>
+                        <th class="py-3 px-4 border-r border-outline-variant/20">Tên Mặt Hàng / Nguyên Liệu</th>
+                        <th class="py-3 px-4 text-center border-r border-outline-variant/20">Đơn Vị Tính</th>
+                        <th class="py-3 px-4 text-right border-r border-outline-variant/20">Khối Lượng / Số Lượng</th>
+                        <th class="py-3 px-4 text-right border-r border-outline-variant/20">Đơn Giá Nhập</th>
                         <th class="py-3 px-4 text-right">Thành Tiền</th>
                     </tr>
                 </thead>
@@ -504,11 +513,11 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
                     {
                         var item = _selectedReceiptForDetail.Items[i];
                         <tr class="hover:bg-surface-container/10">
-                            <td class="py-3 px-4 text-center text-xs text-on-surface-variant font-mono">@(i + 1)</td>
-                            <td class="py-3 px-4 font-semibold text-on-surface">@item.MaterialName</td>
-                            <td class="py-3 px-4 text-center text-xs text-on-surface-variant font-medium">@item.UnitName</td>
-                            <td class="py-3 px-4 text-right font-mono font-bold">@item.Quantity.ToString("N1")</td>
-                            <td class="py-3 px-4 text-right font-mono text-on-surface-variant">@item.UnitCost.ToString("N0")đ</td>
+                            <td class="py-3 px-4 text-center text-xs text-on-surface-variant font-mono border-r border-outline-variant/20">@(i + 1)</td>
+                            <td class="py-3 px-4 font-semibold text-on-surface border-r border-outline-variant/20">@item.MaterialName</td>
+                            <td class="py-3 px-4 text-center text-xs text-on-surface-variant font-medium border-r border-outline-variant/20">@item.UnitName</td>
+                            <td class="py-3 px-4 text-right font-mono font-bold border-r border-outline-variant/20">@item.Quantity.ToString("0.###")</td>
+                            <td class="py-3 px-4 text-right font-mono text-on-surface-variant border-r border-outline-variant/20">@item.UnitCost.ToString("N0")đ</td>
                             <td class="py-3 px-4 text-right font-mono font-bold text-primary">@item.TotalCost.ToString("N0")đ</td>
                         </tr>
                     }
@@ -523,7 +532,100 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
                 </tfoot>
             </table>
         </div>
+
+        <!-- Phần chữ ký xác nhận khi in -->
+        <div class="goods-receipt-print-footer mt-8 pt-4 border-t border-gray-300">
+            <div class="grid grid-cols-3 gap-6 text-center text-xs">
+                <div>
+                    <p class="font-bold uppercase m-0">Người Lập Phiếu</p>
+                    <p class="text-[11px] text-gray-500 italic mt-0.5 m-0">(Ký & ghi rõ họ tên)</p>
+                    <div style="height: 60px;"></div>
+                    <p class="font-bold text-sm m-0">@_selectedReceiptForDetail.ReceivedByUserName</p>
+                </div>
+                <div>
+                    <p class="font-bold uppercase m-0">Người Giao Hàng</p>
+                    <p class="text-[11px] text-gray-500 italic mt-0.5 m-0">(Ký & ghi rõ họ tên)</p>
+                    <div style="height: 60px;"></div>
+                    <p class="font-bold text-sm m-0">@_selectedReceiptForDetail.SupplierName</p>
+                </div>
+                <div>
+                    <p class="font-bold uppercase m-0">Thủ Kho / Quản Lý</p>
+                    <p class="text-[11px] text-gray-500 italic mt-0.5 m-0">(Ký & xác nhận nhập)</p>
+                    <div style="height: 60px;"></div>
+                    <p class="font-bold text-sm m-0">Xác nhận nhập kho</p>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Print Media Styling -->
+    <style>
+        .goods-receipt-print-header,
+        .goods-receipt-print-footer {
+            display: none;
+        }
+
+        @@media print {
+            .no-print, header, aside, nav, .sidebar, .navbar {
+                display: none !important;
+            }
+
+            .goods-receipt-print-header {
+                display: block !important;
+            }
+
+            .goods-receipt-print-footer {
+                display: block !important;
+            }
+
+            body, html {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            #goods-receipt-print-area {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 12mm !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+
+            #goods-receipt-print-area * {
+                color: #000000 !important;
+            }
+
+            .receipt-info-grid {
+                background: transparent !important;
+                border: 1px solid #ddd !important;
+            }
+
+            .receipt-note {
+                background: transparent !important;
+                border: 1px solid #ddd !important;
+            }
+
+            .receipt-table {
+                border: 1px solid #000 !important;
+            }
+
+            .receipt-table th, .receipt-table td {
+                border-color: #333 !important;
+            }
+
+            @@page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+        }
+    </style>
 }
 
 @code {
@@ -671,10 +773,16 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
         _currentView = ViewMode.Create;
     }
 
-    private void SwitchToDetailView(GoodsReceiptDto receipt, bool triggerPrint = false)
+    private async Task SwitchToDetailView(GoodsReceiptDto receipt, bool triggerPrint = false)
     {
         _selectedReceiptForDetail = receipt;
         _currentView = ViewMode.Detail;
+        if (triggerPrint)
+        {
+            StateHasChanged();
+            await Task.Delay(200);
+            await PrintDocument();
+        }
     }
 
     private async Task OnSupplierChanged(ChangeEventArgs e)
@@ -785,8 +893,15 @@ else if (_currentView == ViewMode.Detail && _selectedReceiptForDetail != null)
         }
     }
 
-    private void PrintDocument()
+    private async Task PrintDocument()
     {
-        // Simple JS print
+        try
+        {
+            await JS.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Print error: {ex.Message}");
+        }
     }
 }

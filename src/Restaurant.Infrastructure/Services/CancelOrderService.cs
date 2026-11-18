@@ -78,6 +78,15 @@ public class CancelOrderService : ICancelOrderService
                 order.Table.Status = (int)TableStatus.Available;
             }
 
+            // Mark all active order items as Cancelled
+            foreach (var item in order.OrderItems)
+            {
+                if (item.Status == (int)OrderItemStatus.Active)
+                {
+                    item.Status = (int)OrderItemStatus.Cancelled;
+                }
+            }
+
             // 1. Record Cancellation Waste in InventoryTransactions (preserve original SaleDeduction for audit immutability)
             var orderItemIds = order.OrderItems.Select(oi => oi.Id).ToList();
             var saleDeductions = await _context.InventoryTransactions

@@ -1,3 +1,4 @@
+using Restaurant.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ namespace Restaurant.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/vouchers")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = SystemConstants.Roles.Admin)]
 public class VouchersController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -126,7 +127,7 @@ public class VouchersController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> GetVouchers()
     {
         var vouchers = await _context.Vouchers.AsNoTracking().ToListAsync();

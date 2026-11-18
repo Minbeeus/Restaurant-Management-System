@@ -106,6 +106,8 @@ public class Payment
     public Order Order { get; set; } = null!;
     public int ShiftId { get; set; }
     public Shift Shift { get; set; } = null!;
+    public int? ProcessedByUserId { get; set; }
+    public User? ProcessedByUser { get; set; }
     public int PaymentMethod { get; set; }
     public decimal Amount { get; set; }
     public decimal? CashReceived { get; set; }
@@ -138,8 +140,15 @@ public class SepayWebhookLog
 public class Shift : IHasRowVersion
 {
     public int Id { get; set; }
+    public string? ShiftCode { get; set; }
     public int UserId { get; set; }
     public User User { get; set; } = null!;
+    public int? OpenedByUserId { get; set; }
+    public User? OpenedByUser { get; set; }
+    public int? CashCustodianUserId { get; set; }
+    public User? CashCustodianUser { get; set; }
+    public int? ClosedByUserId { get; set; }
+    public User? ClosedByUser { get; set; }
     public int? RegisterId { get; set; }
     public Register? Register { get; set; }
     public decimal OpeningBalance { get; set; }

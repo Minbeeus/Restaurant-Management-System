@@ -1,8 +1,8 @@
 # Đặc tả Chi tiết Chức năng — Phân hệ Quản lý Tài khoản & Loyalty
 
 > **Module:** Account & Loyalty (Xác thực & Thành viên)  
-> **Actor chính:** Nhân viên, Quản trị viên, Hệ thống tự động  
-> **Công nghệ:** ASP.NET Identity / JWT, EF Core Interceptors
+> **Actor chính:** Nhân viên, Quản trị viên, Quản lý, Hệ thống tự động  
+> **Công nghệ:** ASP.NET Core Identity / JWT, BCrypt, EF Core Interceptors
 
 ---
 
@@ -10,94 +10,143 @@
 
 | Feature ID | Tên tính năng | Actor | Độ ưu tiên |
 |------------|---------------|-------|------------|
-| ACC-001 | Đăng nhập Hệ thống | Staff, Admin, Chef | Must Have |
-| ACC-002 | Đăng xuất | Staff, Admin, Chef | Must Have |
-| ACC-003 | Đăng ký Khách hàng Thành viên | Cashier | Must Have |
-| ACC-004 | Tích Điểm Loyalty | System (Automated) | Must Have |
-| ACC-005 | Tiêu Điểm Loyalty | Cashier | Must Have |
-| ACC-006 | Xem Lịch sử Điểm Loyalty | Admin, Manager | Must Have |
-| ACC-007 | Xử lý Hủy đơn & Phục hồi Tồn kho / Điểm thưởng (Order Cancellation & Reversal) | Admin, Manager, Cashier | Must Have |
+| ACC-001 | Đăng nhập Hệ thống (Username / Password) | Staff, Admin, Chef, Manager | Must Have |
+| ACC-002 | Đăng xuất Hệ thống | All Staff | Must Have |
+| ACC-003 | Xác thực Mã PIN Quản lý (Manager PIN Authorization) | Admin, Manager | Must Have |
+| ACC-004 | Đăng ký & Quản lý Khách hàng Thành viên | Cashier, Manager | Must Have |
+| ACC-005 | Tích Điểm Loyalty Tự động | System (Automated) | Must Have |
+| ACC-006 | Tiêu Điểm Loyalty Trừ Trực tiếp Hóa đơn | Cashier | Must Have |
+| ACC-007 | Đổi Điểm Thành viên Lấy Món thưởng (Reward Items) | Cashier | Must Have |
+| ACC-008 | Chiết khấu Tự động Theo Hạng Thành viên (Tier Discount) | System, Cashier | Must Have |
+| ACC-009 | Xem Lịch sử Điểm & Tra cứu Thành viên | Admin, Manager, Cashier | Must Have |
+| ACC-010 | Xử lý Hủy đơn & Phục hồi Tồn kho / Rollback Điểm thưởng | Admin, Manager, Cashier | Must Have |
 
 ---
 
 ## 2. Đặc tả chi tiết từng tính năng
 
 ### ACC-001: Đăng nhập Hệ thống (User Login)
-- **Actor:** Staff, Admin, Chef, Manager
+- **Actor:** Staff, Admin, Chef, Manager, Cashier
 - **Priority:** Must Have
-- **Mô tả:** Đăng nhập vào hệ thống quản lý bằng tài khoản được cấp để thực hiện quyền hạn tương ứng.
+- **Mô tả:** Đăng nhập vào hệ thống bằng tài khoản (Username/Password). Trả về JWT token và đồng thời thiết lập Authentication Cookie (`RestaurantAuth`) cho giao diện Blazor Server.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-ACC-001.1:** Given tài khoản có `IsActive = true` và `IsDeleted = false`, When người dùng nhập đúng Username và Password, Then hệ thống phải trả về mã token JWT hợp lệ chứa thông tin định danh và phân quyền trong vòng dưới 1 giây.
-  - **AC-ACC-001.2:** Given tài khoản bị vô hiệu hóa (`IsActive = false`), When người dùng nhập đúng thông tin đăng nhập, Then hệ thống phải chặn lại và hiển thị thông báo lỗi "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin".
+  - **AC-ACC-001.1:** Given tài khoản có `IsActive = true` và `IsDeleted = false`, When người dùng nhập đúng Username và Password, Then hệ thống trả về mã token JWT hợp lệ chứa các claims (`NameIdentifier`, `Name`, `Role`) trong vòng dưới 1 giây.
+  - **AC-ACC-001.2:** Given tài khoản bị vô hiệu hóa (`IsActive = false`), When đăng nhập, Then hệ thống từ chối xác thực với mã HTTP 401 hoặc thông báo lỗi: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin".
 - **Bảng liên quan:** `Users`, `Roles`
 
 ---
 
-### ACC-002: Đăng xuất (User Logout)
-- **Actor:** Staff, Admin, Chef
+### ACC-002: Đăng xuất Hệ thống (User Logout)
+- **Actor:** All Staff
 - **Priority:** Must Have
-- **Mô tả:** Xoá session làm việc của nhân viên trên thiết bị.
+- **Mô tả:** Xoá session làm việc của nhân viên trên thiết bị, hủy Cookie `RestaurantAuth` và token lưu trữ.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-ACC-002.1:** When nhân viên bấm đăng xuất, Then hệ thống phải xóa hoàn toàn token JWT khỏi Cookie/LocalStorage của trình duyệt và chuyển hướng về màn hình đăng nhập `/login` lập tức.
+  - **AC-ACC-002.1:** When nhân viên bấm đăng xuất, Then hệ thống xóa cookie xác thực và chuyển hướng về màn hình đăng nhập `/login`.
 - **Bảng liên quan:** Không.
 
 ---
 
-### ACC-003: Đăng ký Khách hàng Thành viên (Register Customer Member)
-- **Actor:** Cashier
+### ACC-003: Xác thực Mã PIN Quản lý (Manager PIN Authorization)
+- **Actor:** Admin, Manager
 - **Priority:** Must Have
-- **Mô tả:** Đăng ký nhanh khách hàng thành viên mới tại quầy POS phục vụ chương trình tích điểm. Số điện thoại là trường duy nhất và bắt buộc.
+- **Mô tả:** Cho phép thu ngân yêu cầu Quản lý/Admin nhập mã PIN trực tiếp tại quầy POS để ủy quyền thực hiện các thao tác nhạy cảm (Hủy món đã nấu, Hủy đơn, Chiết khấu vượt thẩm quyền, Mở két tiền thủ công).
+- **Luồng chính:**
+  1. Thu ngân thao tác hành động cần duyệt (hoặc ấn "Xác thực PIN Quản lý").
+  2. Modal `PosManagerPinModal` hiển thị bàn phím số yêu cầu nhập mã PIN.
+  3. Gửi mã PIN đến `POST /api/v1/auth/verify-manager-pin`.
+  4. Hệ thống kiểm tra mã PIN với các tài khoản có Role `Admin` hoặc `Manager` qua thuật toán băm bảo mật BCrypt:
+     - Không cho phép bypass mã cứng (hardcode).
+     - Khóa tạm thời 15 phút nếu nhập sai quá 5 lần liên tiếp.
+  5. Nếu hợp lệ: Trả về trạng thái ủy quyền thành công, cho phép tiếp tục thao tác.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-ACC-003.1:** Given số điện thoại "0901234567" đã tồn tại trên hệ thống, When thu ngân cố gắng tạo khách hàng mới với số điện thoại này, Then hệ thống phải báo lỗi "Số điện thoại này đã được sử dụng bởi khách hàng khác" và chặn không cho lưu.
-  - **AC-ACC-003.2:** When tạo thành viên thành công, Then hệ thống phải tự động gán hạng thành viên ban đầu là `Đồng` (TierId = 1) và đặt số điểm ban đầu là `0`.
+  - **AC-ACC-003.1:** Given mã PIN nhập khớp với mã PIN của Quản lý đang hoạt động, Then API trả về `isValid: true` và ghi log kiểm toán.
+  - **AC-ACC-003.2:** Given mã PIN nhập sai quá 5 lần, Then hệ thống từ chối và khóa xác thực trong 15 phút.
+- **Bảng liên quan:** `Users`, `Roles`, `AuditLogEntries`
+
+---
+
+### ACC-004: Đăng ký & Quản lý Khách hàng Thành viên (Register Customer Member)
+- **Actor:** Cashier, Manager
+- **Priority:** Must Have
+- **Mô tả:** Đăng ký nhanh khách hàng thành viên mới tại quầy POS hoặc quản lý thông tin khách hàng tại trang BOH Admin. Số điện thoại là định danh duy nhất.
+- **Tiêu chí chấp nhận (Acceptance Criteria):**
+  - **AC-ACC-004.1:** Given số điện thoại đã tồn tại trong hệ thống, When thu ngân tạo khách hàng mới với số điện thoại này, Then hệ thống báo lỗi "Số điện thoại này đã được sử dụng bởi khách hàng khác" và không lưu.
+  - **AC-ACC-004.2:** When tạo thành viên thành công, Then hệ thống tự động gán hạng mặc định ban đầu là `Đồng` (TierId tương ứng) và `TotalPoints = 0`, `AvailablePoints = 0`.
 - **Bảng liên quan:** `Customers`, `CustomerTiers`
 
 ---
 
-### ACC-004: Tích Điểm Loyalty (Earn Loyalty Points)
+### ACC-005: Tích Điểm Loyalty Tự động (Earn Loyalty Points)
 - **Actor:** System (Tự động)
 - **Priority:** Must Have
-- **Mô tả:** Tự động tính điểm tích lũy và cộng vào tài khoản khách hàng ngay sau khi đơn hàng được thanh toán thành công. Lượng tiền thanh toán tích điểm được tính trên tổng giá trị cuối cùng bao gồm cả món Combo và các Option đi kèm.
-- **Điều kiện tiên quyết:** Đơn hàng được thanh toán thành công (`Payment.Status = Completed`) và đơn hàng có liên kết `CustomerId`.
+- **Mô tả:** Tự động tính điểm tích lũy và cộng vào tài khoản khách hàng ngay sau khi đơn hàng được thanh toán thành công (`Payment.Status = Completed`).
 - **Luồng chính:**
-  1. Giao dịch thanh toán chuyển trạng thái thành công.
-  2. Hệ thống lấy `TotalAmount` của hóa đơn (đã bao gồm giá món chính, giá combo và phụ thu modifier/topping sau khi trừ tất cả các khoản giảm giá).
-  3. Áp dụng công thức tính điểm: `Points = Floor(TotalAmount / 10,000)` (Ví dụ: hóa đơn trị giá 355.000đ tích được 35 điểm).
-  4. Hệ thống:
-     - Tạo bản ghi `LoyaltyTransactions` (Type = Earn, Points = số điểm vừa tính).
-     - Cập nhật tài khoản khách hàng: `TotalPoints += Points` và `AvailablePoints += Points`.
-     - Kiểm tra thăng hạng thành viên: Nếu `Customer.TotalPoints` đạt ngưỡng tối thiểu của hạng cao hơn, cập nhật `Customer.TierId` sang hạng mới.
+  1. Đơn hàng hoàn tất thanh toán và có gắn `CustomerId`.
+  2. Lấy `TotalAmount` thực tế sau khi đã trừ giảm giá và voucher.
+  3. Tính điểm tích lũy: `Points = Floor(TotalAmount / 10,000)` (hoặc theo cấu hình hệ thống).
+  4. Cập nhật:
+     - Tạo bản ghi `LoyaltyTransactions` (TransactionType = Earn, Points = số điểm tích).
+     - `Customer.TotalPoints += Points`, `Customer.AvailablePoints += Points`.
+     - Kiểm tra điều kiện thăng hạng: nếu `TotalPoints` vượt ngưỡng hạng kế tiếp, tự động cập nhật `Customer.TierId`.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-ACC-004.1:** Given đơn hàng có liên kết khách hàng A, When hóa đơn được thanh toán thành công với số tiền thực tế khách trả là 250.000 VNĐ, Then số điểm khả dụng của khách hàng A trong database phải tăng thêm đúng 25 điểm.
-  - **AC-ACC-004.2:** Given khách hàng A có tổng điểm tích lũy là 490 điểm (Hạng Đồng), When khách hàng hoàn tất hóa đơn 200.000 VNĐ (tích thêm 20 điểm), Then tổng điểm tích lũy của khách hàng tăng lên 510 điểm và hệ thống phải tự động cập nhật hạng thành viên sang `Bạc` (TierId = 2 - ngưỡng tối thiểu 500 điểm).
+  - **AC-ACC-005.1:** Given đơn hàng có khách hàng A, thanh toán 250.000 VNĐ, Then điểm khả dụng và tổng điểm của khách A phải tăng thêm đúng 25 điểm.
+  - **AC-ACC-005.2:** Given khách tích lũy đủ điểm ngưỡng hạng Bạc/Vàng, Then hệ thống tự động cập nhật `TierId` sang hạng mới.
 - **Bảng liên quan:** `Customers`, `CustomerTiers`, `LoyaltyTransactions`, `Orders`, `Payments`
 
 ---
 
-### ACC-005: Tiêu Điểm Loyalty (Redeem Loyalty Points)
+### ACC-006: Tiêu Điểm Loyalty Trừ Trực tiếp Hóa đơn (Redeem Loyalty Points)
 - **Actor:** Cashier
 - **Priority:** Must Have
-- **Mô tả:** Sử dụng điểm tích lũy của khách hàng để quy đổi thành tiền mặt giảm trừ trực tiếp vào hóa đơn hiện tại.
+- **Mô tả:** Sử dụng điểm tích lũy khả dụng của khách hàng để quy đổi thành tiền mặt giảm trừ trực tiếp vào hóa đơn tại POS.
 - **Quy tắc nghiệp vụ:**
-  - BR-ACC-005: Điểm quy đổi không được vượt quá số điểm khả dụng của khách (`AvailablePoints`) và số tiền giảm không được vượt quá tổng hóa đơn.
+  - Điểm quy đổi không được vượt quá `Customer.AvailablePoints`.
+  - Số tiền quy đổi không vượt quá tổng tiền của hóa đơn.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-ACC-005.1:** Given khách hàng có 200 điểm khả dụng (tương đương 10.000đ), When thu ngân chọn tiêu 100 điểm (tương đương 5.000đ) và hoàn tất thanh toán hóa đơn, Then hệ thống phải trừ chính xác 100 điểm khả dụng của khách (`AvailablePoints -= 100`) và tạo bản ghi tiêu điểm trong bảng `LoyaltyTransactions` (Type = 1 - Redeem, Points = 100).
-- **Bảng liên quan:** `Orders`, `Customers`, `LoyaltyTransactions`
+  - **AC-ACC-006.1:** Given khách có 200 điểm khả dụng, When thu ngân áp dụng tiêu 100 điểm (tương đương 5.000đ) và thanh toán thành công, Then hệ thống trừ 100 điểm (`AvailablePoints -= 100`) và tạo bản ghi `LoyaltyTransactions` với Type = Redeem.
+- **Bảng liên quan:** `Orders`, `Customers`, `LoyaltyTransactions`, `Payments`
 
 ---
 
-### ACC-006: Xem Lịch sử Điểm Loyalty (View Loyalty History)
-- **Actor:** Admin, Manager
+### ACC-007: Đổi Điểm Thành viên Lấy Món thưởng (Redeem Points for Reward Items)
+- **Actor:** Cashier
 - **Priority:** Must Have
-- **Mô tả:** Tra cứu nhật ký biến động điểm tích lũy của khách hàng phục vụ kiểm tra, đối soát.
-- **Bảng liên quan:** `LoyaltyTransactions`, `Customers`
+- **Mô tả:** Cho phép khách hàng thành viên sử dụng điểm khả dụng để đổi lấy các món ăn/đồ uống đặc biệt (thuộc nhóm Đổi Điểm hoặc món có cấu hình điểm đổi `PointsCost > 0`).
+- **Luồng chính:**
+  1. Thu ngân chọn khách hàng thành viên tại quầy POS.
+  2. Thu ngân mở danh mục "Đổi Điểm" hoặc chọn món thưởng có cấu hình quy đổi điểm.
+  3. Hệ thống kiểm tra số điểm yêu cầu (`PointsCost`) của món:
+     - Nếu `Customer.AvailablePoints >= PointsCost`: Thêm món vào đơn với đơn giá 0đ và đánh dấu tiêu điểm thưởng tương ứng.
+     - Nếu không đủ điểm: Cảnh báo "Khách hàng không đủ điểm để đổi món này".
+  4. Khi đơn hàng hoàn tất: Hệ thống trừ số điểm đổi món khỏi `AvailablePoints` và ghi nhận giao dịch `LoyaltyTransactions`.
+- **Tiêu chí chấp nhận (Acceptance Criteria):**
+  - **AC-ACC-007.1:** Given khách có 150 điểm, món thưởng yêu cầu 100 điểm, When thu ngân thêm món thưởng vào đơn và thanh toán, Then khách được nhận món với giá 0đ và điểm khả dụng còn lại là 50 điểm.
+- **Bảng liên quan:** `MenuItems`, `Categories`, `Customers`, `LoyaltyTransactions`, `OrderItems`
 
 ---
 
-### ACC-007: Xử lý Hủy đơn & Phục hồi Tồn kho / Điểm thưởng (Order Cancellation & Reversal)
+### ACC-008: Chiết khấu Tự động Theo Hạng Thành viên (Tier Discount)
+- **Actor:** System, Cashier
+- **Priority:** Must Have
+- **Mô tả:** Tự động áp dụng tỷ lệ chiết khấu (%) theo hạng thành viên (`CustomerTier.DiscountPercent`) khi gắn khách hàng vào đơn tại quầy POS.
+- **Tiêu chí chấp nhận (Acceptance Criteria):**
+  - **AC-ACC-008.1:** Given khách hàng thuộc hạng Vàng được hưởng chiết khấu 10%, When thu ngân chọn khách hàng này vào đơn 500.000 VNĐ, Then hệ thống tự động tính giảm 50.000 VNĐ vào hóa đơn.
+- **Bảng liên quan:** `Customers`, `CustomerTiers`, `Orders`
+
+---
+
+### ACC-009: Xem Lịch sử Điểm & Tra cứu Thành viên (View Loyalty History)
 - **Actor:** Admin, Manager, Cashier
 - **Priority:** Must Have
-- **Mô tả:** Xử lý việc hủy đơn hàng đã hoàn tất thanh toán hoặc hủy đơn khi chưa chế biến. Thực hiện phục hồi số lượng tồn kho nguyên liệu (nếu món chưa chế biến) và rollback điểm Loyalty (trừ lại điểm tích hoặc trả lại điểm đã tiêu).
+- **Mô tả:** Tra cứu thông tin thành viên qua SĐT/Tên, xem chi tiết lịch sử tích/tiêu điểm và đối soát đơn hàng liên kết.
+- **Bảng liên quan:** `Customers`, `LoyaltyTransactions`, `Orders`
+
+---
+
+### ACC-010: Xử lý Hủy đơn & Rollback Điểm thưởng (Order Cancellation & Reversal)
+- **Actor:** Admin, Manager, Cashier
+- **Priority:** Must Have
+- **Mô tả:** Khi đơn hàng hoàn tất bị hủy hoặc hoàn tiền (`Refund`), hệ thống tự động hoàn lại điểm đã tiêu và thu hồi điểm đã tích của đơn hàng đó trong cùng 1 Database Transaction nguyên tử.
 - **Tiêu chí chấp nhận (Acceptance Criteria):**
-  - **AC-ACC-007.1:** Given đơn hàng đã hoàn tất thanh toán có dùng 50 điểm loyalty và đã được tích 20 điểm, When Manager thực hiện Hủy đơn/Hoàn tiền, Then hệ thống phải tự động hoàn lại 50 điểm khả dụng cho khách và trừ đi 20 điểm vừa tích trong 1 DB Transaction duy nhất.
-- **Bảng liên quan:** `Orders`, `LoyaltyTransactions`, `Customers`, `InventoryTransactions`, `Materials`
+  - **AC-ACC-010.1:** Given đơn hàng đã tích 30 điểm và tiêu 50 điểm của khách, When Quản lý duyệt hủy đơn/hoàn tiền, Then hệ thống phải hoàn lại 50 điểm đã tiêu và thu hồi 30 điểm đã tích cho khách hàng.
+- **Bảng liên quan:** `Orders`, `LoyaltyTransactions`, `Customers`, `Refunds`

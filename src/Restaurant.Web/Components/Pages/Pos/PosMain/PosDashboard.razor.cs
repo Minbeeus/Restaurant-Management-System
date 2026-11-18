@@ -33,7 +33,7 @@ public partial class PosDashboard : IAsyncDisposable
 
         // Setup SignalR live connection
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost:5011/hubs/restaurant")
+            .WithUrl(Endpoints.GetHubUrl())
             .WithAutomaticReconnect()
             .Build();
 

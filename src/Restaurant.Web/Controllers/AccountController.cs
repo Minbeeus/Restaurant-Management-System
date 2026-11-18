@@ -72,9 +72,21 @@ public class AccountController : Controller
     }
 
     [HttpGet("Logout")]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout([FromQuery] string? returnUrl = null)
     {
+        var isAdmin = User.IsInRole("Admin");
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return Redirect("/admin/login");
+
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        if (isAdmin)
+        {
+            return Redirect("/admin/login");
+        }
+
+        return Redirect("/login");
     }
 }

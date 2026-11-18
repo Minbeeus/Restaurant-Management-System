@@ -69,9 +69,61 @@ public class DashboardService : IDashboardService
             .Where(o => o.Status != (int)OrderStatus.Completed && o.Status != (int)OrderStatus.Cancelled)
             .CountAsync();
 
-        // 3. Tables (Occupied includes Occupied, Serving, Billing, Paid)
-        var totalTables = await _context.Tables.CountAsync();
-        var occupiedTables = await _context.Tables.CountAsync(t => t.Status != (int)TableStatus.Available);
+        // 3. Tables (Active tables currently being served in current open shift)
+        var totalTables = await _context.Tables.CountAsync(t => t.IsActive && !t.IsDeleted);
+
+        var currentShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open);
+        int occupiedTables = 0;
+
+        if (currentShift != null)
+        {
+            // Sync any desynced table statuses in DB
+            var activeTableIds = await _context.Orders
+                .Where(o => o.ShiftId == currentShift.Id &&
+                            o.TableId.HasValue &&
+                            o.Status != (int)OrderStatus.Completed &&
+                            o.Status != (int)OrderStatus.Cancelled &&
+                            o.PaymentStatus != (int)PaymentStatus.Paid)
+                .Select(o => o.TableId!.Value)
+                .Distinct()
+                .ToListAsync();
+
+            var orphanedTables = await _context.Tables
+                .Where(t => (t.Status == (int)TableStatus.Serving || t.Status == (int)TableStatus.Billing) && !activeTableIds.Contains(t.Id))
+                .ToListAsync();
+
+            if (orphanedTables.Any())
+            {
+                foreach (var ot in orphanedTables) ot.Status = (int)TableStatus.Available;
+                await _context.SaveChangesAsync();
+            }
+
+            occupiedTables = await _context.Tables.CountAsync(t => t.Status != (int)TableStatus.Available && !t.IsDeleted);
+        }
+        else
+        {
+            var hasShifts = await _context.Shifts.AnyAsync();
+            if (hasShifts)
+            {
+                // In production where shifts exist but no shift is open, tables should be Available
+                var orphaned = await _context.Tables
+                    .Where(t => t.Status != (int)TableStatus.Available)
+                    .ToListAsync();
+
+                if (orphaned.Any())
+                {
+                    foreach (var ot in orphaned) ot.Status = (int)TableStatus.Available;
+                    await _context.SaveChangesAsync();
+                }
+
+                occupiedTables = 0;
+            }
+            else
+            {
+                // In standalone test environments without shifts seeded
+                occupiedTables = await _context.Tables.CountAsync(t => t.Status != (int)TableStatus.Available && !t.IsDeleted);
+            }
+        }
 
         // 4. Low Stock
         var lowStock = await _context.Materials
@@ -150,37 +202,71 @@ public class DashboardService : IDashboardService
 
     public async Task<List<ActivityFeedItemDto>> GetActivityFeedAsync(int limit = 10)
     {
-        // For activity feed, we'll combine recent completed orders and recent inventory transactions
+        var tz = GetRestaurantTimeZone();
+
+        // Chỉ hiển thị các hoạt động liên quan đến đơn hàng (bỏ thông báo trừ định lượng kho)
         var recentOrders = await _context.Orders
-            .Where(o => o.Status == (int)OrderStatus.Completed || o.PaymentStatus == (int)PaymentStatus.Paid)
-            .OrderByDescending(o => o.UpdatedAt)
+            .AsNoTracking()
+            .Include(o => o.Table)
+            .Include(o => o.OrderItems)
+            .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
             .Take(limit)
-            .Select(o => new ActivityFeedItemDto
-            {
-                Title = $"Đơn hàng {o.OrderCode} hoàn thành",
-                Description = $"Tổng tiền: {o.TotalAmount:N0}đ",
-                Timestamp = o.UpdatedAt ?? o.CreatedAt,
-                ActivityType = "Order"
-            })
             .ToListAsync();
 
-        var recentInventory = await _context.InventoryTransactions
-            .Include(t => t.Material)
-            .OrderByDescending(t => t.CreatedAt)
-            .Take(limit)
-            .Select(t => new ActivityFeedItemDto
-            {
-                Title = $"Biến động kho: {t.Material.Name}",
-                Description = $"Số lượng: {(t.Quantity > 0 ? "+" : "")}{t.Quantity}",
-                Timestamp = t.CreatedAt,
-                ActivityType = "Inventory"
-            })
-            .ToListAsync();
+        var feed = recentOrders.Select(o =>
+        {
+            var tableText = o.Table != null ? $"Bàn {o.Table.Name}" : "Mang đi";
+            var localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(o.UpdatedAt ?? o.CreatedAt, DateTimeKind.Utc), tz);
 
-        var feed = recentOrders.Concat(recentInventory)
-            .OrderByDescending(x => x.Timestamp)
-            .Take(limit)
-            .ToList();
+            string title;
+            string desc;
+            string activityType = "Order";
+
+            switch (o.Status)
+            {
+                case (int)OrderStatus.Completed:
+                    title = $"Đơn hàng {o.OrderCode} - Hoàn thành";
+                    desc = $"{tableText} • Tổng tiền: {o.TotalAmount:N0}đ";
+                    break;
+                case (int)OrderStatus.Cancelled:
+                    title = $"Đơn hàng {o.OrderCode} - Đã hủy";
+                    desc = $"{tableText} • {(!string.IsNullOrEmpty(o.Note) ? o.Note : "Đã hủy đơn")}";
+                    activityType = "Cancelled";
+                    break;
+                case (int)OrderStatus.Ready:
+                    title = $"Đơn hàng {o.OrderCode} - Sẵn sàng phục vụ";
+                    desc = $"{tableText} • {o.OrderItems.Count} món • Tổng tiền: {o.TotalAmount:N0}đ";
+                    break;
+                case (int)OrderStatus.InPreparation:
+                    title = $"Đơn hàng {o.OrderCode} - Bếp đang nấu";
+                    desc = $"{tableText} • {o.OrderItems.Count} món • Tổng tiền: {o.TotalAmount:N0}đ";
+                    break;
+                case (int)OrderStatus.Pending:
+                    title = $"Đơn hàng {o.OrderCode} - Chờ xác nhận";
+                    desc = $"{tableText} • {o.OrderItems.Count} món • Tổng tiền: {o.TotalAmount:N0}đ";
+                    break;
+                default:
+                    if (o.PaymentStatus == (int)PaymentStatus.Paid)
+                    {
+                        title = $"Đơn hàng {o.OrderCode} - Đã thanh toán";
+                        desc = $"{tableText} • Tổng tiền: {o.TotalAmount:N0}đ";
+                    }
+                    else
+                    {
+                        title = $"Đơn hàng mới {o.OrderCode}";
+                        desc = $"{tableText} • {o.OrderItems.Count} món • Tổng tiền: {o.TotalAmount:N0}đ";
+                    }
+                    break;
+            }
+
+            return new ActivityFeedItemDto
+            {
+                Title = title,
+                Description = desc,
+                Timestamp = localTime,
+                ActivityType = activityType
+            };
+        }).ToList();
 
         return feed;
     }

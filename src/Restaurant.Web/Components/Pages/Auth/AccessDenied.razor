@@ -1,0 +1,95 @@
+@page "/access-denied"
+@layout Restaurant.Web.Components.Layout.EmptyLayout
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<div class="min-h-screen w-full flex items-center justify-center bg-background p-4 select-none font-body">
+    <div class="w-full max-w-md bg-surface rounded-3xl shadow-xl border border-outline-variant/40 p-8 md:p-10 flex flex-col items-center text-center">
+        <!-- Logo & Header -->
+        <img src="/logo_icon.png" alt="Pizza Conner" class="w-14 h-14 rounded-2xl bg-white object-contain p-2 shadow-sm border border-outline-variant/30 mb-3" onerror="this.style.display='none'" />
+        <h1 class="font-heading font-extrabold text-xl md:text-2xl text-primary m-0 tracking-tight">Pizza Conner</h1>
+        
+        <!-- Denied Icon -->
+        <div class="my-6 w-20 h-20 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center text-error">
+            <span class="material-symbols-outlined text-4xl">gpp_maybe</span>
+        </div>
+
+        <h2 class="text-xl font-bold text-on-surface m-0 mb-2">Truy cập bị từ chối</h2>
+        <p class="text-sm text-on-surface-variant leading-relaxed mb-6">
+            @if (_isAuthenticated)
+            {
+                <span>Tài khoản <strong class="text-on-surface">@_fullName</strong> (Vai trò: <span class="px-2 py-0.5 rounded-full text-xs font-bold @GetRoleBadgeClass(_roleName)">@_roleName</span>) không có quyền truy cập vào phân hệ này.</span>
+            }
+            else
+            {
+                <span>Phiên đăng nhập đã hết hạn hoặc bạn chưa được cấp quyền truy cập.</span>
+            }
+        </p>
+
+        <!-- Actions -->
+        <div class="w-full flex flex-col gap-3">
+            @if (_roleName == "Chef")
+            {
+                <a href="/kds" class="w-full py-3 px-4 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">soup_kitchen</span>
+                    Quay về Màn hình Bếp (KDS)
+                </a>
+            }
+            else if (_roleName == "Cashier")
+            {
+                <a href="/pos/tables" class="w-full py-3 px-4 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">point_of_sale</span>
+                    Quay về Màn hình Thu ngân (POS)
+                </a>
+            }
+            else if (_roleName is "Admin" or "Manager")
+            {
+                <a href="/admin/dashboard" class="w-full py-3 px-4 rounded-xl bg-primary text-on-primary font-bold text-sm shadow-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">dashboard</span>
+                    Quay về Trang Quản trị (Admin)
+                </a>
+            }
+
+            <a href="/Account/Logout" class="w-full py-2.5 px-4 rounded-xl bg-surface-low hover:bg-surface-high border border-outline-variant/60 text-on-surface text-sm font-bold flex items-center justify-center gap-2 transition-all">
+                <span class="material-symbols-outlined text-[18px] text-error">logout</span>
+                Đăng xuất & Đổi tài khoản
+            </a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _isAuthenticated = false;
+    private string _fullName = "";
+    private string _roleName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            _isAuthenticated = true;
+            _fullName = user.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value 
+                        ?? user.Identity.Name 
+                        ?? "Nhân viên";
+            _roleName = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+        }
+        else
+        {
+            // If not logged in, redirect straight to login
+            Navigation.NavigateTo("/login", replace: true);
+        }
+    }
+
+    private string GetRoleBadgeClass(string role) => role switch
+    {
+        "Admin" => "bg-primary/10 text-primary border border-primary/20",
+        "Manager" => "bg-secondary/10 text-secondary border border-secondary/20",
+        "Cashier" => "bg-blue-50 text-blue-700 border border-blue-200",
+        "Chef" => "bg-amber-50 text-amber-700 border border-amber-200",
+        _ => "bg-slate-100 text-slate-700"
+    };
+}

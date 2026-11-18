@@ -28,7 +28,8 @@ public enum OrderStatus
 public enum OrderItemStatus
 {
     Active = 0,
-    Voided = 1
+    Voided = 1,
+    Cancelled = 2
 }
 
 public enum KitchenStatus

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Restaurant.Application.DTOs;
 using Restaurant.Application.Interfaces;
+using Restaurant.Domain.Common;
 
 namespace Restaurant.WebAPI.Controllers;
 
@@ -37,7 +38,7 @@ public class AreasController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Create([FromBody] CreateAreaRequest request)
     {
         try
@@ -52,7 +53,7 @@ public class AreasController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateAreaRequest request)
     {
         try
@@ -69,7 +70,7 @@ public class AreasController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _areaService.DeleteAsync(id);
@@ -79,7 +80,7 @@ public class AreasController : ControllerBase
     }
 
     [HttpPost("{areaId}/layout/batch-update")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = SystemConstants.Roles.AdminOrManager)]
     public async Task<IActionResult> BatchUpdateLayout(int areaId, [FromBody] List<UpdateTableLayoutRequest> layout)
     {
         try

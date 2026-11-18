@@ -85,7 +85,9 @@
                                 <td class="py-3.5 px-4 text-right font-mono tabular-nums font-bold text-base whitespace-nowrap @(mat.IsLowStock ? "text-error" : "text-emerald-700")">
                                     @mat.CurrentStock.ToString("N1")
                                 </td>
-                                <td class="py-3.5 px-4 text-center text-xs font-semibold text-on-surface-variant whitespace-nowrap">@mat.UnitName</td>
+                                <td class="py-3.5 px-4 text-center text-xs font-semibold text-on-surface-variant whitespace-nowrap" title="@mat.UnitName">
+                                    @(!string.IsNullOrWhiteSpace(mat.UnitAbbreviation) ? mat.UnitAbbreviation : mat.UnitName)
+                                </td>
                                 <td class="py-3.5 px-4 text-right font-mono tabular-nums text-xs text-on-surface-variant whitespace-nowrap">@mat.MinStockLevel.ToString("N1")</td>
                                 <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                     <span class="font-mono tabular-nums text-sm text-on-surface font-bold">@mat.CostPerUnit.ToString("N0")&nbsp;đ</span>
@@ -186,16 +188,67 @@ else
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-                <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Đơn Vị Tính <span class="text-red-500">*</span></label>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1.5">
+                    Đơn Vị Tính <span class="text-red-500">*</span>
+                    @if (_isEditing)
+                    {
+                        <span class="text-[11px] font-normal text-primary ml-1">(Chỉ hiện cùng tính chất)</span>
+                    }
+                </label>
                 <select class="w-full px-3.5 py-2.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-semibold cursor-pointer"
-                        @bind="_model.UnitOfMeasureId">
-                    <option value="1">Kg (Kilogram)</option>
-                    <option value="2">g (Gram)</option>
-                    <option value="3">L (Lít)</option>
-                    <option value="4">ml (Mililít)</option>
-                    <option value="5">Pcs (Cái/Chiếc)</option>
-                    <option value="6">Lon (Hộp)</option>
+                        value="@_model.UnitOfMeasureId" @onchange="OnUnitChanged">
+                    @if (_isEditing)
+                    {
+                        @foreach (var uom in GetAllowedEditingUnits())
+                        {
+                            <option value="@uom.Id">
+                                @(!string.IsNullOrWhiteSpace(uom.Abbreviation) ? $"{uom.Abbreviation} ({uom.Name})" : uom.Name)
+                            </option>
+                        }
+                    }
+                    else
+                    {
+                        @if (_unitsOfMeasure.Any())
+                        {
+                            @foreach (var grp in _unitsOfMeasure.GroupBy(u => u.DimensionDisplayName))
+                            {
+                                <optgroup label="@grp.Key">
+                                    @foreach (var uom in grp)
+                                    {
+                                        <option value="@uom.Id">
+                                            @(!string.IsNullOrWhiteSpace(uom.Abbreviation) ? $"{uom.Abbreviation} ({uom.Name})" : uom.Name)
+                                        </option>
+                                    }
+                                </optgroup>
+                            }
+                        }
+                        else
+                        {
+                            <optgroup label="Khối lượng (Weight)">
+                                <option value="1">Kg (Kilogram)</option>
+                                <option value="4">g (Gram)</option>
+                            </optgroup>
+                            <optgroup label="Thể tích (Volume)">
+                                <option value="2">L (Lít)</option>
+                                <option value="5">ml (Mililít)</option>
+                            </optgroup>
+                            <optgroup label="Số lượng & Đóng gói">
+                                <option value="6">Pcs (Cái / Miếng)</option>
+                                <option value="3">Hộp (Hộp / Lon)</option>
+                                <option value="7">Gói (Gói / Bịch)</option>
+                                <option value="8">Lon (Lon)</option>
+                                <option value="9">Chai (Chai)</option>
+                            </optgroup>
+                        }
+                    }
                 </select>
+                @if (_isEditing)
+                {
+                    <p class="text-[11px] text-on-surface-variant/80 mt-1 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-xs text-primary">info</span>
+                        Tính chất: <span class="font-bold text-primary">@GetCurrentDimensionDisplayName()</span>
+                    </p>
+                }
             </div>
             <div>
                 <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Tồn Kho Tối Thiểu (Min Stock)</label>
@@ -205,12 +258,23 @@ else
             <div>
                 <label class="block text-xs font-bold text-on-surface-variant mb-1.5">Đơn Giá Vốn Ước Tính (VNĐ)</label>
                 <div class="relative">
-                    <input type="number" step="1000" min="0" class="w-full px-3.5 py-2.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-mono font-bold"
+                    <input type="number" step="1" min="0" class="w-full px-3.5 py-2.5 border rounded-xl bg-surface text-on-surface border-outline-variant/40 focus:border-primary text-sm font-mono font-bold"
                            placeholder="150000" @bind="_model.CostPerUnit" />
                     <span class="absolute right-3.5 top-2.5 text-xs text-on-surface-variant font-bold">VNĐ</span>
                 </div>
             </div>
         </div>
+
+        @if (!string.IsNullOrEmpty(_conversionNotice))
+        {
+            <div class="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-2.5 text-xs text-primary font-medium">
+                <span class="material-symbols-outlined text-base mt-0.5" data-icon="swap_horiz">swap_horiz</span>
+                <div>
+                    <span class="font-bold">Quy đổi tự động khi đổi đơn vị:</span>
+                    <div>@_conversionNotice</div>
+                </div>
+            </div>
+        }
     </div>
 }
 
@@ -236,12 +300,17 @@ else
 
 @code {
     private List<MaterialDto> _materials = new();
+    private List<UnitOfMeasureDto> _unitsOfMeasure = new();
     private bool _isLoading = true;
     private bool _isFormOpen = false;
     private bool _isEditing = false;
     private bool _isSaving = false;
     private string? _errorMessage;
     private int _editingId;
+    private int _originalUnitOfMeasureId = 1;
+    private decimal _originalMinStock;
+    private decimal _originalCostPerUnit;
+    private string? _conversionNotice;
 
     private string _searchKeyword = "";
     private bool _filterLowStock = false;
@@ -266,7 +335,11 @@ else
         _isLoading = true;
         try
         {
-            _materials = await ApiClient.GetMaterialsAsync();
+            var matTask = ApiClient.GetMaterialsAsync();
+            var uomTask = ApiClient.GetUnitsOfMeasureAsync();
+            await Task.WhenAll(matTask, uomTask);
+            _materials = await matTask;
+            _unitsOfMeasure = await uomTask;
         }
         catch (Exception ex)
         {
@@ -286,7 +359,10 @@ else
     private void OpenAddForm()
     {
         _isEditing = false;
-        _model = new MaterialFormModel { UnitOfMeasureId = 1, MinStockLevel = 10, CostPerUnit = 50000 };
+        var defaultUomId = _unitsOfMeasure.FirstOrDefault()?.Id ?? 1;
+        _originalUnitOfMeasureId = defaultUomId;
+        _conversionNotice = null;
+        _model = new MaterialFormModel { UnitOfMeasureId = defaultUomId, MinStockLevel = 10, CostPerUnit = 50000 };
         _errorMessage = null;
         _isFormOpen = true;
     }
@@ -295,16 +371,104 @@ else
     {
         _isEditing = true;
         _editingId = mat.Id;
+        _originalUnitOfMeasureId = mat.UnitOfMeasureId > 0 ? mat.UnitOfMeasureId : 1;
+        _originalMinStock = mat.MinStockLevel;
+        _originalCostPerUnit = mat.CostPerUnit;
+        _conversionNotice = null;
         _model = new MaterialFormModel
         {
             Name = mat.Name,
             NameEn = mat.NameEn,
-            UnitOfMeasureId = mat.UnitOfMeasureId > 0 ? mat.UnitOfMeasureId : 1,
+            UnitOfMeasureId = _originalUnitOfMeasureId,
             MinStockLevel = mat.MinStockLevel,
             CostPerUnit = mat.CostPerUnit
         };
         _errorMessage = null;
         _isFormOpen = true;
+    }
+
+    private List<UnitOfMeasureDto> GetAllowedEditingUnits()
+    {
+        if (!_unitsOfMeasure.Any()) return new List<UnitOfMeasureDto>();
+
+        var originalUom = _unitsOfMeasure.FirstOrDefault(u => u.Id == _originalUnitOfMeasureId);
+        var targetDimension = originalUom?.Dimension ?? UnitDimensionHelper.Weight;
+
+        return _unitsOfMeasure.Where(u => u.Dimension == targetDimension).ToList();
+    }
+
+    private string GetCurrentDimensionDisplayName()
+    {
+        var originalUom = _unitsOfMeasure.FirstOrDefault(u => u.Id == _originalUnitOfMeasureId);
+        return originalUom?.DimensionDisplayName ?? "Cùng tính chất";
+    }
+
+    private void OnUnitChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var newUomId) || newUomId == _model.UnitOfMeasureId) return;
+
+        if (newUomId == _originalUnitOfMeasureId)
+        {
+            _model.UnitOfMeasureId = _originalUnitOfMeasureId;
+            _model.MinStockLevel = _originalMinStock;
+            _model.CostPerUnit = _originalCostPerUnit;
+            _conversionNotice = null;
+            return;
+        }
+
+        var oldUomId = _model.UnitOfMeasureId;
+        var oldUom = _unitsOfMeasure.FirstOrDefault(u => u.Id == oldUomId);
+        var newUom = _unitsOfMeasure.FirstOrDefault(u => u.Id == newUomId);
+
+        if (oldUom != null && newUom != null && oldUom.Dimension == newUom.Dimension)
+        {
+            decimal factor = 1m;
+            var oldAbbr = (oldUom.Abbreviation ?? "").Trim().ToLowerInvariant();
+            var newAbbr = (newUom.Abbreviation ?? "").Trim().ToLowerInvariant();
+
+            // Kg -> g or L -> ml (multiply by 1000)
+            if ((oldAbbr == "kg" && newAbbr == "g") || (oldAbbr == "l" && newAbbr == "ml"))
+            {
+                factor = 1000m;
+            }
+            // g -> Kg or ml -> L (divide by 1000)
+            else if ((oldAbbr == "g" && newAbbr == "kg") || (oldAbbr == "ml" && newAbbr == "l"))
+            {
+                factor = 0.001m;
+            }
+
+            if (factor > 0 && factor != 1m)
+            {
+                _model.MinStockLevel = Math.Round(_model.MinStockLevel * factor, 3);
+                _model.CostPerUnit = Math.Round(_model.CostPerUnit / factor, 2);
+
+                if (_isEditing)
+                {
+                    var curMat = _materials.FirstOrDefault(m => m.Id == _editingId);
+                    if (curMat != null)
+                    {
+                        var previewStock = Math.Round(curMat.CurrentStock * factor, 3);
+                        if (factor >= 1m)
+                        {
+                            var fStr = factor.ToString("G29");
+                            _conversionNotice = $"Quy đổi từ {oldUom.DisplayName} sang {newUom.DisplayName}: Định mức tối thiểu x{fStr}, Đơn giá vốn /{fStr}. Tồn kho thực tế ({curMat.CurrentStock:0.###} {oldUom.Abbreviation}) sẽ được tự động cập nhật thành {previewStock:0.###} {newUom.Abbreviation} khi bấm Lưu.";
+                        }
+                        else
+                        {
+                            var divisor = Math.Round(1m / factor, 4);
+                            var dStr = divisor.ToString("G29");
+                            _conversionNotice = $"Quy đổi từ {oldUom.DisplayName} sang {newUom.DisplayName}: Định mức tối thiểu /{dStr}, Đơn giá vốn x{dStr}. Tồn kho thực tế ({curMat.CurrentStock:0.###} {oldUom.Abbreviation}) sẽ được tự động cập nhật thành {previewStock:0.###} {newUom.Abbreviation} khi bấm Lưu.";
+                        }
+                    }
+                }
+            }
+            else
+            {
+                _conversionNotice = null;
+            }
+        }
+
+        _model.UnitOfMeasureId = newUomId;
     }
 
     private void CloseForm()

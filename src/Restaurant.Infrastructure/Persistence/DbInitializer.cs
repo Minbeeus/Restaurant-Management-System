@@ -204,14 +204,17 @@ public static class DbInitializer
         await SeedPizzaAreasAndTablesAsync(context);
 
 
-        // 7. UnitOfMeasures & Materials
+        // 7. UnitOfMeasures, Conversions & Materials
         if (!await context.UnitOfMeasures.AnyAsync())
         {
             var unitKg = new UnitOfMeasure { Name = "Kilogram", Abbreviation = "Kg" };
             var unitLit = new UnitOfMeasure { Name = "Lít", Abbreviation = "L" };
             var unitHop = new UnitOfMeasure { Name = "Hộp / Lon", Abbreviation = "Hộp" };
+            var unitGram = new UnitOfMeasure { Name = "Gram", Abbreviation = "g" };
+            var unitMl = new UnitOfMeasure { Name = "Mililít", Abbreviation = "ml" };
+            var unitPcs = new UnitOfMeasure { Name = "Cái / Miếng", Abbreviation = "Pcs" };
 
-            await context.UnitOfMeasures.AddRangeAsync(unitKg, unitLit, unitHop);
+            await context.UnitOfMeasures.AddRangeAsync(unitKg, unitLit, unitHop, unitGram, unitMl, unitPcs);
             await context.SaveChangesAsync();
 
             var materials = new List<Material>
@@ -219,11 +222,18 @@ public static class DbInitializer
                 new Material { UnitOfMeasureId = unitKg.Id, Name = "Bột mì Tipo 00", NameEn = "Tipo 00 Flour", CurrentStock = 120.5m, MinStockLevel = 30m, CostPerUnit = 25000, IsActive = true },
                 new Material { UnitOfMeasureId = unitKg.Id, Name = "Phô mai Mozzarella Fresh", NameEn = "Fresh Mozzarella Cheese", CurrentStock = 14.2m, MinStockLevel = 20m, CostPerUnit = 180000, IsActive = true },
                 new Material { UnitOfMeasureId = unitLit.Id, Name = "Sốt cà chua San Marzano", NameEn = "San Marzano Tomato Sauce", CurrentStock = 45.0m, MinStockLevel = 15m, CostPerUnit = 45000, IsActive = true },
-                new Material { UnitOfMeasureId = unitKg.Id, Name = "Lá húng tây Basil tươi", NameEn = "Fresh Basil Leaves", CurrentStock = 1.8m, MinStockLevel = 2.0m, CostPerUnit = 120000, IsActive = true },
+                new Material { UnitOfMeasureId = unitGram.Id, Name = "Lá húng tây Basil tươi", NameEn = "Fresh Basil Leaves", CurrentStock = 300m, MinStockLevel = 1000m, CostPerUnit = 150, IsActive = true },
                 new Material { UnitOfMeasureId = unitKg.Id, Name = "Thịt bò Xay đút lò", NameEn = "Minced Beef", CurrentStock = 28.5m, MinStockLevel = 10m, CostPerUnit = 220000, IsActive = true }
             };
 
             await context.Materials.AddRangeAsync(materials);
+            await context.SaveChangesAsync();
+
+            var convKgG = new UnitConversion { FromUnitId = unitKg.Id, ToUnitId = unitGram.Id, ConversionFactor = 1000m, CreatedAt = DateTime.UtcNow };
+            var convGKg = new UnitConversion { FromUnitId = unitGram.Id, ToUnitId = unitKg.Id, ConversionFactor = 0.001m, CreatedAt = DateTime.UtcNow };
+            var convLMl = new UnitConversion { FromUnitId = unitLit.Id, ToUnitId = unitMl.Id, ConversionFactor = 1000m, CreatedAt = DateTime.UtcNow };
+            var convMlL = new UnitConversion { FromUnitId = unitMl.Id, ToUnitId = unitLit.Id, ConversionFactor = 0.001m, CreatedAt = DateTime.UtcNow };
+            await context.UnitConversions.AddRangeAsync(convKgG, convGKg, convLMl, convMlL);
             await context.SaveChangesAsync();
         }
 

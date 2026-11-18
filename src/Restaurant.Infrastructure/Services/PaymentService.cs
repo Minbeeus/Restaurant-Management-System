@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -56,31 +57,29 @@ public class PaymentService : IPaymentService
         }
 
         var sepayContent = $"POS{order.Id}";
-        var bankAccount = !string.IsNullOrWhiteSpace(request.BankAccountNo)
+        var bankAccount = !string.IsNullOrWhiteSpace(request.BankAccountNo) && request.BankAccountNo != "11102042003"
             ? request.BankAccountNo
             : (_configuration["SePay:AccountNumber"] ?? "11102042003");
-        var bankName = !string.IsNullOrWhiteSpace(request.BankName)
+        var bankName = !string.IsNullOrWhiteSpace(request.BankName) && request.BankName != "TPBank"
             ? request.BankName
             : (_configuration["SePay:Bank"] ?? "TPBank");
-        var accountHolder = !string.IsNullOrWhiteSpace(request.AccountHolder)
+        var accountHolder = !string.IsNullOrWhiteSpace(request.AccountHolder) && request.AccountHolder != "VAN CONG MINH"
             ? request.AccountHolder
             : (_configuration["SePay:AccountHolder"] ?? "VAN CONG MINH");
 
         var amountStr = order.TotalAmount.ToString("0");
         var encodedHolder = Uri.EscapeDataString(accountHolder);
 
-        // VietQR URLs:
-        // 1. Dynamic VietQR with amount and memo (VietQR official standard image)
-        var vietQrDynamicUrl = $"https://img.vietqr.io/image/{bankName}-{bankAccount}-compact2.png?amount={amountStr}&addInfo={sepayContent}&accountName={encodedHolder}";
-        // 2. Pure static account VietQR (without amount/memo - static counter account QR)
-        var vietQrStaticUrl = $"https://img.vietqr.io/image/{bankName}-{bankAccount}-compact2.png?accountName={encodedHolder}";
-        // 3. Official SePay QR image URL fallback
+        // VietQR & SePay QR URLs:
+        // 1. Official SePay QR image URL
         var sepayQrUrl = $"https://qr.sepay.vn/img?acc={bankAccount}&bank={bankName}&amount={amountStr}&des={sepayContent}&template=compact";
+        // 2. Dynamic VietQR with amount and memo (VietQR official standard image)
+        var vietQrDynamicUrl = $"https://img.vietqr.io/image/{bankName}-{bankAccount}-compact2.png?amount={amountStr}&addInfo={sepayContent}&accountName={encodedHolder}";
+        // 3. Pure static account VietQR (without amount/memo - static counter account QR)
+        var vietQrStaticUrl = $"https://img.vietqr.io/image/{bankName}-{bankAccount}-compact2.png?accountName={encodedHolder}";
 
-        // Generate base64 fallback QR image using the dynamic VietQR URL
-        var qrBytes = _qrCodeService.GenerateQrCodeImage(vietQrDynamicUrl);
-        var qrBase64 = Convert.ToBase64String(qrBytes);
-        var qrImageUrl = $"data:image/png;base64,{qrBase64}";
+        var qrBytes = _qrCodeService.GenerateQrCodeImage(sepayQrUrl);
+        var base64Qr = $"data:image/png;base64,{Convert.ToBase64String(qrBytes)}";
 
         return new VietQrResponse
         {
@@ -88,8 +87,8 @@ public class PaymentService : IPaymentService
             OrderCode = order.OrderCode,
             Amount = order.TotalAmount,
             SepayContent = sepayContent,
-            QrImageUrl = qrImageUrl,
-            SepayQrUrl = vietQrDynamicUrl,
+            QrImageUrl = base64Qr,
+            SepayQrUrl = sepayQrUrl,
             StaticQrUrl = vietQrStaticUrl,
             BankAccountNo = bankAccount,
             BankName = bankName,
@@ -97,16 +96,22 @@ public class PaymentService : IPaymentService
         };
     }
 
-    public async Task<bool> ProcessSepayWebhookAsync(SepayWebhookPayload payload, string? signatureHeader)
+    public async Task<bool> ProcessSepayWebhookAsync(SepayWebhookPayload payload, string? signatureHeader, string? queryToken = null)
     {
         // 1. Signature Security Check
-        var apiKey = _configuration["SePay:ApiKey"] ?? "SePaySecretApiKey123!";
-        if (!VerifySePaySignature(payload, signatureHeader, apiKey))
+        if (!VerifySePaySignature(payload, signatureHeader, queryToken))
         {
             return false;
         }
 
-        // 2. Idempotency Check via SepayWebhookLogs
+        // 2. Ignore debit / out transactions (money transferred out of the bank account)
+        if (!string.IsNullOrEmpty(payload.transferType) &&
+            string.Equals(payload.transferType, "out", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 3. Idempotency Check via SepayWebhookLogs
         var existingLog = await _context.SepayWebhookLogs
             .FirstOrDefaultAsync(l => l.TransactionId == payload.id.ToString());
 
@@ -124,9 +129,9 @@ public class PaymentService : IPaymentService
                 {
                     TransactionId = payload.id.ToString(),
                     Amount = payload.transferAmount,
-                    Content = payload.content,
-                    BankCode = payload.gateway,
-                    AccountNumber = payload.accountNumber,
+                    Content = payload.content ?? string.Empty,
+                    BankCode = payload.gateway ?? string.Empty,
+                    AccountNumber = payload.accountNumber ?? string.Empty,
                     RawPayload = payload.description ?? string.Empty,
                     IsProcessed = false,
                     ReceivedAt = DateTime.UtcNow
@@ -143,11 +148,11 @@ public class PaymentService : IPaymentService
             }
         }
 
-        // Parse OrderId from content (e.g., POS123 -> OrderId = 123)
-        int? orderId = ParseOrderIdFromContent(payload.content);
-        if (!orderId.HasValue)
+        // 4. Robust Order Resolution
+        var order = await FindOrderForSepayPayloadAsync(payload);
+        if (order == null)
         {
-            existingLog.ErrorLog = "Cannot parse OrderId from SePay content: " + payload.content;
+            existingLog.ErrorLog = $"Cannot match any order for SePay payload. ID={payload.id}, Code='{payload.code}', Content='{payload.content}', Amount={payload.transferAmount:N0}đ";
             await _context.SaveChangesAsync();
             return true;
         }
@@ -155,19 +160,6 @@ public class PaymentService : IPaymentService
         using var dbTransaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            var order = await _context.Orders
-                .Include(o => o.Table)
-                .Include(o => o.Customer)
-                .FirstOrDefaultAsync(o => o.Id == orderId.Value);
-
-            if (order == null)
-            {
-                existingLog.ErrorLog = $"Order ID {orderId} not found.";
-                await _context.SaveChangesAsync();
-                await dbTransaction.CommitAsync();
-                return true;
-            }
-
             // Conflict Check: If Order is ALREADY Paid by Cash or completed earlier
             if (order.PaymentStatus == (int)PaymentStatus.Paid)
             {
@@ -189,7 +181,7 @@ public class PaymentService : IPaymentService
             // Amount Validation
             if (payload.transferAmount < order.TotalAmount)
             {
-                existingLog.ErrorLog = $"Amount Mismatch: Received {payload.transferAmount:N0}đ but Order requires {order.TotalAmount:N0}đ.";
+                existingLog.ErrorLog = $"Amount Mismatch: Received {payload.transferAmount:N0}đ but Order {order.OrderCode} requires {order.TotalAmount:N0}đ.";
                 await _context.SaveChangesAsync();
                 await dbTransaction.CommitAsync();
 
@@ -213,7 +205,8 @@ public class PaymentService : IPaymentService
                 Amount = payload.transferAmount,
                 PaymentMethod = (int)PaymentMethod.BankTransfer,
                 Status = (int)PaymentStatus.Paid,
-                TransactionRef = payload.referenceCode,
+                TransactionRef = !string.IsNullOrEmpty(payload.referenceCode) ? payload.referenceCode : payload.id.ToString(),
+                SepayContent = payload.content,
                 CompletedAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow
             };
@@ -231,15 +224,14 @@ public class PaymentService : IPaymentService
             }
 
             existingLog.IsProcessed = true;
+            existingLog.PaymentId = payment.Id;
             await _context.SaveChangesAsync();
 
-            // Accumulate Loyalty Points if Customer exists (Tích điểm theo giá trị đơn trước khi khấu trừ giảm giá thành viên và voucher)
+            // Accumulate Loyalty Points if Customer exists
             if (order.CustomerId.HasValue)
             {
                 await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, order.SubTotal);
             }
-
-            // OrderPaidDomainEvent removed (BOM Inventory Deduction is now handled by Kitchen Item Done event)
 
             await dbTransaction.CommitAsync();
 
@@ -261,7 +253,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task<CashPaymentResponse> ProcessCashPaymentAsync(ProcessCashPaymentRequest request)
+    public async Task<CashPaymentResponse> ProcessCashPaymentAsync(ProcessCashPaymentRequest request, int? processedByUserId = null)
     {
         if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
         {
@@ -403,6 +395,7 @@ public class PaymentService : IPaymentService
             {
                 OrderId = order.Id,
                 ShiftId = activeShift?.Id ?? 1,
+                ProcessedByUserId = processedByUserId ?? order.CreatedByUserId,
                 Amount = order.TotalAmount,
                 CashReceived = request.CashReceived,
                 ChangeAmount = changeAmount,
@@ -474,20 +467,65 @@ public class PaymentService : IPaymentService
         }
     }
 
-    private static bool VerifySePaySignature(SepayWebhookPayload payload, string? signatureHeader, string apiKey)
+    public async Task<bool> CheckPaymentStatusAsync(int orderId)
     {
-        if (string.IsNullOrWhiteSpace(signatureHeader)) return true;
+        return await _context.Orders
+            .AsNoTracking()
+            .AnyAsync(o => o.Id == orderId && o.PaymentStatus == (int)PaymentStatus.Paid);
+    }
+
+    private bool VerifySePaySignature(SepayWebhookPayload payload, string? signatureHeader, string? queryToken = null)
+    {
+        // When invoked programmatically or in test harnesses where signatureHeader & queryToken are omitted
+        if (string.IsNullOrWhiteSpace(signatureHeader) && string.IsNullOrWhiteSpace(queryToken))
+        {
+            return true;
+        }
+
+        var configuredApiKey = _configuration["SePay:ApiKey"]?.Trim();
+        if (string.IsNullOrWhiteSpace(configuredApiKey))
+        {
+            // If no API key configured, accept webhook (test/dev environment)
+            return true;
+        }
+
+        // 1. Check query parameter ?apiKey=...
+        if (!string.IsNullOrWhiteSpace(queryToken) && string.Equals(queryToken.Trim(), configuredApiKey, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(signatureHeader))
+        {
+            return false;
+        }
 
         var headerVal = signatureHeader.Trim();
+
+        // 2. Official SePay default format: "Apikey <TOKEN>"
         if (headerVal.StartsWith("Apikey ", StringComparison.OrdinalIgnoreCase))
         {
             var token = headerVal.Substring(7).Trim();
-            return string.Equals(token, apiKey, StringComparison.Ordinal);
+            return string.Equals(token, configuredApiKey, StringComparison.Ordinal);
         }
 
+        // 3. Bearer format: "Bearer <TOKEN>"
+        if (headerVal.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var token = headerVal.Substring(7).Trim();
+            return string.Equals(token, configuredApiKey, StringComparison.Ordinal);
+        }
+
+        // 4. Raw API key passed in header
+        if (string.Equals(headerVal, configuredApiKey, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // 5. SePay secure HMAC-SHA256 signature
         try
         {
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(apiKey));
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(configuredApiKey));
             var rawData = $"{payload.id}{payload.transferAmount}{payload.referenceCode}";
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawData));
             var expectedSignature = Convert.ToHexString(hash).ToLower();
@@ -500,20 +538,87 @@ public class PaymentService : IPaymentService
         }
     }
 
-    private static int? ParseOrderIdFromContent(string content)
+    private async Task<Order?> FindOrderForSepayPayloadAsync(SepayWebhookPayload payload)
     {
-        if (string.IsNullOrWhiteSpace(content)) return null;
-
-        var upper = content.ToUpper();
-        int idx = upper.IndexOf("POS");
-        if (idx >= 0)
+        // Strategy 1: Check payload.code (SePay automatic code extraction)
+        if (!string.IsNullOrWhiteSpace(payload.code))
         {
-            var numberStr = new string(upper.Substring(idx + 3).TakeWhile(char.IsDigit).ToArray());
-            if (int.TryParse(numberStr, out var id)) return id;
+            var trimmedCode = payload.code.Trim();
+            var byCode = await _context.Orders
+                .Include(o => o.Table)
+                .Include(o => o.Customer)
+                .FirstOrDefaultAsync(o => o.OrderCode == trimmedCode);
+            if (byCode != null) return byCode;
+
+            var codeOrderId = ExtractOrderId(trimmedCode);
+            if (codeOrderId.HasValue)
+            {
+                var byId = await _context.Orders
+                    .Include(o => o.Table)
+                    .Include(o => o.Customer)
+                    .FirstOrDefaultAsync(o => o.Id == codeOrderId.Value);
+                if (byId != null) return byId;
+            }
         }
 
-        var digitsOnly = new string(content.Where(char.IsDigit).ToArray());
-        if (int.TryParse(digitsOnly, out var fallbackId)) return fallbackId;
+        // Strategy 2: Check payload.content (Bank transfer memo / description)
+        if (!string.IsNullOrWhiteSpace(payload.content))
+        {
+            var memo = payload.content.Trim();
+
+            // 2a. Check if any order's OrderCode is inside memo
+            var candidateOrders = await _context.Orders
+                .Include(o => o.Table)
+                .Include(o => o.Customer)
+                .Where(o => o.PaymentStatus != (int)PaymentStatus.Paid && o.Status != (int)OrderStatus.Cancelled)
+                .OrderByDescending(o => o.CreatedAt)
+                .Take(50)
+                .ToListAsync();
+
+            var matchingOrder = candidateOrders.FirstOrDefault(o => !string.IsNullOrEmpty(o.OrderCode) && memo.Contains(o.OrderCode, StringComparison.OrdinalIgnoreCase));
+            if (matchingOrder != null) return matchingOrder;
+
+            // 2b. Extract Order ID from memo pattern like "POS15", "POS 15", "POS-15", "DH15", "ORD-15"
+            var memoOrderId = ExtractOrderId(memo);
+            if (memoOrderId.HasValue)
+            {
+                var orderById = await _context.Orders
+                    .Include(o => o.Table)
+                    .Include(o => o.Customer)
+                    .FirstOrDefaultAsync(o => o.Id == memoOrderId.Value);
+                if (orderById != null) return orderById;
+            }
+        }
+
+        // Strategy 3: Exact amount match fallback (for orders created in the last 24h still pending)
+        var recentOrdersWithExactAmount = await _context.Orders
+            .Include(o => o.Table)
+            .Include(o => o.Customer)
+            .Where(o => o.PaymentStatus != (int)PaymentStatus.Paid 
+                     && o.Status != (int)OrderStatus.Cancelled
+                     && o.TotalAmount == payload.transferAmount
+                     && o.CreatedAt >= DateTime.UtcNow.AddHours(-24))
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+
+        if (recentOrdersWithExactAmount.Count == 1)
+        {
+            return recentOrdersWithExactAmount[0];
+        }
+
+        return null;
+    }
+
+    private static int? ExtractOrderId(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        // Regex matches "POS15", "POS 15", "POS-15", "POS_15", "DH12", "ORDER 123", "ORD-123"
+        var match = Regex.Match(text, @"(?:POS|DH|DON|ORDER|ORD)\s*[-_:]?\s*(\d+)", RegexOptions.IgnoreCase);
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var id))
+        {
+            return id;
+        }
 
         return null;
     }

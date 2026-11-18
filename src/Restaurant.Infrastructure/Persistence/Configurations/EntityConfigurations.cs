@@ -63,6 +63,11 @@ public class ConfigurationConfigurations :
             .WithMany()
             .HasForeignKey(p => p.ShiftId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(p => p.ProcessedByUser)
+            .WithMany()
+            .HasForeignKey(p => p.ProcessedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 
     public void Configure(EntityTypeBuilder<Refund> builder)
@@ -153,6 +158,21 @@ public class ConfigurationConfigurations :
     public void Configure(EntityTypeBuilder<Shift> builder)
     {
         builder.Property(s => s.RowVersion).IsRowVersion();
+
+        builder.HasOne(s => s.OpenedByUser)
+            .WithMany()
+            .HasForeignKey(s => s.OpenedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(s => s.CashCustodianUser)
+            .WithMany()
+            .HasForeignKey(s => s.CashCustodianUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(s => s.ClosedByUser)
+            .WithMany()
+            .HasForeignKey(s => s.ClosedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 
     public void Configure(EntityTypeBuilder<Material> builder)

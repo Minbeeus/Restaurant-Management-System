@@ -49,7 +49,7 @@ public class MockIdentityService : IIdentityService
         return Task.FromResult<PinLoginResponse?>(null);
     }
 
-    public Task<bool> VerifyManagerPinAsync(string pinCode)
+    public Task<bool> VerifyManagerPinAsync(string pinCode, string? terminalOrIpKey = null)
     {
         return Task.FromResult(pinCode == "123456");
     }
@@ -57,6 +57,23 @@ public class MockIdentityService : IIdentityService
     public Task<UserDto?> GetUserByIdAsync(int userId)
     {
         return Task.FromResult<UserDto?>(new UserDto { Id = userId, Username = "test", FullName = "Test" });
+    }
+
+    public Task<UserDto?> GetUserByPinAsync(string pinCode)
+    {
+        if (pinCode == "002007" || pinCode == "001006")
+        {
+            return Task.FromResult<UserDto?>(new UserDto
+            {
+                Id = 2007,
+                Username = "vcm243",
+                FullName = "Văn Công Minh",
+                RoleName = "Cashier",
+                EmployeeCode = "2007",
+                IsActive = true
+            });
+        }
+        return Task.FromResult<UserDto?>(null);
     }
 
     public string HashPassword(string password)
@@ -90,6 +107,21 @@ public class MockIdentityService : IIdentityService
             RoleName = "Staff",
             Email = request.Email,
             PhoneNumber = request.PhoneNumber,
+            IsActive = true
+        });
+    }
+
+    public Task<UserDto> UpdateUserAsync(int userId, UpdateUserRequest request)
+    {
+        return Task.FromResult(new UserDto
+        {
+            Id = userId,
+            Username = "user" + userId,
+            FullName = request.FullName,
+            RoleName = "Staff",
+            Email = request.Email,
+            PhoneNumber = request.PhoneNumber,
+            EmployeeCode = $"NV{userId:D6}",
             IsActive = true
         });
     }

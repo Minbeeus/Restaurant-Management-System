@@ -26,6 +26,7 @@ public interface ICashMovementService
     Task<CashMovementDto> PerformCashAdjustmentAsync(int managerUserId, int shiftId, CashAdjustmentRequest request);
     Task<CashMovementSummaryDto> GetShiftCashMovementsAsync(int shiftId);
     Task<List<CashMovementDto>> GetAllStoreCashMovementsAsync(DateTime? fromDate, DateTime? toDate);
+    Task<TillOutBalanceCheckDto> CheckTillOutBalanceAsync(CheckTillOutBalanceRequest request);
 }
 
 public interface IBillViewerService
