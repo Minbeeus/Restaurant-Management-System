@@ -1007,7 +1007,10 @@
     private async Task HandlePaymentCompleted()
     {
         ShowPaymentModalState = false;
+        SelectedTable = null;
         await LoadTablesAsync();
+        await InvokeAsync(StateHasChanged);
+        _ = ShowToastAsync("Đã ghi nhận thanh toán thành công!");
     }
 
     private string GetStatusBadgeClass(int status) => status switch

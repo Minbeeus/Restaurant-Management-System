@@ -460,9 +460,12 @@
         _isPaymentSuccess = true;
         _pollingCts?.Cancel();
         await InvokeAsync(StateHasChanged);
-        await Task.Delay(1500);
-        await CloseAsync();
-        await OnPaymentSuccess.InvokeAsync(true);
+        await Task.Delay(1000);
+        await InvokeAsync(async () =>
+        {
+            await CloseAsync();
+            await OnPaymentSuccess.InvokeAsync(true);
+        });
     }
 
     private void StartPollingPaymentStatus()
@@ -685,8 +688,14 @@
             var response = await Http.PostAsJsonAsync("api/v1/payments/cash", request);
             if (response.IsSuccessStatusCode)
             {
-                await CloseAsync();
-                await OnPaymentSuccess.InvokeAsync(true);
+                _isPaymentSuccess = true;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(800);
+                await InvokeAsync(async () =>
+                {
+                    await CloseAsync();
+                    await OnPaymentSuccess.InvokeAsync(true);
+                });
             }
             else
             {

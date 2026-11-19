@@ -564,9 +564,12 @@
         _isPaymentSuccess = true;
         _pollingCts?.Cancel();
         await InvokeAsync(StateHasChanged);
-        await Task.Delay(1500);
-        await CloseAsync();
-        await OnPaymentCompleted.InvokeAsync(true);
+        await Task.Delay(1000);
+        await InvokeAsync(async () =>
+        {
+            await CloseAsync();
+            await OnPaymentCompleted.InvokeAsync(true);
+        });
     }
 
     private void StartPollingPaymentStatus()
@@ -612,14 +615,18 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (IsOpen && OrderId > 0 && !_orderItems.Any())
+        if (IsOpen)
         {
-            _cashReceived = 0; // Default = 0
-            _customerPhone = CustomerPhone ?? string.Empty;
-            await LoadOrderDetailsAsync();
-            if (!string.IsNullOrEmpty(_customerPhone))
+            _isPaymentSuccess = false;
+            if (OrderId > 0 && !_orderItems.Any())
             {
-                await SearchCustomerAsync();
+                _cashReceived = 0; // Default = 0
+                _customerPhone = CustomerPhone ?? string.Empty;
+                await LoadOrderDetailsAsync();
+                if (!string.IsNullOrEmpty(_customerPhone))
+                {
+                    await SearchCustomerAsync();
+                }
             }
         }
     }
@@ -843,8 +850,14 @@
             var res = await Http.PostAsJsonAsync("api/v1/payments/cash", req);
             if (res.IsSuccessStatusCode)
             {
-                await CloseAsync();
-                await OnPaymentCompleted.InvokeAsync(true);
+                _isPaymentSuccess = true;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(800);
+                await InvokeAsync(async () =>
+                {
+                    await CloseAsync();
+                    await OnPaymentCompleted.InvokeAsync(true);
+                });
             }
             else
             {
@@ -877,11 +890,13 @@
     {
         _pollingCts?.Cancel();
         IsOpen = false;
+        _isPaymentSuccess = false;
         _cashReceived = 0;
         _orderItems.Clear();
         _qrData = null;
         _errorMessage = string.Empty;
         await IsOpenChanged.InvokeAsync(false);
+        await InvokeAsync(StateHasChanged);
     }
 
     public async ValueTask DisposeAsync()
