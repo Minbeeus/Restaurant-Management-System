@@ -117,30 +117,47 @@ public class PaymentsController : ControllerBase
             });
         }
 
-        var success = await _paymentService.ProcessSepayWebhookAsync(payload, signatureHeader, apiKey);
-
-        if (!success)
+        try
         {
-            return Unauthorized(new
+            var success = await _paymentService.ProcessSepayWebhookAsync(payload, signatureHeader, apiKey);
+
+            if (!success)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    data = (object?)null,
+                    error = new
+                    {
+                        code = "WEBHOOK_PROCESS_FAILED",
+                        message = "Xử lý webhook không thành công hoặc chữ ký không khớp."
+                    },
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                data = new { message = "Webhook SePay đã được xử lý thành công." },
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new
             {
                 success = false,
                 data = (object?)null,
                 error = new
                 {
-                    code = "INVALID_WEBHOOK_SIGNATURE",
-                    message = "Chữ ký xác thực SePay Webhook không hợp lệ."
+                    code = "WEBHOOK_EXCEPTION",
+                    message = ex.Message
                 },
                 timestamp = DateTime.UtcNow
             });
         }
-
-        return Ok(new
-        {
-            success = true,
-            data = new { message = "Webhook SePay đã được xử lý thành công." },
-            error = (object?)null,
-            timestamp = DateTime.UtcNow
-        });
     }
 
     [HttpGet("status/{orderId}")]

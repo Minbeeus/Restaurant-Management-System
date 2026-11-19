@@ -198,10 +198,30 @@ public class PaymentService : IPaymentService
             var activeShift = await _context.Shifts.FirstOrDefaultAsync(s => s.Status == (int)ShiftStatus.Open)
                              ?? await _context.Shifts.FirstOrDefaultAsync();
 
+            int validShiftId;
+            if (activeShift != null)
+            {
+                validShiftId = activeShift.Id;
+            }
+            else
+            {
+                var fallbackShift = new Shift
+                {
+                    ShiftCode = $"AUTO-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    UserId = order.CreatedByUserId > 0 ? order.CreatedByUserId : 1,
+                    Status = (int)ShiftStatus.Open,
+                    OpenedAt = DateTime.UtcNow,
+                    OpeningBalance = 0
+                };
+                _context.Shifts.Add(fallbackShift);
+                await _context.SaveChangesAsync();
+                validShiftId = fallbackShift.Id;
+            }
+
             var payment = new Payment
             {
                 OrderId = order.Id,
-                ShiftId = activeShift?.Id ?? 1,
+                ShiftId = validShiftId,
                 Amount = payload.transferAmount,
                 PaymentMethod = (int)PaymentMethod.BankTransfer,
                 Status = (int)PaymentStatus.Paid,
@@ -223,6 +243,9 @@ public class PaymentService : IPaymentService
                 order.Table.Status = (int)TableStatus.Paid;
             }
 
+            // Save payment first to generate identity Id
+            await _context.SaveChangesAsync();
+
             existingLog.IsProcessed = true;
             existingLog.PaymentId = payment.Id;
             await _context.SaveChangesAsync();
@@ -230,26 +253,40 @@ public class PaymentService : IPaymentService
             // Accumulate Loyalty Points if Customer exists
             if (order.CustomerId.HasValue)
             {
-                await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, order.SubTotal);
+                try
+                {
+                    await _loyaltyService.AccumulatePointsAsync(order.CustomerId.Value, order.Id, order.SubTotal);
+                }
+                catch { }
             }
 
             await dbTransaction.CommitAsync();
 
-            // Realtime Broadcasts
-            await _notificationService.NotifyPaymentCompletedAsync(order.Id, order.OrderCode, payload.transferAmount, "VietQR");
-            if (order.TableId.HasValue)
+            // Realtime Broadcasts (Safe - do not let broadcast error break transaction)
+            try
             {
-                await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Paid) ?? "Paid");
+                await _notificationService.NotifyPaymentCompletedAsync(order.Id, order.OrderCode, payload.transferAmount, "VietQR");
+                if (order.TableId.HasValue)
+                {
+                    await _notificationService.NotifyTableStatusSyncAsync(order.TableId.Value, Enum.GetName(typeof(TableStatus), (int)TableStatus.Paid) ?? "Paid");
+                }
             }
+            catch { }
 
             return true;
         }
         catch (Exception ex)
         {
             await dbTransaction.RollbackAsync();
-            existingLog.ErrorLog = "Exception during Webhook processing: " + ex.Message;
-            await _context.SaveChangesAsync();
-            throw;
+            var innerMsg = ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "";
+            existingLog.ErrorLog = $"Exception during Webhook processing: {ex.Message}{innerMsg}";
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch { }
+            Console.WriteLine($"Lỗi xử lý SePay webhook cho đơn {order?.OrderCode}: {ex.Message}");
+            return false;
         }
     }
 
