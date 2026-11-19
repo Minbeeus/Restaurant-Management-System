@@ -21,7 +21,7 @@ public class PaymentsController : ControllerBase
 
     [HttpPost("generate-vietqr")]
     [HttpPost("vietqr")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> GenerateVietQr([FromBody] GenerateVietQrRequest request)
     {
         var result = await _paymentService.GenerateVietQrAsync(request);
@@ -32,6 +32,34 @@ public class PaymentsController : ControllerBase
             error = (object?)null,
             timestamp = DateTime.UtcNow
         });
+    }
+
+    [HttpGet("display/{orderId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCustomerPaymentDisplay(int orderId)
+    {
+        try
+        {
+            var qr = await _paymentService.GenerateVietQrAsync(new GenerateVietQrRequest { OrderId = orderId });
+            var isPaid = await _paymentService.CheckPaymentStatusAsync(orderId);
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    orderId,
+                    isPaid,
+                    vietQr = qr
+                },
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { success = false, error = new { message = ex.Message } });
+        }
     }
 
     [HttpGet("sepay-webhook")]
@@ -57,8 +85,18 @@ public class PaymentsController : ControllerBase
     [HttpPost("/api/sepay-webhook")]
     [HttpPost("/sepay-webhook")]
     [AllowAnonymous]
-    public async Task<IActionResult> SepayWebhook([FromBody] SepayWebhookPayload payload, [FromQuery] string? apiKey = null)
+    public async Task<IActionResult> SepayWebhook([FromBody] SepayWebhookPayload? payload, [FromQuery] string? apiKey = null)
     {
+        if (payload == null)
+        {
+            return Ok(new
+            {
+                success = true,
+                data = new { message = "Ping test nhận thành công." },
+                error = (object?)null,
+                timestamp = DateTime.UtcNow
+            });
+        }
         var signatureHeader = Request.Headers["Authorization"].FirstOrDefault()
                               ?? Request.Headers["X-Api-Key"].FirstOrDefault()
                               ?? Request.Headers["X-SePay-Signature"].FirstOrDefault();

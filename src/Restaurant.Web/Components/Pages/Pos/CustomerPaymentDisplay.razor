@@ -1,0 +1,474 @@
+@page "/customer-display/{OrderId:int}"
+@page "/customer-display"
+@rendermode InteractiveServer
+@layout Restaurant.Web.Components.Layout.EmptyLayout
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@using System.Net.Http.Json
+@using Restaurant.Application.DTOs
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject Restaurant.Web.Services.IBackendEndpointProvider Endpoints
+@implements IAsyncDisposable
+
+<PageTitle>Màn Hình Thanh Toán Khách Hàng - Pizza Corner</PageTitle>
+
+<div class="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans select-none overflow-x-hidden">
+    <!-- Top Brand Header Bar -->
+    <header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0 shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center text-white shadow-md text-2xl font-black">
+                🍕
+            </div>
+            <div>
+                <h1 class="text-xl font-black tracking-wider uppercase text-white m-0 flex items-center gap-2">
+                    <span>PIZZA CORNER</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-widest">
+                        Customer Display
+                    </span>
+                </h1>
+                <p class="text-xs text-slate-400 m-0">Hương vị chuẩn Ý • Thơm ngon chuẩn vị</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 text-xs font-medium text-slate-400">
+            <div class="flex items-center gap-2 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700">
+                <span class="inline-block w-2.5 h-2.5 rounded-full @(_isPaid ? "bg-emerald-400 animate-ping" : "bg-emerald-500")"></span>
+                <span class="text-slate-300 font-bold">@(_isPaid ? "Đã Thanh Toán" : (OrderId > 0 ? "Đang Chờ Quét QR" : "Sẵn Sàng"))</span>
+            </div>
+            <div class="hidden sm:block text-slate-300 font-mono font-bold text-sm bg-slate-800/50 px-3 py-1 rounded-lg border border-slate-800">
+                @DateTime.Now.ToString("HH:mm")
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-4 sm:p-6 lg:p-8 flex items-center justify-center min-h-0">
+        @if (OrderId <= 0 && _displayOrder == null)
+        {
+            <!-- Standby Idle Screen when no active order -->
+            <div class="max-w-md w-full text-center space-y-6 py-12 animate-fade-in">
+                <div class="relative inline-block">
+                    <div class="w-28 h-28 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500/20 to-rose-500/20 border border-amber-500/30 flex items-center justify-center text-6xl shadow-2xl animate-bounce">
+                        🍕
+                    </div>
+                    <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-slate-950 font-black text-[11px] px-2 py-0.5 rounded-full shadow">
+                        READY
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <h2 class="text-2xl font-black text-white">Chào Mừng Quý Khách!</h2>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Màn hình thanh toán sẽ tự động hiển thị mã QR VietQR khi thu ngân tạo hóa đơn.
+                    </p>
+                </div>
+
+                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700/60 text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-amber-400 text-lg">contactless</span>
+                    <span>Hỗ trợ thanh toán VietQR chuyển khoản liên ngân hàng 24/7</span>
+                </div>
+            </div>
+        }
+        else if (_isLoading)
+        {
+            <div class="flex flex-col items-center justify-center gap-4 py-20 text-slate-400">
+                <div class="animate-spin rounded-full h-12 w-12 border-3 border-amber-500 border-t-transparent"></div>
+                <span class="text-sm font-semibold tracking-wide">Đang khởi tạo mã thanh toán VietQR...</span>
+            </div>
+        }
+        else if (_isPaid)
+        {
+            <!-- Success Screen (Celebration View) -->
+            <div class="max-w-xl w-full bg-slate-800/90 border border-emerald-500/40 rounded-3xl p-8 sm:p-10 text-center shadow-2xl space-y-6 animate-fade-in">
+                <div class="relative inline-block">
+                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 mx-auto shadow-inner">
+                        <span class="material-symbols-outlined text-6xl sm:text-7xl">check_circle</span>
+                    </div>
+                    <div class="absolute inset-0 rounded-full bg-emerald-400/20 animate-ping"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <h2 class="text-2xl sm:text-3xl font-black text-white tracking-wide">
+                        THANH TOÁN THÀNH CÔNG!
+                    </h2>
+                    <p class="text-slate-300 text-sm sm:text-base">
+                        Pizza Corner đã nhận được số tiền:
+                        <strong class="text-emerald-400 font-black text-xl block mt-1">@_finalAmount.ToString("N0") VNĐ</strong>
+                    </p>
+                </div>
+
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700/80 text-xs sm:text-sm space-y-1.5 text-slate-300">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Mã đơn hàng:</span>
+                        <span class="font-mono font-bold text-white">@_orderCode</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Vị trí:</span>
+                        <span class="font-bold text-white">@_tableName</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Thời gian xác nhận:</span>
+                        <span class="font-mono text-emerald-400">@DateTime.Now.ToString("HH:mm:ss dd/MM/yyyy")</span>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-400 italic">
+                    🎉 Cảm ơn Quý khách đã dùng bữa tại Pizza Corner! Chúc Quý khách ngon miệng!
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Active Payment Split View -->
+            <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                
+                <!-- Left: Order Details & Bill Breakdown (5 cols) -->
+                <div class="lg:col-span-5 bg-slate-800/80 backdrop-blur-md rounded-3xl border border-slate-700 p-5 sm:p-6 flex flex-col justify-between shadow-xl">
+                    <div class="space-y-4">
+                        <!-- Order Header Info -->
+                        <div class="pb-3 border-b border-slate-700 flex justify-between items-start">
+                            <div>
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400 block">Đơn Hàng</span>
+                                <h3 class="text-lg font-black text-white font-mono">@_orderCode</h3>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Vị trí</span>
+                                <span class="text-sm font-extrabold text-white px-2.5 py-0.5 rounded-lg bg-slate-700 border border-slate-600 inline-block">
+                                    @_tableName
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Item list -->
+                        <div>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                                Danh Sách Món (@(_displayOrder?.Items?.Count ?? 0) món)
+                            </span>
+                            <div class="max-h-64 sm:max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                @if (_displayOrder?.Items != null && _displayOrder.Items.Any())
+                                {
+                                    @foreach (var item in _displayOrder.Items)
+                                    {
+                                        <div class="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800 flex justify-between items-center text-xs">
+                                            <div class="pr-2 min-w-0">
+                                                <div class="font-bold text-white truncate">@item.MenuItemName</div>
+                                                <div class="text-[11px] text-slate-400">
+                                                    @item.UnitPrice.ToString("N0")đ × <strong class="text-amber-400">@item.Quantity</strong>
+                                                </div>
+                                            </div>
+                                            <div class="font-extrabold text-white text-right shrink-0">
+                                                @item.TotalPrice.ToString("N0")đ
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-center py-6 text-xs text-slate-500">
+                                        Đang tải danh sách món...
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Pricing Summary -->
+                    <div class="pt-4 mt-4 border-t border-slate-700 space-y-1.5 text-xs text-slate-300">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Tạm tính:</span>
+                            <span class="font-bold text-white">@_subTotal.ToString("N0") đ</span>
+                        </div>
+                        @if (_discountAmount > 0)
+                        {
+                            <div class="flex justify-between text-emerald-400 font-bold">
+                                <span>Giảm giá / Ưu đãi:</span>
+                                <span>-@_discountAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+                        <div class="flex justify-between text-slate-400">
+                            <span>Thuế (VAT 8%):</span>
+                            <span class="font-bold text-white">@_taxAmount.ToString("N0") đ</span>
+                        </div>
+                        <div class="flex justify-between items-baseline pt-2.5 border-t border-slate-700/80">
+                            <span class="text-sm font-black uppercase text-white tracking-wide">TỔNG CẦN THANH TOÁN:</span>
+                            <span class="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight">
+                                @_finalAmount.ToString("N0") VNĐ
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: VietQR Dynamic Code Display (7 cols) -->
+                <div class="lg:col-span-7 bg-slate-800/90 backdrop-blur-md rounded-3xl border border-slate-700 p-6 sm:p-8 flex flex-col items-center justify-between text-center shadow-xl space-y-5">
+                    
+                    <div class="space-y-1">
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wide">
+                            <span class="material-symbols-outlined text-sm">qr_code_scanner</span>
+                            <span>Quét Mã Chuyển Khoản Tự Động</span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-black text-white mt-1">
+                            Mã VietQR Thanh Toán Đơn Hàng
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-400">
+                            Hệ thống tự động điền sẵn <strong>số tiền @_finalAmount.ToString("N0")đ</strong> và <strong>nội dung chuyển khoản</strong>.
+                        </p>
+                    </div>
+
+                    <!-- QR Box with Card Frame -->
+                    <div class="relative bg-white p-4 rounded-3xl shadow-2xl border-4 border-amber-500/40 group transition-transform hover:scale-[1.02]">
+                        @if (!string.IsNullOrEmpty(_qrUrl))
+                        {
+                            <img src="@_qrUrl" alt="VietQR TPBank SePay" class="w-64 h-64 sm:w-72 sm:h-72 object-contain rounded-2xl mx-auto block" />
+                        }
+                        else
+                        {
+                            <div class="w-64 h-64 sm:w-72 sm:h-72 flex flex-col items-center justify-center gap-2 text-slate-600">
+                                <div class="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+                                <span class="text-xs">Đang tải mã VietQR...</span>
+                            </div>
+                        }
+
+                        <!-- Pulse status badge below QR -->
+                        <div class="mt-2.5 flex items-center justify-center gap-2 text-slate-800 font-bold text-xs">
+                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
+                            <span>Đang chờ Quý khách quét mã...</span>
+                        </div>
+                    </div>
+
+                    <!-- Transfer Details Card for Manual Fallback -->
+                    <div class="w-full max-w-md bg-slate-900/80 rounded-2xl p-3 sm:p-4 border border-slate-700/80 text-left text-xs space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400 font-medium">Ngân hàng thụ hưởng:</span>
+                            <span class="font-black text-amber-400">TPBank (Tiên Phong Bank)</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400 font-medium">Số tài khoản:</span>
+                            <span class="font-mono font-black text-white text-sm select-all">@_bankAccountNo</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400 font-medium">Chủ tài khoản:</span>
+                            <span class="font-bold text-white uppercase">@_accountHolder</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400 font-medium">Nội dung chuyển tiền:</span>
+                            <span class="font-mono font-black text-amber-300 bg-slate-800 px-2 py-0.5 rounded border border-amber-500/40 select-all text-sm">
+                                @_sepayContent
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Guidance footer note -->
+                    <p class="text-[11px] text-slate-400 italic m-0">
+                        ⚡ Quý khách có thể mở App của bất kỳ ngân hàng nào (Vietcombank, MB, Techcombank, VPBank,...) để quét.
+                    </p>
+                </div>
+            </div>
+        }
+    </main>
+
+    <!-- Bottom Simple Footer -->
+    <footer class="py-3 px-6 text-center text-slate-500 text-[11px] border-t border-slate-800/80 bg-slate-950/60">
+        Pizza Corner Cloud POS • Tích hợp Thanh toán Tự động SePay VietQR
+    </footer>
+</div>
+
+@code {
+    [Parameter] public int OrderId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isPaid = false;
+    private string _orderCode = string.Empty;
+    private string _tableName = "Mang về";
+    private decimal _subTotal = 0;
+    private decimal _discountAmount = 0;
+    private decimal _finalAmount = 0;
+    private decimal _taxAmount = 0;
+
+    private string _qrUrl = string.Empty;
+    private string _bankAccountNo = "11102042003";
+    private string _bankName = "TPBank";
+    private string _accountHolder = "VAN CONG MINH";
+    private string _sepayContent = string.Empty;
+
+    private TakeawayOrderDto? _displayOrder;
+    private HubConnection? _hubConnection;
+    private CancellationTokenSource? _pollingCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupSignalRAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (OrderId > 0)
+        {
+            await LoadPaymentDataAsync();
+        }
+        else
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SetupSignalRAsync()
+    {
+        try
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(Endpoints.GetHubUrl())
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<int, string, decimal, string>("ReceivePaymentCompleted", async (orderId, orderCode, amount, method) =>
+            {
+                if (orderId == OrderId || (OrderId == 0 && orderId > 0))
+                {
+                    _isPaid = true;
+                    _pollingCts?.Cancel();
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+
+            _hubConnection.On<int>("OrderPaid", async (orderId) =>
+            {
+                if (orderId == OrderId || (OrderId == 0 && orderId > 0))
+                {
+                    _isPaid = true;
+                    _pollingCts?.Cancel();
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR connection failed in CustomerPaymentDisplay: {ex.Message}");
+        }
+    }
+
+    private async Task LoadPaymentDataAsync()
+    {
+        _isLoading = true;
+        _isPaid = false;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            // 1. Fetch Order Details
+            var orderResp = await Http.GetFromJsonAsync<ApiResponseWrapper<TakeawayOrderDto>>($"api/v1/pos/takeaway/orders/{OrderId}");
+            if (orderResp?.Data != null)
+            {
+                _displayOrder = orderResp.Data;
+                _orderCode = _displayOrder.OrderCode;
+                _tableName = !string.IsNullOrWhiteSpace(_displayOrder.CustomerName) ? _displayOrder.CustomerName : "Đơn hàng";
+                _subTotal = _displayOrder.SubTotal;
+                _discountAmount = _displayOrder.DiscountAmount;
+                _finalAmount = _displayOrder.TotalAmount;
+                _taxAmount = Math.Round(_finalAmount - (_finalAmount / 1.08m), 0);
+            }
+
+            // 2. Fetch VietQR dynamic payload
+            var qrReq = new GenerateVietQrRequest
+            {
+                OrderId = OrderId,
+                BankName = "",
+                BankAccountNo = ""
+            };
+
+            var qrResp = await Http.PostAsJsonAsync("api/v1/payments/vietqr", qrReq);
+            if (qrResp.IsSuccessStatusCode)
+            {
+                var qrWrapper = await qrResp.Content.ReadFromJsonAsync<ApiResponseWrapper<VietQrResponse>>();
+                var qrData = qrWrapper?.Data ?? await qrResp.Content.ReadFromJsonAsync<VietQrResponse>();
+
+                if (qrData != null)
+                {
+                    _bankAccountNo = qrData.BankAccountNo;
+                    _bankName = qrData.BankName;
+                    _accountHolder = qrData.AccountHolder;
+                    _sepayContent = qrData.SepayContent;
+                    _qrUrl = !string.IsNullOrEmpty(qrData.SepayQrUrl) ? qrData.SepayQrUrl : qrData.QrImageUrl;
+                }
+            }
+
+            // 3. Check Initial Status
+            var statusResp = await Http.GetFromJsonAsync<PaymentCheckResult>($"api/v1/payments/status/{OrderId}");
+            if (statusResp?.IsPaid == true)
+            {
+                _isPaid = true;
+            }
+            else
+            {
+                StartPollingStatus();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading customer display data: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void StartPollingStatus()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested && !_isPaid && OrderId > 0)
+            {
+                try
+                {
+                    await Task.Delay(2500, token);
+                    if (token.IsCancellationRequested || _isPaid) break;
+
+                    var check = await Http.GetFromJsonAsync<PaymentCheckResult>($"api/v1/payments/status/{OrderId}", token);
+                    if (check?.IsPaid == true)
+                    {
+                        _isPaid = true;
+                        await InvokeAsync(StateHasChanged);
+                        break;
+                    }
+                }
+                catch (OperationCanceledException) { break; }
+                catch { }
+            }
+        }, token);
+    }
+
+    private string _errorMessage = string.Empty;
+
+    public async ValueTask DisposeAsync()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private class PaymentCheckResult
+    {
+        public bool Success { get; set; }
+        public bool IsPaid { get; set; }
+    }
+
+    private class ApiResponseWrapper<T>
+    {
+        public bool Success { get; set; }
+        public T? Data { get; set; }
+    }
+}
