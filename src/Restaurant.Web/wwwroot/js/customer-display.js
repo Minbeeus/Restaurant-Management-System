@@ -5,6 +5,22 @@ window.CustomerDisplay = {
     init: function (dotNetHelper) {
         window.CustomerDisplay._dotNetHelper = dotNetHelper;
 
+        // Check if explicitly launched with ?showOrder=... from POS
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const showOrder = params.get('showOrder');
+            if (showOrder) {
+                const orderId = parseInt(showOrder, 10);
+                if (orderId > 0) {
+                    dotNetHelper.invokeMethodAsync('OnShowOrderFromJs', orderId);
+                }
+                // Immediately clean URL so refresh will always be standby welcome
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        } catch (e) {
+            console.warn('URL param parse error:', e);
+        }
+
         if (window.BroadcastChannel) {
             try {
                 if (window.CustomerDisplay._channel) {

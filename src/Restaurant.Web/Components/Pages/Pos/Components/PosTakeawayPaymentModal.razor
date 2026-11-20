@@ -248,10 +248,10 @@
 
                                     <!-- Nút Hiện Lên Màn Phụ -->
                                     <button type="button"
-                                            class="px-3 py-1.5 @(_isCastToCustomerDisplay ? "bg-emerald-600 text-white shadow-emerald-600/30 ring-2 ring-emerald-400" : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30") rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
-                                            @onclick="CastToCustomerDisplayAsync" title="Bấm để phát mã đơn và VietQR lên màn hình phụ cho khách">
+                                            class="px-3 py-1.5 @(_isCastToCustomerDisplay ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30 ring-2 ring-emerald-400" : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30") rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                                            @onclick="CastToCustomerDisplayAsync" title="@(_isCastToCustomerDisplay ? "Bấm để tắt hiển thị trên màn hình phụ (quay về màn chào)" : "Bấm để phát mã đơn và VietQR lên màn hình phụ cho khách")">
                                         <span class="material-symbols-outlined text-base">@(_isCastToCustomerDisplay ? "tv" : "cast")</span>
-                                        <span>@(_isCastToCustomerDisplay ? "Đang hiện màn phụ" : "Hiện lên màn phụ")</span>
+                                        <span>@(_isCastToCustomerDisplay ? "Đang hiện (Bấm để tắt)" : "Hiện lên màn phụ")</span>
                                     </button>
                                 </div>
 
@@ -564,16 +564,34 @@
     private async Task CastToCustomerDisplayAsync()
     {
         if (Order == null) return;
+
+        if (_isCastToCustomerDisplay)
+        {
+            // Bấm lần nữa để tắt màn phụ và quay về "Xin chào quý khách"
+            _isCastToCustomerDisplay = false;
+            try
+            {
+                await JS.InvokeVoidAsync("CustomerDisplay.broadcast", "SHOW_WELCOME", 0);
+                if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+                {
+                    await _hubConnection.SendAsync("SendCustomerDisplayReset");
+                }
+            }
+            catch { }
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
         _isCastToCustomerDisplay = true;
         try
         {
-            // 1. Broadcast to Customer Display via JS (BroadcastChannel & localStorage)
+            // 1. Phát tín hiệu qua JS (BroadcastChannel & localStorage)
             await JS.InvokeVoidAsync("CustomerDisplay.broadcast", "SHOW_ORDER", Order.OrderId);
 
-            // 2. Open or focus Customer Display window on secondary monitor if not already open
-            await JS.InvokeVoidAsync("CustomerDisplay.openWindow", "/customer-display");
+            // 2. Mở hoặc chuyển tab màn hình phụ
+            await JS.InvokeVoidAsync("CustomerDisplay.openWindow", $"/customer-display?showOrder={Order.OrderId}");
 
-            // 3. SignalR broadcast for network screens / tablets
+            // 3. Phát SignalR cho máy tính bảng / iPad trên mạng
             if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
             {
                 await _hubConnection.SendAsync("SendCustomerDisplayOrder", Order.OrderId);

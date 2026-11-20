@@ -392,12 +392,7 @@
     [JSInvokable]
     public async Task OnShowOrderFromJs(int orderId)
     {
-        if (orderId > 0 && orderId != OrderId)
-        {
-            OrderId = orderId;
-            await LoadPaymentDataAsync();
-        }
-        else if (orderId > 0 && _currentState == ScreenState.Welcome)
+        if (orderId > 0)
         {
             OrderId = orderId;
             await LoadPaymentDataAsync();
@@ -415,15 +410,16 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
+        // MẶC ĐỊNH LUÔN LUÔN LÀ "XIN CHÀO QUÝ KHÁCH"!
+        // Tuyệt đối không tự động hiện mã QR khi vừa mở hoặc tải lại trang.
+        // Chỉ khi bên POS bấm "Hiện lên màn phụ", sự kiện OnShowOrderFromJs / SignalR mới kích hoạt hiển thị QR.
+        _currentState = ScreenState.Welcome;
         if (OrderId > 0)
         {
-            await LoadPaymentDataAsync();
-        }
-        else
-        {
-            _currentState = ScreenState.Welcome;
+            OrderId = 0;
+            Navigation.NavigateTo("/customer-display", replace: true);
         }
     }
 
