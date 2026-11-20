@@ -13,11 +13,11 @@
 @inject Restaurant.Web.Services.IBackendEndpointProvider Endpoints
 @implements IAsyncDisposable
 
-<PageTitle>Màn Hình Thanh Toán Khách Hàng - Pizza Corner</PageTitle>
+<PageTitle>@(GetPageTitle())</PageTitle>
 
 <div class="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans select-none overflow-x-hidden">
     <!-- Top Brand Header Bar -->
-    <header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0 shadow-lg">
+    <header class="bg-slate-950/85 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0 shadow-lg">
         <div class="flex items-center gap-3">
             <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center text-white shadow-md text-2xl font-black">
                 🍕
@@ -35,8 +35,26 @@
 
         <div class="flex items-center gap-4 text-xs font-medium text-slate-400">
             <div class="flex items-center gap-2 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700">
-                <span class="inline-block w-2.5 h-2.5 rounded-full @(_isPaid ? "bg-emerald-400 animate-ping" : "bg-emerald-500")"></span>
-                <span class="text-slate-300 font-bold">@(_isPaid ? "Đã Thanh Toán" : (OrderId > 0 ? "Đang Chờ Quét QR" : "Sẵn Sàng"))</span>
+                @if (_currentState == ScreenState.PaymentSuccess)
+                {
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span class="text-emerald-400 font-extrabold uppercase">Thanh toán thành công</span>
+                }
+                else if (_currentState == ScreenState.Welcome)
+                {
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                    <span class="text-emerald-400 font-bold">Xin Chào Quý Khách</span>
+                }
+                else if (_currentState == ScreenState.Paying)
+                {
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span class="text-amber-300 font-bold">Đang Chờ Quét QR</span>
+                }
+                else
+                {
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse"></span>
+                    <span class="text-slate-300 font-bold">Đang Tải...</span>
+                }
             </div>
             <div class="hidden sm:block text-slate-300 font-mono font-bold text-sm bg-slate-800/50 px-3 py-1 rounded-lg border border-slate-800">
                 @DateTime.Now.ToString("HH:mm")
@@ -46,43 +64,71 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 p-4 sm:p-6 lg:p-8 flex items-center justify-center min-h-0">
-        @if (OrderId <= 0 && _displayOrder == null)
+        @if (_currentState == ScreenState.Welcome)
         {
-            <!-- Standby Idle Screen when no active order -->
-            <div class="max-w-md w-full text-center space-y-6 py-12 animate-fade-in">
+            <!-- Standby / Welcome Screen: "XIN CHÀO QUÝ KHÁCH" -->
+            <div class="max-w-2xl w-full text-center space-y-8 py-8 px-4 animate-fade-in">
+                <!-- Glowing Pizza Emblem -->
                 <div class="relative inline-block">
-                    <div class="w-28 h-28 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500/20 to-rose-500/20 border border-amber-500/30 flex items-center justify-center text-6xl shadow-2xl animate-bounce">
+                    <div class="w-32 h-32 sm:w-40 sm:h-40 mx-auto rounded-3xl bg-gradient-to-tr from-amber-500/25 via-rose-500/20 to-orange-500/25 border-2 border-amber-500/40 flex items-center justify-center text-7xl sm:text-8xl shadow-2xl shadow-amber-500/10 animate-bounce">
                         🍕
                     </div>
-                    <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-slate-950 font-black text-[11px] px-2 py-0.5 rounded-full shadow">
-                        READY
+                    <div class="absolute -bottom-2 -right-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs px-3 py-1 rounded-full shadow-lg border border-emerald-300 uppercase tracking-wider">
+                        Sẵn Sàng
                     </div>
                 </div>
 
-                <div class="space-y-2">
-                    <h2 class="text-2xl font-black text-white">Chào Mừng Quý Khách!</h2>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        Màn hình thanh toán sẽ tự động hiển thị mã QR VietQR khi thu ngân tạo hóa đơn.
+                <!-- Main Greeting Text -->
+                <div class="space-y-3">
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-wider uppercase drop-shadow-md">
+                        XIN CHÀO QUÝ KHÁCH
+                    </h1>
+                    <h2 class="text-xl sm:text-2xl font-bold text-amber-400">
+                        Chào Mừng Quý Khách Đến Với Pizza Corner!
+                    </h2>
+                    <p class="text-sm sm:text-base text-slate-300 max-w-lg mx-auto leading-relaxed">
+                        Hương vị chuẩn Ý • Bánh tươi nướng mới mỗi ngày • Rất hân hạnh được phục vụ Quý khách!
                     </p>
                 </div>
 
-                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700/60 text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <span class="material-symbols-outlined text-amber-400 text-lg">contactless</span>
-                    <span>Hỗ trợ thanh toán VietQR chuyển khoản liên ngân hàng 24/7</span>
+                <!-- 3 Highlight Features Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto pt-2">
+                    <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-4 text-center space-y-1">
+                        <div class="text-2xl">🇮🇹</div>
+                        <div class="font-extrabold text-white text-xs uppercase tracking-wide">Chuẩn Vị Ý</div>
+                        <div class="text-[11px] text-slate-400">Nguyên liệu cao cấp</div>
+                    </div>
+                    <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-4 text-center space-y-1">
+                        <div class="text-2xl">⚡</div>
+                        <div class="font-extrabold text-white text-xs uppercase tracking-wide">VietQR 24/7</div>
+                        <div class="text-[11px] text-slate-400">Quét mã chuyển khoản</div>
+                    </div>
+                    <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-4 text-center space-y-1">
+                        <div class="text-2xl">🎁</div>
+                        <div class="font-extrabold text-white text-xs uppercase tracking-wide">Tích Điểm</div>
+                        <div class="text-[11px] text-slate-400">Ưu đãi thành viên</div>
+                    </div>
+                </div>
+
+                <!-- Guidance Footer Pill -->
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700 text-xs text-slate-400">
+                    <span class="material-symbols-outlined text-amber-400 text-base">receipt_long</span>
+                    <span>Màn hình sẽ tự động hiển thị mã VietQR khi thu ngân tạo hóa đơn</span>
                 </div>
             </div>
         }
-        else if (_isLoading)
+        else if (_currentState == ScreenState.Loading)
         {
-            <div class="flex flex-col items-center justify-center gap-4 py-20 text-slate-400">
+            <!-- Loading State -->
+            <div class="flex flex-col items-center justify-center gap-4 py-20 text-slate-400 animate-fade-in">
                 <div class="animate-spin rounded-full h-12 w-12 border-3 border-amber-500 border-t-transparent"></div>
                 <span class="text-sm font-semibold tracking-wide">Đang khởi tạo mã thanh toán VietQR...</span>
             </div>
         }
-        else if (_isPaid)
+        else if (_currentState == ScreenState.PaymentSuccess)
         {
             <!-- Success Screen (Celebration View) -->
-            <div class="max-w-xl w-full bg-slate-800/90 border border-emerald-500/40 rounded-3xl p-8 sm:p-10 text-center shadow-2xl space-y-6 animate-fade-in">
+            <div class="max-w-xl w-full bg-slate-800/95 border-2 border-emerald-500/50 rounded-3xl p-8 sm:p-10 text-center shadow-2xl space-y-6 animate-fade-in">
                 <div class="relative inline-block">
                     <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 mx-auto shadow-inner">
                         <span class="material-symbols-outlined text-6xl sm:text-7xl">check_circle</span>
@@ -91,12 +137,12 @@
                 </div>
 
                 <div class="space-y-2">
-                    <h2 class="text-2xl sm:text-3xl font-black text-white tracking-wide">
-                        THANH TOÁN THÀNH CÔNG!
+                    <h2 class="text-2xl sm:text-3xl font-black text-white tracking-wide uppercase">
+                        🎉 THANH TOÁN THÀNH CÔNG!
                     </h2>
                     <p class="text-slate-300 text-sm sm:text-base">
                         Pizza Corner đã nhận được số tiền:
-                        <strong class="text-emerald-400 font-black text-xl block mt-1">@_finalAmount.ToString("N0") VNĐ</strong>
+                        <strong class="text-emerald-400 font-black text-2xl block mt-1">@_finalAmount.ToString("N0") VNĐ</strong>
                     </p>
                 </div>
 
@@ -115,15 +161,21 @@
                     </div>
                 </div>
 
+                <!-- Auto Transition Indicator -->
+                <div class="pt-2 flex items-center justify-center gap-2 text-xs text-slate-400">
+                    <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span>Tự động chuyển về màn hình chào sau <strong class="text-amber-400 font-bold">@_successCountdown</strong> giây...</span>
+                </div>
+
                 <div class="text-xs text-slate-400 italic">
-                    🎉 Cảm ơn Quý khách đã dùng bữa tại Pizza Corner! Chúc Quý khách ngon miệng!
+                    Cảm ơn Quý khách đã ủng hộ Pizza Corner! Chúc Quý khách ngon miệng!
                 </div>
             </div>
         }
         else
         {
             <!-- Active Payment Split View -->
-            <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch animate-fade-in">
                 
                 <!-- Left: Order Details & Bill Breakdown (5 cols) -->
                 <div class="lg:col-span-5 bg-slate-800/80 backdrop-blur-md rounded-3xl border border-slate-700 p-5 sm:p-6 flex flex-col justify-between shadow-xl">
@@ -278,8 +330,17 @@
 @code {
     [Parameter] public int OrderId { get; set; }
 
-    private bool _isLoading = true;
-    private bool _isPaid = false;
+    private enum ScreenState
+    {
+        Welcome,
+        Loading,
+        Paying,
+        PaymentSuccess
+    }
+
+    private ScreenState _currentState = ScreenState.Welcome;
+    private int _successCountdown = 4;
+
     private string _orderCode = string.Empty;
     private string _tableName = "Mang về";
     private decimal _subTotal = 0;
@@ -296,6 +357,17 @@
     private TakeawayOrderDto? _displayOrder;
     private HubConnection? _hubConnection;
     private CancellationTokenSource? _pollingCts;
+    private readonly CancellationTokenSource _disposeCts = new();
+
+    private string GetPageTitle()
+    {
+        return _currentState switch
+        {
+            ScreenState.PaymentSuccess => "Thanh Toán Thành Công - Pizza Corner",
+            ScreenState.Paying => $"Thanh Toán Đơn {_orderCode} - Pizza Corner",
+            _ => "Xin Chào Quý Khách - Pizza Corner"
+        };
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -310,7 +382,7 @@
         }
         else
         {
-            _isLoading = false;
+            _currentState = ScreenState.Welcome;
         }
     }
 
@@ -327,9 +399,7 @@
             {
                 if (orderId == OrderId || (OrderId == 0 && orderId > 0))
                 {
-                    _isPaid = true;
-                    _pollingCts?.Cancel();
-                    await InvokeAsync(StateHasChanged);
+                    await TriggerPaymentSuccessAsync(amount, orderCode);
                 }
             });
 
@@ -337,9 +407,7 @@
             {
                 if (orderId == OrderId || (OrderId == 0 && orderId > 0))
                 {
-                    _isPaid = true;
-                    _pollingCts?.Cancel();
-                    await InvokeAsync(StateHasChanged);
+                    await TriggerPaymentSuccessAsync(_finalAmount, _orderCode);
                 }
             });
 
@@ -353,9 +421,7 @@
 
     private async Task LoadPaymentDataAsync()
     {
-        _isLoading = true;
-        _isPaid = false;
-        _errorMessage = string.Empty;
+        _currentState = ScreenState.Loading;
 
         try
         {
@@ -372,7 +438,15 @@
                 _taxAmount = Math.Round(_finalAmount - (_finalAmount / 1.08m), 0);
             }
 
-            // 2. Fetch VietQR dynamic payload
+            // 2. Check if Order is ALREADY Paid
+            var statusResp = await Http.GetFromJsonAsync<PaymentCheckResult>($"api/v1/payments/status/{OrderId}");
+            if (statusResp?.IsPaid == true)
+            {
+                await TriggerPaymentSuccessAsync(_finalAmount, _orderCode);
+                return;
+            }
+
+            // 3. Fetch VietQR dynamic payload
             var qrReq = new GenerateVietQrRequest
             {
                 OrderId = OrderId,
@@ -396,26 +470,50 @@
                 }
             }
 
-            // 3. Check Initial Status
-            var statusResp = await Http.GetFromJsonAsync<PaymentCheckResult>($"api/v1/payments/status/{OrderId}");
-            if (statusResp?.IsPaid == true)
-            {
-                _isPaid = true;
-            }
-            else
-            {
-                StartPollingStatus();
-            }
+            _currentState = ScreenState.Paying;
+            StartPollingStatus();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading customer display data: {ex.Message}");
+            _currentState = ScreenState.Welcome;
         }
         finally
         {
-            _isLoading = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private async Task TriggerPaymentSuccessAsync(decimal amountPaid, string orderCode)
+    {
+        if (_currentState == ScreenState.PaymentSuccess || _currentState == ScreenState.Welcome)
+        {
+            return;
+        }
+
+        _pollingCts?.Cancel();
+        if (amountPaid > 0) _finalAmount = amountPaid;
+        if (!string.IsNullOrEmpty(orderCode)) _orderCode = orderCode;
+
+        _currentState = ScreenState.PaymentSuccess;
+        _successCountdown = 4;
+        await InvokeAsync(StateHasChanged);
+
+        // Countdown 4 seconds before returning to "XIN CHÀO QUÝ KHÁCH"
+        try
+        {
+            while (_successCountdown > 0)
+            {
+                await Task.Delay(1000, _disposeCts.Token);
+                _successCountdown--;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { return; }
+
+        // Switch to Welcome Screen
+        _currentState = ScreenState.Welcome;
+        await InvokeAsync(StateHasChanged);
     }
 
     private void StartPollingStatus()
@@ -427,18 +525,17 @@
 
         _ = Task.Run(async () =>
         {
-            while (!token.IsCancellationRequested && !_isPaid && OrderId > 0)
+            while (!token.IsCancellationRequested && _currentState == ScreenState.Paying && OrderId > 0)
             {
                 try
                 {
-                    await Task.Delay(2500, token);
-                    if (token.IsCancellationRequested || _isPaid) break;
+                    await Task.Delay(2000, token);
+                    if (token.IsCancellationRequested || _currentState != ScreenState.Paying) break;
 
                     var check = await Http.GetFromJsonAsync<PaymentCheckResult>($"api/v1/payments/status/{OrderId}", token);
                     if (check?.IsPaid == true)
                     {
-                        _isPaid = true;
-                        await InvokeAsync(StateHasChanged);
+                        await InvokeAsync(async () => await TriggerPaymentSuccessAsync(_finalAmount, _orderCode));
                         break;
                     }
                 }
@@ -448,10 +545,10 @@
         }, token);
     }
 
-    private string _errorMessage = string.Empty;
-
     public async ValueTask DisposeAsync()
     {
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
         _pollingCts?.Cancel();
         _pollingCts?.Dispose();
         if (_hubConnection != null)
