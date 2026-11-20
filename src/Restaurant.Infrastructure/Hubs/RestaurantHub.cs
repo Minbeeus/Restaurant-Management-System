@@ -73,4 +73,14 @@ public class RestaurantHub : Hub<IRestaurantHubClient>
             await Groups.AddToGroupAsync(Context.ConnectionId, $"Station_{stationId}");
         }
     }
+
+    public async Task SendCustomerDisplayOrder(int orderId)
+    {
+        await Clients.All.ReceiveCustomerDisplayOrder(orderId);
+    }
+
+    public async Task SendCustomerDisplayReset()
+    {
+        await Clients.All.ReceiveCustomerDisplayReset();
+    }
 }

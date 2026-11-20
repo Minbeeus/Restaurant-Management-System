@@ -12,11 +12,16 @@ public class PaymentsController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
     private readonly IConfiguration _configuration;
+    private readonly IRestaurantNotificationService _notificationService;
 
-    public PaymentsController(IPaymentService paymentService, IConfiguration configuration)
+    public PaymentsController(
+        IPaymentService paymentService,
+        IConfiguration configuration,
+        IRestaurantNotificationService notificationService)
     {
         _paymentService = paymentService;
         _configuration = configuration;
+        _notificationService = notificationService;
     }
 
     [HttpPost("generate-vietqr")]
@@ -210,5 +215,21 @@ public class PaymentsController : ControllerBase
                 timestamp = DateTime.UtcNow
             });
         }
+    }
+
+    [HttpPost("customer-display/show/{orderId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ShowOnCustomerDisplay(int orderId)
+    {
+        await _notificationService.NotifyCustomerDisplayOrderAsync(orderId);
+        return Ok(new { success = true, orderId });
+    }
+
+    [HttpPost("customer-display/reset")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetCustomerDisplay()
+    {
+        await _notificationService.NotifyCustomerDisplayResetAsync();
+        return Ok(new { success = true });
     }
 }

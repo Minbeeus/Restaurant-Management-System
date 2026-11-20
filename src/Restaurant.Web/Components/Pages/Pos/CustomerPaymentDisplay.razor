@@ -359,6 +359,8 @@
     private CancellationTokenSource? _pollingCts;
     private readonly CancellationTokenSource _disposeCts = new();
 
+    private DotNetObjectReference<CustomerPaymentDisplay>? _dotNetRef;
+
     private string GetPageTitle()
     {
         return _currentState switch
@@ -372,6 +374,45 @@
     protected override async Task OnInitializedAsync()
     {
         await SetupSignalRAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _dotNetRef = DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("CustomerDisplay.init", _dotNetRef);
+            }
+            catch { }
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnShowOrderFromJs(int orderId)
+    {
+        if (orderId > 0 && orderId != OrderId)
+        {
+            OrderId = orderId;
+            await LoadPaymentDataAsync();
+        }
+        else if (orderId > 0 && _currentState == ScreenState.Welcome)
+        {
+            OrderId = orderId;
+            await LoadPaymentDataAsync();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnResetDisplayFromJs()
+    {
+        if (_currentState == ScreenState.PaymentSuccess) return;
+        _pollingCts?.Cancel();
+        OrderId = 0;
+        _displayOrder = null;
+        _currentState = ScreenState.Welcome;
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -409,6 +450,16 @@
                 {
                     await TriggerPaymentSuccessAsync(_finalAmount, _orderCode);
                 }
+            });
+
+            _hubConnection.On<int>("ReceiveCustomerDisplayOrder", async (orderId) =>
+            {
+                await OnShowOrderFromJs(orderId);
+            });
+
+            _hubConnection.On("ReceiveCustomerDisplayReset", async () =>
+            {
+                await OnResetDisplayFromJs();
             });
 
             await _hubConnection.StartAsync();
@@ -551,6 +602,7 @@
         _disposeCts.Dispose();
         _pollingCts?.Cancel();
         _pollingCts?.Dispose();
+        _dotNetRef?.Dispose();
         if (_hubConnection != null)
         {
             await _hubConnection.DisposeAsync();

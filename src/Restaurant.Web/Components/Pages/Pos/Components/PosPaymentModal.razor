@@ -316,20 +316,13 @@
                                         <span>Mã VietQR Đơn: @FinalAmount.ToString("N0")đ</span>
                                     </div>
 
-                                    <!-- Nút Mở Màn Hình Khách Hàng -->
-                                    <div class="flex items-center gap-1">
-                                        <button type="button"
-                                                class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-extrabold flex items-center gap-1 shadow-xs transition-all cursor-pointer whitespace-nowrap"
-                                                @onclick="OpenCustomerDisplayAsync" title="Mở trang thanh toán riêng để xoay ra màn hình phụ cho khách quét">
-                                            <span class="material-symbols-outlined text-sm">open_in_new</span>
-                                            <span>Màn hình khách</span>
-                                        </button>
-                                        <button type="button"
-                                                class="p-1.5 bg-surface-high hover:bg-primary/10 border border-outline-variant text-on-surface rounded-xl transition-all cursor-pointer flex items-center"
-                                                @onclick="CopyCustomerDisplayLinkAsync" title="Sao chép link màn hình khách">
-                                            <span class="material-symbols-outlined text-sm">@(_copiedField == "displayLink" ? "done" : "content_copy")</span>
-                                        </button>
-                                    </div>
+                                    <!-- Nút Hiện Lên Màn Phụ -->
+                                    <button type="button"
+                                            class="px-3 py-1.5 @(_isCastToCustomerDisplay ? "bg-emerald-600 text-white shadow-emerald-600/30 ring-2 ring-emerald-400" : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30") rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                                            @onclick="CastToCustomerDisplayAsync" title="Bấm để phát mã đơn và VietQR lên màn hình phụ cho khách">
+                                        <span class="material-symbols-outlined text-base">@(_isCastToCustomerDisplay ? "tv" : "cast")</span>
+                                        <span>@(_isCastToCustomerDisplay ? "Đang hiện màn phụ" : "Hiện lên màn phụ")</span>
+                                    </button>
                                 </div>
 
                                 <!-- QR Image Display -->
@@ -454,6 +447,7 @@
 
     private string _activeTab = "Cash";
     private string _copiedField = string.Empty;
+    private bool _isCastToCustomerDisplay = false;
     private decimal _cashReceived = 0; // Mặc định = 0 theo yêu cầu
     private string _voucherCode = string.Empty;
     private decimal _discountAmount;
@@ -590,6 +584,7 @@
         if (IsOpen)
         {
             _isPaymentSuccess = false;
+            _isCastToCustomerDisplay = false;
             if (OrderId > 0 && !_orderItems.Any())
             {
                 _cashReceived = 0; // Default = 0
@@ -700,32 +695,31 @@
         catch { }
     }
 
-    private async Task OpenCustomerDisplayAsync()
+    private async Task CastToCustomerDisplayAsync()
     {
+        _isCastToCustomerDisplay = true;
         try
         {
-            var url = $"/customer-display/{OrderId}";
-            await JS.InvokeVoidAsync("open", url, "_blank");
-        }
-        catch { }
-    }
+            // 1. Broadcast to Customer Display via JS (BroadcastChannel & localStorage)
+            await JS.InvokeVoidAsync("CustomerDisplay.broadcast", "SHOW_ORDER", OrderId);
 
-    private async Task CopyCustomerDisplayLinkAsync()
-    {
-        try
-        {
-            var url = $"{Navigation.BaseUri.TrimEnd('/')}/customer-display/{OrderId}";
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
-            _copiedField = "displayLink";
-            StateHasChanged();
-            await Task.Delay(2000);
-            if (_copiedField == "displayLink")
+            // 2. Open or focus Customer Display window on secondary monitor if not already open
+            await JS.InvokeVoidAsync("CustomerDisplay.openWindow", "/customer-display");
+
+            // 3. SignalR broadcast for network screens / tablets
+            if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
             {
-                _copiedField = string.Empty;
-                StateHasChanged();
+                await _hubConnection.SendAsync("SendCustomerDisplayOrder", OrderId);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"CastToCustomerDisplayAsync error: {ex.Message}");
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task GenerateQrCodeAsync()
@@ -860,6 +854,19 @@
 
     private async Task CloseAsync()
     {
+        if (_isCastToCustomerDisplay && !_isPaymentSuccess)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("CustomerDisplay.broadcast", "SHOW_WELCOME", 0);
+                if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+                {
+                    await _hubConnection.SendAsync("SendCustomerDisplayReset");
+                }
+            }
+            catch { }
+        }
+        _isCastToCustomerDisplay = false;
         _pollingCts?.Cancel();
         IsOpen = false;
         _isPaymentSuccess = false;

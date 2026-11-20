@@ -16,4 +16,6 @@ public interface IRestaurantHubClient
     Task ReceivePaymentCompleted(int orderId, string orderCode, decimal amountPaid, string paymentMethod);
     Task OrderPaid(int orderId);
     Task ReceivePaymentAlert(int orderId, string orderCode, string message);
+    Task ReceiveCustomerDisplayOrder(int orderId);
+    Task ReceiveCustomerDisplayReset();
 }

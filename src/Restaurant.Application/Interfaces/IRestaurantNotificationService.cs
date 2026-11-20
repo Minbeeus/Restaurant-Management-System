@@ -10,4 +10,6 @@ public interface IRestaurantNotificationService
     Task NotifyLowStockWarningAsync(int materialId, string materialName, decimal currentStock, decimal minStockLevel);
     Task NotifyPaymentCompletedAsync(int orderId, string orderCode, decimal amountPaid, string paymentMethod);
     Task NotifyPaymentAlertAsync(int orderId, string orderCode, string message);
+    Task NotifyCustomerDisplayOrderAsync(int orderId);
+    Task NotifyCustomerDisplayResetAsync();
 }

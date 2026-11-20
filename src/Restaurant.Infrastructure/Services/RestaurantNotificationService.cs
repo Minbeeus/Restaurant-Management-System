@@ -107,4 +107,16 @@ public class RestaurantNotificationService : IRestaurantNotificationService
         await _hubContext.Clients.All
             .ReceivePaymentAlert(orderId, orderCode, message);
     }
+
+    public async Task NotifyCustomerDisplayOrderAsync(int orderId)
+    {
+        await _hubContext.Clients.All
+            .ReceiveCustomerDisplayOrder(orderId);
+    }
+
+    public async Task NotifyCustomerDisplayResetAsync()
+    {
+        await _hubContext.Clients.All
+            .ReceiveCustomerDisplayReset();
+    }
 }
